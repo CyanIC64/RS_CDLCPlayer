@@ -1,0 +1,3513 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Play Song</title>
+<meta name="description" content="Play a Rocksmith 2014 chart on a note highway in your browser: drop a .psarc or .feedpak file.">
+<style>
+:root{
+  --bg:#0c0e16; --panel:#101216; --panel2:#191d23; --line:#2b3138; --ink:#e6edf3; --dim:#8b97a3;
+  --accent:#3fb950; --playhead:#e05a5a; --bar:#0a0b0d;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,sans-serif;
+     display:grid;grid-template-rows:minmax(0,1fr) auto;grid-template-columns:minmax(0,1fr);height:100vh;overflow:hidden;user-select:none}
+
+/* ── highway ───────────────────────────────────────────────────────────── */
+#stage{position:relative;min-height:0;overflow:hidden;background:#000}
+#hw{display:block;width:100%;height:100%}
+/* what the player is busy with: starting, converting, reading, decoding */
+#msg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:11px;
+     max-width:80%;padding:11px 18px;border-radius:999px;background:rgba(10,13,18,.88);border:1px solid #2b3138;
+     color:#dfe7ef;font-size:13.5px;pointer-events:none;box-shadow:0 8px 28px #000a}
+#msg.hide{display:none}
+/* the welcome card - what a visitor sees first: how to get a song in */
+#hint{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);width:min(560px,86%);text-align:center;
+  padding:30px 34px 26px;border:2px dashed #35507a;border-radius:18px;background:rgba(10,14,22,.86);
+  color:#e6edf3;font-family:"Segoe UI",system-ui,sans-serif;box-shadow:0 14px 40px #000a}
+#hint.hide{display:none}
+#hint svg{width:46px;height:46px;color:#4b8fe6}
+#hint h2{margin:10px 0 6px;font:700 23px/1.25 "Segoe UI",system-ui,sans-serif}
+#hint p{margin:0 0 16px;color:#aab6c2;font-size:14px;line-height:1.5}
+#hint p b{color:#e6edf3;font-weight:600}
+#hint button{background:#2f6fd0;border:0;color:#fff;font:600 14px "Segoe UI",system-ui,sans-serif;
+  padding:9px 20px;border-radius:8px;cursor:pointer}
+#hint button:hover{background:#3b7fe6}
+#hint small{display:block;margin-top:16px;color:#6f7c89;font-size:12px;line-height:1.5}
+#bOpen{width:auto;padding:0 11px;gap:7px;font:600 12.5px "Segoe UI",system-ui,sans-serif;border-color:#2b3138}
+/* drop a song anywhere on the window to play it */
+#drop{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;
+  background:rgba(6,9,14,.78);pointer-events:none}
+#drop.show{display:flex}
+#drop div{border:2px dashed #4b8fe6;border-radius:16px;padding:34px 46px;color:#e6edf3;text-align:center;
+  font:600 20px/1.4 "Segoe UI",system-ui,sans-serif;background:rgba(16,22,32,.9)}
+#drop small{display:block;font:13px/1.5 "Segoe UI",system-ui,sans-serif;color:#8b97a3;margin-top:6px}
+#msg .spin{width:15px;height:15px;flex:none;border-radius:50%;border:2px solid #2f6fd0;border-top-color:transparent;
+     animation:spin .8s linear infinite}
+#msg.plain .spin{display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* lyrics and the corner read-out use the game's geometric sans */
+#lyr,#hud{font-family:"Century Gothic","Futura","Tw Cen MT","Trebuchet MS","Segoe UI",sans-serif;
+  pointer-events:none;text-shadow:0 2px 6px #000, 0 0 2px #000}
+#lyr{position:absolute;left:8%;top:17%;max-width:62%;display:none}
+#lyr .ln{font-weight:600;font-size:clamp(17px,4.5vh,46px);line-height:1.16;white-space:pre-wrap;
+  letter-spacing:.01em;min-height:1.16em;transition:color .18s}
+#lyr .ln.next{color:#b9bec4}
+#lyr .ln.done{color:#3d4046}
+/* When a line is over its syllables go from the light grey of "sung" straight
+   to the dark grey of "done". They need a colour of their own here: without
+   one they would fall back to the line's colour, which is still on its way
+   from white to dark, and flash white for an instant. */
+#lyr .ln.done span{color:#3d4046;transition:color .22s}
+#lyr .ln.live{color:#fff}
+#lyr .ln.live span.sung{color:#8b9097}
+#lyr .ln.live span.now{color:#1ea3ff}
+/* shown instead of lyrics that cannot be displayed */
+#lyrErr{position:absolute;left:8%;top:17%;max-width:60%;pointer-events:none;opacity:0;transition:opacity .8s;
+  font-family:"Century Gothic","Futura","Tw Cen MT","Trebuchet MS","Segoe UI",sans-serif;text-shadow:0 2px 6px #000}
+#lyrErr.show{opacity:1;transition:none}      /* appears at once, fades away */
+#lyrErr b{display:block;color:#ff6b5e;font-size:clamp(15px,3.2vh,34px);font-weight:700}
+#lyrErr span{display:block;color:#aab3bd;font:clamp(11px,1.7vh,16px)/1.4 "Segoe UI",system-ui,sans-serif;margin-top:.3em}
+#hud{position:absolute;right:5.2%;top:16%;text-align:right;color:#fff;max-width:36%}
+#hud .k{font-weight:600;font-size:clamp(10px,1.8vh,19px);line-height:1.1;letter-spacing:.02em}
+#hud .v{font-weight:700;font-size:clamp(13px,2.9vh,31px);line-height:1.1;margin-bottom:.42em;
+  text-transform:uppercase;white-space:nowrap}
+/* tone read-out: the name the game shows, with the tone's raw key under it.
+   It lights up at a tone switch and settles back, like the game's notice. */
+#hudToneRow{opacity:.55;transition:opacity 1.6s}
+#hudToneRow.flash{opacity:1;transition:opacity .12s}
+#hud .v.tone{text-transform:none;white-space:normal;font-size:clamp(12px,2.4vh,26px);margin-bottom:.08em}
+#hud .raw{font:600 clamp(9px,1.45vh,14px)/1.2 "Cascadia Mono",Consolas,monospace;color:#8fa6ba;
+  margin-bottom:.75em;word-break:break-all}
+
+/* ── control panel ───────────────────────────────────────────────────────
+   Two rows. The seek bar has a row to itself, so every section gets as much
+   width as the window can give; the controls sit under it in three groups:
+   the song on the left, transport in the middle, sound and options right. */
+#bar{display:grid;grid-template-rows:auto auto;min-width:0;overflow:hidden;
+     background:linear-gradient(#0e1014,#08090b);border-top:1px solid #1a1e24}
+#seek{display:flex;align-items:center;gap:12px;padding:9px 16px 5px;min-width:0}
+.t{font:600 14px/1 "Cascadia Mono",Consolas,monospace;font-variant-numeric:tabular-nums;
+   color:#e6edf3;flex:none;min-width:42px;text-align:center}
+#tdur{color:#8b97a3}
+
+/* section timeline */
+#tl{position:relative;flex:1;min-width:0;height:30px;background:#050608;
+    border:1px solid #1b2027;border-radius:5px;cursor:pointer}
+#tlsec{position:absolute;inset:0;border-radius:4px;overflow:hidden}
+#tlsec .s{position:absolute;top:0;bottom:0;overflow:hidden;border-right:1px solid #00000080;
+  font:600 11px/28px "Segoe UI",system-ui,sans-serif;color:#e3ecf4;text-align:center;white-space:nowrap}
+#tlsec .s.tight span{visibility:hidden}          /* a name that does not fit is left out, not cut off */
+#tlsec .s.cur{filter:brightness(1.22);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.85)}
+#tlsec .s.gap{background:#0d1014}
+#tlplayed{position:absolute;left:0;top:0;bottom:0;width:0;background:rgba(0,0,0,.42);
+  border-radius:4px 0 0 4px;pointer-events:none}
+/* tone switches: a small pale-yellow flag on the top edge of the seek bar */
+#tltone{position:absolute;inset:0;pointer-events:none}
+#tltone .tn{position:absolute;top:-1px;width:0;height:0;margin-left:-4px;border:4px solid transparent;
+  border-top:7px solid #ffe9a8;filter:drop-shadow(0 0 1.5px #000)}
+#tlhead{position:absolute;top:-3px;bottom:-3px;left:-1px;width:2px;background:#fff;border-radius:1px;
+  box-shadow:0 0 6px #fffa;will-change:transform;pointer-events:none}
+#tlhint{position:fixed;transform:translate(-50%,-100%);background:#0b0d10;border:1px solid var(--line);
+  border-radius:4px;padding:3px 8px;font:12px/1.35 "Segoe UI",system-ui,sans-serif;color:#dfe7ef;display:none;
+  white-space:nowrap;z-index:50;pointer-events:none}
+#tlhint b{font:600 12px "Cascadia Mono",Consolas,monospace;margin-right:7px;color:#fff}
+
+#ctl{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:18px;
+     padding:3px 16px 9px}
+#song{display:flex;align-items:center;gap:11px;min-width:0}
+#cover{width:58px;height:58px;flex:none;background:#000;display:flex;align-items:center;border-radius:4px;
+       justify-content:center;overflow:hidden;border:1px solid #1b2027}
+#cover img{width:100%;height:100%;object-fit:cover;display:block}
+#cover .ph{color:#2f3742;font-size:8px;letter-spacing:.08em}
+#meta{min-width:0}
+#title{font:700 15.5px/1.25 "Segoe UI",system-ui,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#sub{font-size:12px;color:#aab6c2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+#album{color:var(--dim)}
+#tuning{font-size:11.5px;color:#8fa6ba;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+#tuning b{color:#c8d2dc;font-weight:600}
+#spd{margin-left:16px}
+#spd .k{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#7f8d9c}
+#spd input[type=range]{width:96px;background:#b0782a}
+#spd .val{min-width:38px}
+#album:not(:empty)::before{content:"·";margin:0 6px}
+
+#btns{display:flex;align-items:center;gap:4px;flex:none}
+.ib{width:34px;height:34px;display:flex;align-items:center;justify-content:center;flex:none;
+  background:transparent;border:1px solid transparent;border-radius:6px;cursor:pointer;padding:0;color:#dfe7ef}
+.ib:hover{background:#171b20;border-color:#2b3138}
+.ib:active{background:#232930}
+.ib svg{width:18px;height:18px;display:block}
+.ib.on{background:#1b2533;border-color:#35507a}
+#bPlay{width:44px;height:44px;border-radius:50%;background:#e9eef4;margin:0 6px}
+#bPlay:hover{background:#fff;border-color:transparent}
+#bPlay svg{width:20px;height:20px}
+#bPlay.on{background:#e9eef4;border-color:transparent}
+#bMute.on{background:#3a1d1d;border-color:#7a3030}
+
+#tools{display:flex;align-items:center;justify-content:flex-end;gap:14px;min-width:0}
+#stem{flex:none;display:flex;align-items:center;gap:6px;background:#0e1114;border:1px solid #1e242b;
+  border-radius:6px;padding:0 8px;height:32px}
+#stem select{background:transparent;border:0;color:#dfe7ef;font:12.5px "Segoe UI",system-ui,sans-serif;
+  outline:none;cursor:pointer;max-width:118px}
+#stem select option{background:#14181d;color:#e6edf3}
+.vol{flex:none;display:flex;align-items:center;gap:6px}
+.vol input[type=range]{-webkit-appearance:none;appearance:none;width:84px;height:4px;border-radius:2px;
+  background:#2a64c8;outline:none;cursor:pointer}
+.vol input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+  background:#e9eef4;border:0;cursor:pointer}
+.vol input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:#e9eef4;
+  border:0;cursor:pointer}
+.vol .val{font:600 12px/1 "Cascadia Mono",Consolas,monospace;min-width:30px;text-align:right;color:#c8d2dc}
+#stats{flex:none;text-align:right;font:600 11px/1.45 "Cascadia Mono",Consolas,monospace}
+#bpm{color:#c8d2dc}
+#fps{color:var(--accent)}
+#bCfg{width:auto;padding:0 11px;gap:7px;font:600 12.5px "Segoe UI",system-ui,sans-serif;border-color:#2b3138}
+
+/* options popover */
+#cfg{position:fixed;right:12px;bottom:130px;width:300px;max-height:calc(100vh - 144px);overflow-y:auto;background:#101317;border:1px solid #2b3138;
+  border-radius:6px;box-shadow:0 12px 32px #000a;padding:12px;display:none;z-index:40}
+#cfg.show{display:block}
+#cfg h4{margin:0 0 9px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);
+  font-weight:600}
+#cfg h4:not(:first-child){margin-top:13px}
+#cfg .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 0}
+#cfg .row label{color:#c3cdd7;font-size:12.5px}
+#cfg select{background:#171b20;border:1px solid #2b3138;color:var(--ink);border-radius:3px;
+  padding:2px 6px;font:inherit;outline:none;max-width:150px}
+#cfg input[type=range]{width:120px;accent-color:#3f8ce0}
+#cfg .hint{margin-top:9px;padding-top:8px;border-top:1px solid #1e242b;color:#6f7c89;font-size:11px;line-height:1.5}
+#syncoff{display:none;font:600 11px/1 "Cascadia Mono",Consolas,monospace;color:#d8a24a;
+  white-space:nowrap;flex:none;border:1px solid #5a4520;border-radius:4px;padding:3px 5px}
+#cfg .rv{color:#8b97a3;font:600 11px "Cascadia Mono",Consolas,monospace;margin-left:6px}
+#cfg .offwrap{display:flex;align-items:center;gap:3px}
+#cfg input[type=number]{width:58px;background:#171b20;border:1px solid #2b3138;color:var(--ink);
+  border-radius:3px;padding:2px 5px;font:inherit;outline:none;text-align:right}
+#cfg .nudge{background:#171b20;border:1px solid #2b3138;color:#c3cdd7;border-radius:3px;
+  padding:1px 6px;font-size:11px;cursor:pointer}
+#cfg .nudge:hover{border-color:#4a5560}
+#cfg button{background:#171b20;border:1px solid #2b3138;color:#dfe7ef;border-radius:3px;
+  padding:3px 10px;font:inherit;cursor:pointer}
+#cfg button:hover{border-color:#4a5560}
+
+/* narrow windows: drop the least important controls instead of clipping them */
+@media (max-width:1180px){ #stats{display:none} }
+@media (max-width:1040px){ #lClick,#lMaster,#lSynth{display:none} .vol input[type=range]{width:64px} #bCfg span,#bOpen span{display:none} }
+@media (max-width:1320px){ #spd .k{display:none} #spd input[type=range]{width:70px} }
+@media (max-width:900px){ #spd{display:none} #stem{display:none} #vClick,#vSynth{display:none} }
+@media (max-width:720px){ #album{display:none} #vMaster{display:none} #bRestart{display:none} #ctl{gap:8px} }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <canvas id="hw"></canvas>
+  <div id="lyr"><div class="ln" id="lyrA"></div><div class="ln" id="lyrB"></div></div>
+  <div id="lyrErr"><b>[Lyric load error!]</b><span id="lyrErrWhy"></span></div>
+  <div id="hud">
+    <div class="k">ARRANGEMENT</div><div class="v" id="hudArr">—</div>
+    <div id="hudSecRow"><div class="k">SECTION</div><div class="v" id="hudSec">—</div></div>
+    <div id="hudToneRow" style="display:none"><div class="k" id="hudToneK">TONE</div>
+      <div class="v tone" id="hudTone"></div><div class="raw" id="hudRaw"></div></div>
+    <div class="k">NOTE SPEED</div><div class="v" id="hudSpd">100%</div>
+  </div>
+  <div id="hint" class="hide">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
+         stroke-linejoin="round"><path d="M12 15V4"/><path d="M8 8l4-4 4 4"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+    <h2>Drop a Rocksmith song here</h2>
+    <p>Drag a <b>.psarc</b> or <b>.feedpak</b> file onto this window to see and hear its chart<br>on a Rocksmith-style note highway.</p>
+    <button id="hintPick" type="button">Choose a file…</button>
+    <small id="hintNote">The file is sent to this server to be converted, and deleted again after you leave.</small>
+  </div>
+  <input id="filePick" type="file" accept=".psarc,.feedpak" style="display:none">
+  <div id="msg"><span class="spin"></span><span id="msgTxt">Starting…</span></div>
+</div>
+
+<div id="bar">
+  <div id="seek">
+    <div class="t" id="tcur">0:00</div>
+    <div id="tl">
+      <div id="tlsec"></div>
+      <div id="tlplayed"></div>
+      <div id="tltone"></div>
+      <div id="tlhead"></div>
+    </div>
+    <div class="t" id="tdur">0:00</div>
+  </div>
+
+  <div id="ctl">
+    <div id="song">
+      <div id="cover"><div class="ph">NO ART</div></div>
+      <div id="meta">
+        <div id="title">—</div>
+        <div id="sub"><span id="artist">—</span><span id="album"></span></div>
+        <div id="tuning"></div>
+      </div>
+      <span id="syncoff" title="note sync offset applied"></span>
+      <div class="vol" id="spd" title="Song speed: slows the song down without changing its pitch">
+        <span class="k">Speed</span>
+        <input id="vSpeed" type="range" min="20" max="100" step="5" value="100">
+        <span class="val" id="lSpeed">100%</span>
+      </div>
+    </div>
+
+    <div id="btns">
+      <button class="ib" id="bRestart" title="Restart (R)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.6-5.9"/><path d="M4 4v4.5h4.5"/></svg>
+      </button>
+      <button class="ib" id="bPrev" title="Previous section ([)">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM19 5.5v13L9 12z"/></svg>
+      </button>
+      <button class="ib" id="bPlay" title="Play (Space)">
+        <svg id="icPlay" viewBox="0 0 24 24" fill="#0b0d10"><path d="M8 4.8v14.4L20 12z"/></svg>
+        <svg id="icPause" viewBox="0 0 24 24" fill="#0b0d10" style="display:none"><path d="M7 5h3.6v14H7zM13.4 5H17v14h-3.6z"/></svg>
+      </button>
+      <button class="ib" id="bNext" title="Next section (])">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM5 5.5v13L15 12z"/></svg>
+      </button>
+      <button class="ib" id="bLoop" title="Loop the current section (L). To loop any stretch: press, hold and drag on the bars above the highway">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round"><path d="M17 3l3 3-3 3"/><path d="M4 11V9a3 3 0 0 1 3-3h13"/>
+          <path d="M7 21l-3-3 3-3"/><path d="M20 13v2a3 3 0 0 1-3 3H4"/></svg>
+      </button>
+    </div>
+
+    <div id="tools">
+      <div id="stem" title="Play one stem on its own">
+        <select id="stemSel"><option value="">Full mix</option></select>
+      </div>
+
+      <div class="vol" title="Song volume">
+        <button class="ib" id="bMute" title="Mute (M)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+               stroke-linejoin="round"><path d="M4 9.2h3.2L11.6 6v12L7.2 14.8H4z"/>
+            <path d="M15 9.4a3.6 3.6 0 0 1 0 5.2"/><path d="M18.2 7a7 7 0 0 1 0 10"/></svg>
+        </button>
+        <input id="vMaster" type="range" min="0" max="100" value="100">
+        <span class="val" id="lMaster">100</span>
+      </div>
+
+      <div class="vol" title="Metronome">
+        <button class="ib" id="bClick" title="Metronome on/off (C)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+               stroke-linejoin="round"><path d="M9 3h6l4 18H5z"/><path d="M12 16 18 5"/><path d="M7.4 13h9.2"/></svg>
+        </button>
+        <input id="vClick" type="range" min="0" max="100" value="40">
+        <span class="val" id="lClick">40</span>
+      </div>
+
+      <div class="vol" title="Note synth: plays the notes of the chart">
+        <button class="ib" id="bSynth" title="Note synth on/off (N)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+               stroke-linejoin="round"><path d="M3 12h2.5l2-6 3.5 12 3-9 2 5 1.5-2H21"/></svg>
+        </button>
+        <input id="vSynth" type="range" min="0" max="100" value="60">
+        <span class="val" id="lSynth">60</span>
+      </div>
+
+      <div id="stats"><div id="bpm">—</div><div id="fps">0 FPS</div></div>
+
+      <button class="ib" id="bOpen" title="Open another song (.psarc or .feedpak)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round"><path d="M12 15V5"/><path d="M8 9l4-4 4 4"/><path d="M5 15v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3"/></svg>
+        <span>Open</span>
+      </button>
+      <button class="ib" id="bCfg" title="Options (O)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+        <span>Options</span>
+      </button>
+    </div>
+  </div>
+</div>
+<div id="tlhint"></div>
+<div id="drop"><div>Drop to play this song<small>.psarc or .feedpak</small></div></div>
+
+<div id="cfg">
+  <h4>Highway</h4>
+  <div class="row"><label for="fArr">Arrangement</label><select id="fArr"></select></div>
+  <div class="row"><label for="fSpeed">Note speed<span class="rv" id="rvSpeed">100%</span></label><input id="fSpeed" type="range" min="60" max="200" value="200"></div>
+  <div class="row"><label for="fCam">Camera speed<span class="rv" id="rvCam">50%</span></label><input id="fCam" type="range" min="30" max="250" step="5" value="50"></div>
+  <div class="row"><label for="fCells">Beat lines</label><input id="fCells" type="checkbox" checked></div>
+  <div class="row"><label for="fNums">Fret numbers</label><input id="fNums" type="checkbox" checked></div>
+  <div class="row"><label for="fLabels">Technique marks</label><input id="fLabels" type="checkbox" checked></div>
+  <div class="row"><label for="fLyrics">Lyrics</label><input id="fLyrics" type="checkbox" checked></div>
+  <div class="row"><label for="fPan">Dynamic camera</label><input id="fPan" type="checkbox" checked></div>
+  <div class="row"><label for="fFingers">Finger positions</label><input id="fFingers" type="checkbox" checked></div>
+  <div class="row"><label for="fChord">Chord names</label><input id="fChord" type="checkbox" checked></div>
+  <div class="row"><label for="fDiag">Chord diagram</label><input id="fDiag" type="checkbox" checked></div>
+  <div class="row"><label for="fHit">Note-hit light</label><input id="fHit" type="checkbox" checked></div>
+
+  <h4>Performance</h4>
+  <div class="row"><label for="fScale">Render scale</label>
+    <select id="fScale"><option value="1">100% (sharpest)</option><option value="0.75">75%</option>
+      <option value="0.5">50%</option><option value="0.35">35% (fastest)</option></select></div>
+  <div class="row"><label for="fFx">Visual effects (glow)</label><input id="fFx" type="checkbox" checked></div>
+  <div class="row"><label for="fAuto" title="Lowers the picture's resolution while the frame rate is low, and restores it when there is room">Auto resolution<span class="rv" id="rvAuto"></span></label><input id="fAuto" type="checkbox"></div>
+
+  <h4>Sync</h4>
+  <div class="row"><label for="fOffset">Note offset</label>
+    <span class="offwrap">
+      <button class="nudge" data-d="-10" title="-10 ms">−10</button>
+      <button class="nudge" data-d="-1" title="-1 ms">−1</button>
+      <input id="fOffset" type="number" step="1" value="0">
+      <button class="nudge" data-d="1" title="+1 ms">+1</button>
+      <button class="nudge" data-d="10" title="+10 ms">+10</button>
+    </span>
+  </div>
+  <div class="hint" id="offMsg">Positive offset = chart later than the audio.</div>
+  <div class="hint">Space play/pause · ←/→ 1 s · [ ] section · L loop · R restart · M mute · C metronome · N note synth · O options · <b>,</b> <b>.</b> nudge ±1 ms</div>
+</div>
+
+<script>
+"use strict";
+/* ── where the song comes from ───────────────────────────────────────────────
+   The page runs in two modes.
+
+   Behind the Python server (server.py) it behaves as it always has: the song,
+   the cover and the audio are fetched from the server, and a dropped file is
+   uploaded and converted there.
+
+   Opened as a plain file - or from any static host - there is nothing to ask.
+   A dropped .psarc is then converted in this tab by the scripts in web/:
+   the archive is decrypted and inflated, the chart is parsed, the game audio is
+   repackaged as Ogg and decoded by the browser. Nothing is uploaded, and the
+   visitor's file never leaves their machine. */
+const LOCAL = { payload: null, cover: "", audio: null, stems: null };
+let SERVER = true;                      // decided in boot(), by probing /api/status
+
+/* statics are loaded on demand, so the server-backed page pays nothing for them */
+function loadScript(src){
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("could not load " + src));
+    document.head.appendChild(s);
+  });
+}
+/* the in-page converter, loaded once and awaited by whoever needs it */
+let staticsReady = null;
+function loadStatics(){
+  if (!staticsReady){
+    staticsReady = (async () => {
+      await loadScript("web/ww2ogg.bundle.js");
+      await loadScript("web/converter.js");
+    })();
+  }
+  return staticsReady;
+}
+async function probeServer(){
+  window.__probe = { at: Date.now() };
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 1500);
+    const res = await fetch("/api/status", { cache: "no-store", signal: ctrl.signal });
+    clearTimeout(timer);
+    window.__probe.status = res.status;
+    if (!res.ok) { window.__probe.ok = false; return false; }
+    JSON.parse(await res.text());       // a 404 page is not JSON
+    window.__probe.ok = true;
+    return true;
+  } catch (e) {
+    window.__probe.err = String(e && e.message || e);
+    window.__probe.ok = false;
+    return false;
+  }
+}
+
+/* One probe, shared: a file can be dropped before boot() has finished asking,
+   and both paths must agree on the answer. A failed first try is retried once,
+   so a slow server start does not send the page down the no-server path. */
+let serverProbe = null;
+function serverAvailable(){
+  if (!serverProbe){
+    serverProbe = (async () => {
+      if (await probeServer()) return true;
+      await new Promise((r) => setTimeout(r, 250));
+      return probeServer();
+    })();
+  }
+  return serverProbe;
+}
+
+/* ── the archive -> playable song, in this tab ────────────────────────────────
+   Returns the same payload shape the server's /api/song would have served, plus
+   a cover data URL and an Ogg Blob for the audio. */
+function convertWem(bytes){
+  const W = window.WW2OGG;
+  if (!W) throw new Error("the audio decoder is not loaded");
+  for (const variant of ["aoTuV_603", "standard"]){
+    try {
+      const { ogg } = W.convertWwiseRiffToOgg(bytes, {
+        codebooks: W.getPackedCodebooks(variant), sourceName: "audio.wem",
+      });
+      return ogg;
+    } catch (e) {
+      if (variant === "standard") throw e;       // aoTuV first: the standard set decodes to noise
+    }
+  }
+}
+async function openLocal(file, onStage){
+  return /\.feedpak$/i.test(file.name) ? openLocalFeedpak(file, onStage) : openLocalPsarc(file, onStage);
+}
+
+/* a .feedpak is already converted: unzip, read the manifest, take its stems */
+async function openLocalFeedpak(file, onStage){
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  onStage("Opening the feedpak…");
+  const { payload, coverBlob, stems } = await window.CDLC.convertFeedpak(bytes, {
+    name: file.name, onProgress: onStage,
+  });
+  return {
+    payload,
+    cover: coverBlob ? URL.createObjectURL(coverBlob) : "",
+    audio: null,
+    stems: new Map(stems.map((s) => [s.id, s.blob])),
+  };
+}
+
+async function openLocalPsarc(file, onStage){
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  onStage("Reading the archive…");
+  const { payload, psarc, names } = await window.CDLC.convertPsarc(bytes, {
+    name: file.name,
+    onProgress: (m) => onStage(m),
+  });
+
+  /* cover art: album art ships as DDS at several sizes; show the largest. */
+  let cover = "";
+  const dds = names.filter((n) => /\.dds$/i.test(n));
+  if (dds.length){
+    let best = null;
+    for (const n of dds){
+      const data = await psarc.read(n);
+      if (!best || data.length > best.data.length) best = { n, data };
+    }
+    try {
+      const { width, height, rgba } = window.CDLC.decodeDds(best.data);
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      canvas.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(rgba), width, height), 0, 0);
+      cover = canvas.toDataURL("image/jpeg", 0.9);
+    } catch (e) { console.warn("cover art:", e); }
+  }
+
+  /* audio: the largest .wem is the song; the small one is a preview clip. */
+  let audio = null;
+  const wems = names.filter((n) => /\.wem$/i.test(n));
+  if (wems.length){
+    let best = null;
+    for (const n of wems){
+      const data = await psarc.read(n);
+      if (!best || data.length > best.data.length) best = { n, data };
+    }
+    onStage("Decoding the game audio…");
+    await new Promise((r) => setTimeout(r, 20));       // let the message paint before the heavy loop
+    audio = new Blob([convertWem(best.data)], { type: "audio/ogg" });
+  }
+  return { payload, cover, audio, stems: null };
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Play Song - a Rocksmith 2014 style note highway, drawn with Canvas2D.
+
+   The scene is laid out the way the game lays it out (measured off the
+   captures in Rocksmith_reference/):
+
+     X = fret axis    every fret is the same width, FW
+     Y = height       the floor of the highway is y = 0; the strings are stacked
+                      above it at the hit plane, low E on top
+     Z = time axis    0 at the hit plane (the fretboard), negative into the screen
+
+     - the fretboard stands at z = 0: coloured strings, copper frets, inlay
+       dots, and the fret numbers below it
+     - the highway is the floor behind it. Only the frets of the active
+       *anchor* are lit as blue lanes; every other fret is a thin teal line
+     - a note flies at the height of its string, on a stem that drops to a pad
+       on the floor, with its fret number printed in front of the pad
+     - a chord is a cyan frame across the whole anchor; repeats of the same
+       chord are a low frame without noteheads
+     - the camera sits above and slightly to the right of the neck, follows
+       the anchors and pulls back when the upcoming anchors spread out
+
+   Noteheads and tails follow Rocksmith_reference/NotesReference.pdf.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* string colours, low E first - red, yellow, blue, orange, green, purple */
+const LANE = ["#ff2b2b","#ffd21f","#1e9bff","#ff8a1e","#3ee83e","#d030ff"];
+const FONT = "'Century Gothic','Futura','Tw Cen MT','Trebuchet MS','Segoe UI',sans-serif";
+
+const FW = 0.0855;                 // width of one fret, world units
+const PITCH = FW*0.31;             // distance between two strings
+const YLO = FW*0.22;               // height of the lowest string above the floor
+const NECK_END = FW*24;
+const SCROLL_BASE = 1.5;           // world units per second at note speed 100 %
+const ZFAR = 6.2;                  // how far down the highway a note appears
+const LOOK = 12.0;                  // seconds of anchors the camera frames ahead
+const REPEAT_GAP = 3.0;            // a repeated note this soon carries no fret number
+const INLAY = new Set([3,5,7,9,12,15,17,19,21,24]);
+
+const clamp = (v,a,b) => v < a ? a : v > b ? b : v;
+const lerp  = (a,b,t) => a + (b-a)*t;
+const sstep = (u) => { u = clamp(u, 0, 1); return u*u*(3 - 2*u); };
+
+const fretX   = (f) => f*FW;                 // x of fret wire f (0 = the nut)
+const fretMid = (f) => (f - 0.5)*FW;         // middle of the space a fretted note is played in
+
+/* colour helpers (all take #rrggbb) */
+const _cc = new Map();
+function rgb(hex){
+  let v = _cc.get(hex);
+  if (!v){ const n = parseInt(hex.slice(1), 16); v = [(n >> 16) & 255, (n >> 8) & 255, n & 255]; _cc.set(hex, v); }
+  return v;
+}
+function rgba(hex, a){ const c = rgb(hex); return "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + a.toFixed(3) + ")"; }
+function shade(hex, k){                       // k < 1 darkens
+  const c = rgb(hex);
+  return "rgb(" + Math.round(c[0]*k) + "," + Math.round(c[1]*k) + "," + Math.round(c[2]*k) + ")";
+}
+function tint(hex, k){                        // mix toward white
+  const c = rgb(hex);
+  return "rgb(" + Math.round(c[0] + (255-c[0])*k) + "," + Math.round(c[1] + (255-c[1])*k) + ","
+                + Math.round(c[2] + (255-c[2])*k) + ")";
+}
+
+/* first index whose key is >= v, in an array sorted by that key */
+function lowerBound(arr, key, v){
+  let lo = 0, hi = arr.length;
+  while (lo < hi){ const m = (lo + hi) >> 1; if (arr[m][key] < v) lo = m + 1; else hi = m; }
+  return lo;
+}
+
+/* ── state ───────────────────────────────────────────────────────────────── */
+const S = {
+  meta:{}, arrs:[], arrIdx:0, beats:[], sections:[], stems:[],
+  all:[], chords:[], anchors:[], hands:[], phrases:[], phReal:false,
+  capo:0, nStr:6, maxSus:0, fMin:1, fMax:12,
+  duration:0, time:0, playing:false, loop:false, muted:false, offMs:0,
+  master:1.0, clickLevel:0.4, clickOn:false, rate:1, vis:1, visTo:1, resting:false, synthOn:false, synthLevel:0.6, syn:[],
+  speed:2.0, zoom:1.0, showCells:true, showNums:true, showLabels:true, autoPan:true,
+  showFingers:true, showChord:true, showDiagram:true, showHit:true, camRate:0.5, holds:[], hits:[],
+  lyrics:[], lyrPairs:[], showLyrics:true,
+  camC:null, camS:4, camCv:0, camSv:0,
+  fx:true, rscale:1, autoScale:false, dynScale:1, tones:{base:"", changes:[], names:{}},
+  fps:0, bpm:0, loopA:0, loopB:0,
+};
+
+/* live geometry: "note speed" stretches the time axis. The far end of the
+   highway stays where it is, so a faster highway shows less time ahead -
+   exactly what the game's speed setting does. */
+const G = { sc: SCROLL_BASE, hor: ZFAR/SCROLL_BASE };
+function updGeom(){
+  G.sc = SCROLL_BASE * S.speed;
+  G.hor = ZFAR / G.sc;
+  const txt = Math.round(S.speed*100) + "%";
+  document.getElementById("hudSpd").textContent = txt;
+  document.getElementById("rvSpeed").textContent = txt;
+}
+
+/* ── settings ──────────────────────────────────────────────────────────────── */
+const PREFS = { speed:[0.6, 2], zoom:[0.55, 3], camRate:[0.3, 2.5], master:[0, 1], clickLevel:[0, 1], synthLevel:[0, 1],
+                rscale:[0.2, 1], autoScale:0, showCells:0, showNums:0, showLabels:0, showLyrics:0, autoPan:0,
+                showFingers:0, showChord:0, showDiagram:0, showHit:0, clickOn:0, synthOn:0, muted:0, fx:0 };
+/* Kept in this browser (localStorage): the page has one address here, so the
+   browser's own storage is the right place, and nothing about a visitor is
+   stored on the server. */
+let prefTimer = 0;
+function savePrefs(){
+  clearTimeout(prefTimer);
+  prefTimer = setTimeout(() => {
+    const o = {};
+    for (const k in PREFS) o[k] = S[k];
+    try { localStorage.setItem("playsong.prefs", JSON.stringify(o)); } catch (e) {}
+  }, 350);
+}
+async function loadPrefs(){
+  try {
+    const p = JSON.parse(localStorage.getItem("playsong.prefs") || "{}") || {};
+    for (const k in PREFS){
+      if (typeof p[k] !== typeof S[k]) continue;
+      S[k] = PREFS[k] ? clamp(p[k], PREFS[k][0], PREFS[k][1]) : p[k];
+    }
+  } catch (e) {}
+  syncControls();
+}
+/* put every control where the state says it is */
+function syncControls(){
+  const $ = (id) => document.getElementById(id);
+  $("fSpeed").value = Math.round(S.speed*100);
+  $("fCam").value = Math.round(S.camRate*100); $("rvCam").textContent = Math.round(S.camRate*100) + "%";
+  $("fCells").checked = S.showCells; $("fNums").checked = S.showNums; $("fLabels").checked = S.showLabels;
+  $("fLyrics").checked = S.showLyrics; $("fPan").checked = S.autoPan;
+  $("fFingers").checked = S.showFingers; $("fAuto").checked = S.autoScale; $("fChord").checked = S.showChord; $("fDiag").checked = S.showDiagram; $("fHit").checked = S.showHit;
+  $("fFx").checked = S.fx;
+  { const sc = $("fScale"); let best = sc.options[0].value;
+    for (const o of sc.options) if (Math.abs(+o.value - S.rscale) < Math.abs(+best - S.rscale)) best = o.value;
+    sc.value = best; S.rscale = +best; }
+  $("vMaster").value = Math.round(S.master*100); $("lMaster").textContent = Math.round(S.master*100);
+  $("vClick").value = Math.round(S.clickLevel*100); $("lClick").textContent = Math.round(S.clickLevel*100);
+  $("bMute").classList.toggle("on", S.muted);
+  $("bClick").classList.toggle("on", S.clickOn);
+  $("vSynth").value = Math.round(S.synthLevel*100); $("lSynth").textContent = Math.round(S.synthLevel*100);
+  $("bSynth").classList.toggle("on", S.synthOn);
+  if (SY.out) SY.out.gain.value = S.synthLevel;
+  if (A.gain) A.gain.gain.value = S.muted ? 0 : S.master;
+  if (A.gainClick) A.gainClick.gain.value = S.clickLevel;
+  updGeom(); resize();
+}
+
+/* the pill in the middle of the stage: what is being worked on right now */
+function busy(text){
+  const m = document.getElementById("msg");
+  document.getElementById("msgTxt").textContent = text;
+  m.className = "";
+}
+function notice(text){ busy(text); document.getElementById("msg").className = "plain"; }
+function idle(){ document.getElementById("msg").className = "hide"; }
+
+/* ── audio ───────────────────────────────────────────────────────────────── */
+const A = { ctx:null, buf:null, src:null, gain:null, gainClick:null, startAt:0, offset:0, playing:false };
+
+function audioInit(){
+  if (A.ctx) return;
+  A.ctx = new (window.AudioContext || window.webkitAudioContext)();
+  A.gain = A.ctx.createGain();
+  A.gainClick = A.ctx.createGain();
+  A.gain.connect(A.ctx.destination);
+  A.gainClick.connect(A.ctx.destination);
+  A.gain.gain.value = S.muted ? 0 : S.master;
+  A.gainClick.gain.value = S.clickLevel;
+  A.ctx.onstatechange = () => { if (A.ctx.state === "running" && waitingForGesture){ waitingForGesture = false; idle(); } };
+}
+/* A browser will not let a page make sound before the first click or key
+   press. Until then the song is "playing" on a stopped clock; any click or
+   key lets it go. */
+let waitingForGesture = false;
+function unlockAudio(){
+  if (A.ctx && A.ctx.state === "suspended" && S.playing){ A.ctx.resume(); return true; }
+  return false;
+}
+window.addEventListener("pointerdown", unlockAudio, true);
+function togglePlay(){
+  if (unlockAudio()) return;
+  S.playing ? pause() : play();
+  setPlayIcon(S.playing);
+}
+
+/* A feedpak may carry several stems. One is played on its own; with none
+   chosen they are summed here instead of by the server's ffmpeg mix. The mix is
+   accumulated into two float arrays as each stem is decoded and then dropped,
+   so a six-stem pack peaks at two decoded buffers rather than seven. */
+async function loadStemAudio(stem){
+  if (stem && LOCAL.stems.has(stem)){
+    const raw = await LOCAL.stems.get(stem).arrayBuffer();
+    return A.ctx.decodeAudioData(raw);
+  }
+  const blobs = [...LOCAL.stems.values()];
+  let rate = A.ctx.sampleRate, length = 0;
+  let left = null, right = null;
+  for (let i = 0; i < blobs.length; i++){
+    busy(`Mixing the stems… ${i + 1}/${blobs.length}`);
+    const buf = await A.ctx.decodeAudioData(await blobs[i].arrayBuffer());
+    const n0 = buf.length;
+    if (left && n0 > length){          // a later stem is longer: grow the mix
+      const nl = new Float32Array(n0), nr = new Float32Array(n0);
+      nl.set(left); nr.set(right); left = nl; right = nr; length = n0;
+    }
+    if (!left){
+      rate = buf.sampleRate;
+      length = n0;
+      left = new Float32Array(length);
+      right = new Float32Array(length);
+    }
+    const n = Math.min(length, buf.length);
+    const l = buf.getChannelData(0);
+    const r = buf.numberOfChannels > 1 ? buf.getChannelData(1) : l;
+    for (let k = 0; k < n; k++){ left[k] += l[k]; right[k] += r[k]; }
+  }
+  const out = A.ctx.createBuffer(2, length, rate);
+  out.copyToChannel(left, 0);
+  out.copyToChannel(right, 1);
+  return out;
+}
+
+async function loadAudio(stem){
+  audioInit();
+  const keep = A.offset;
+  if (LOCAL.stems){
+    A.buf = await loadStemAudio(stem);
+  } else {
+    let raw;
+    if (LOCAL.audio){
+      raw = await LOCAL.audio.arrayBuffer();      // a fresh copy: decodeAudioData detaches its input
+    } else {
+      const url = "/audio" + (stem ? "?stem=" + encodeURIComponent(stem) : "");
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("audio: " + res.status);
+      raw = await res.arrayBuffer();
+    }
+    A.buf = await A.ctx.decodeAudioData(raw);
+  }
+  slowForget();
+  S.duration = Math.max(S.duration, A.buf.duration);
+  A.offset = keep;
+  A.playing = false;
+  renderTimeline(); paintClock();
+}
+
+/* ── song speed ──────────────────────────────────────────────────────────────
+   At full speed the song is an AudioBuffer started on the audio clock, which
+   is as exact as playback gets. Slowed down that way it would also drop in
+   pitch, so below 100 % the same audio is played through an <audio> element,
+   which the browser can slow down while keeping the pitch. The element gets a
+   WAV made from the decoded buffer: in a WAV a time is an exact byte position,
+   so a seek lands where it should whatever format the pack's audio was in.
+   The highway then follows the element's clock. That clock is a little less
+   precise than the audio clock, which matters less at practice speed.       */
+const slow = () => S.rate < 0.999;
+function wavBlob(buf){
+  const ch = Math.min(2, buf.numberOfChannels), n = buf.length, sr = buf.sampleRate;
+  const out = new DataView(new ArrayBuffer(44 + n*ch*2));
+  const str = (o, t) => { for (let i = 0; i < t.length; i++) out.setUint8(o + i, t.charCodeAt(i)); };
+  str(0, "RIFF"); out.setUint32(4, 36 + n*ch*2, true); str(8, "WAVEfmt ");
+  out.setUint32(16, 16, true); out.setUint16(20, 1, true); out.setUint16(22, ch, true);
+  out.setUint32(24, sr, true); out.setUint32(28, sr*ch*2, true); out.setUint16(32, ch*2, true);
+  out.setUint16(34, 16, true); str(36, "data"); out.setUint32(40, n*ch*2, true);
+  const d = []; for (let c = 0; c < ch; c++) d.push(buf.getChannelData(c));
+  const pcm = new Int16Array(out.buffer, 44);
+  for (let i = 0, k = 0; i < n; i++)
+    for (let c = 0; c < ch; c++){ const v = d[c][i]; pcm[k++] = v < -1 ? -32768 : v > 1 ? 32767 : Math.round(v*32767); }
+  return new Blob([out.buffer], { type: "audio/wav" });
+}
+async function slowReady(){
+  if (A.elUrl || !A.buf) return;
+  busy("Preparing slowed playback…");
+  await new Promise(r => setTimeout(r, 30));          // let the message show before the heavy part
+  A.elUrl = URL.createObjectURL(wavBlob(A.buf));
+  if (!A.el){
+    A.el = new Audio();
+    A.el.preservesPitch = true;
+    A.ctx.createMediaElementSource(A.el).connect(A.gain);   // through the same volume and mute
+    A.el.onended = () => { if (A.playing && A.mode === "el") songEnded(); };
+  }
+  A.el.src = A.elUrl;
+  await new Promise(res => { A.el.onloadedmetadata = res; A.el.onerror = res; });
+  idle();
+}
+function slowForget(){                                // new audio: the WAV made from the old one is stale
+  if (A.el){ A.el.pause(); A.el.removeAttribute("src"); }
+  if (A.elUrl){ URL.revokeObjectURL(A.elUrl); A.elUrl = null; }
+}
+async function setSongSpeed(r){
+  r = clamp(r, 0.2, 1);
+  if (Math.abs(r - S.rate) < 0.001) return;
+  const was = A.playing, t = songTime();
+  if (was) stopSources();
+  S.rate = r; A.offset = t;
+  if (slow()) await slowReady();
+  if (was) startAt(t);
+}
+
+function songTime(){
+  if (!A.playing || !A.ctx) return A.offset;
+  if (A.mode === "el") return clamp(A.el.currentTime, 0, S.duration || 1e9);
+  return clamp(A.ctx.currentTime - A.startAt + A.offset, 0, S.duration || 1e9);
+}
+function stopSources(){
+  if (A.src){ A.src.onended = null; try { A.src.stop(); } catch(e){} A.src = null; }
+  if (A.el) A.el.pause();
+}
+function songEnded(){
+  if (S.loop) { startAt(Math.max(0, S.loopA - LOOP_LEAD)); }
+  else { A.playing = false; S.playing = false; pump(); }
+}
+
+function startAt(t){
+  audioInit();
+  if (!A.buf) return;
+  stopSources();
+  A.offset = clamp(t, 0, Math.max(0, S.duration - 0.02));
+  if (slow() && A.elUrl){
+    A.mode = "el";
+    A.el.playbackRate = S.rate;
+    A.el.currentTime = A.offset;
+    A.el.play().catch(() => {});
+  } else {
+    A.mode = "buf";
+    A.src = A.ctx.createBufferSource();
+    A.src.buffer = A.buf;
+    A.src.connect(A.gain);
+    A.startAt = A.ctx.currentTime;
+    A.src.start(0, A.offset);
+    A.src.onended = () => { if (A.playing && A.mode === "buf") songEnded(); };
+  }
+  A.playing = true; S.playing = true;
+  beatIdx = 0; syncBeats();
+  synKill(); synSync();
+}
+
+function play(){
+  audioInit();
+  if (A.ctx.state === "suspended") A.ctx.resume();
+  if (A.playing) return;
+  const from = A.offset >= (S.duration - 0.05) ? 0 : A.offset;
+  if (slow() && !A.elUrl){                            // slowed playback not prepared for this audio yet
+    slowReady().then(() => { if (!A.playing){ startAt(from); pump(); setPlayIcon(true); } });
+    return;
+  }
+  startAt(from);
+  pump();
+}
+function pause(){
+  if (!A.playing) return;
+  A.offset = songTime(); A.playing = false; S.playing = false;
+  stopSources();
+  synKill();
+  pump();
+}
+function seek(t){
+  const was = A.playing;
+  if (Math.abs(t - S.time) > 1.5) S.camC = null;      // a jump cuts the camera instead of gliding
+  A.offset = clamp(t, 0, S.duration || 0);
+  S.time = A.offset;
+  if (was) startAt(A.offset); else { beatIdx = 0; syncBeats(); }
+  paintClock();
+}
+
+/* ── metronome (scheduled ahead on the audio clock) ──────────────────────── */
+let beatIdx = 0;
+function syncBeats(){
+  const off = S.offMs/1000;                       // the beat grid rides the chart clock
+  beatIdx = 0; while (beatIdx < S.beats.length && S.beats[beatIdx].time + off < S.time - 0.05) beatIdx++;
+}
+function pump(){
+  if (!S.clickOn || !A.ctx || A.playing === false) return;
+  const now = songTime() - S.offMs/1000;
+  for (let i = beatIdx; i < S.beats.length; i++){
+    const b = S.beats[i];
+    const dt = b.time - now;
+    if (dt > 0.25*S.rate) break;
+    if (dt < -0.06) continue;
+    const when = A.ctx.currentTime + Math.max(0, dt)/S.rate;   // a chart second lasts 1/rate real seconds
+    click(when, b.measure >= 0);
+    beatIdx = i + 1;
+  }
+}
+function click(when, down){
+  const o = A.ctx.createOscillator(), g = A.ctx.createGain();
+  o.type = "square"; o.frequency.value = down ? 1568 : 1046;
+  g.gain.setValueAtTime(0, when);
+  g.gain.linearRampToValueAtTime(down ? 0.5 : 0.32, when + 0.002);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + 0.055);
+  o.connect(g); g.connect(A.gainClick);
+  o.start(when); o.stop(when + 0.07);
+}
+
+/* ── note synthesizer ────────────────────────────────────────────────────────
+   Plays the chart itself: every note at the pitch its string, fret and the
+   arrangement's tuning give it, on the audio clock, in step with the highway.
+   A wrong fret or a note in the wrong place is easy to miss by eye and hard
+   to miss by ear.
+
+   The voice is a plucked string made from one oscillator with a string-like
+   set of harmonics, a low-pass filter that closes as the note decays and a
+   gain envelope. The chart's techniques are played where a pitch or an
+   envelope can express them:
+     sustain        rings for its length
+     bend           pitch rises by the charted amount over the first part
+     slide          pitch glides to the target fret over the last part
+     vibrato        pitch wobble
+     palm mute      short and dull
+     fret-hand mute a pitchless thud
+     hammer-on, pull-off, tap, linked note   soft attack
+     harmonic       the string's harmonic at that fret; pinch: two octaves up
+     tremolo        the note is re-struck quickly
+     accent         louder                                                     */
+const OPEN_GTR = [40, 45, 50, 55, 59, 64], OPEN_BASS = [28, 33, 38, 43];   // MIDI numbers of the open strings
+const HARMONIC = { 12:12, 24:24, 7:19, 19:19, 5:24, 4:28, 9:28, 16:28, 3:31 };   // semitones above the open string
+const SY = { idx:0, voices:[], wave:null, noise:null, out:null };
+
+/* the pitch of every note of the arrangement, as events in time order */
+function buildSynth(a){
+  const open = S.nStr === 4 ? OPEN_BASS : OPEN_GTR, tun = a.tuning || [];
+  /* a note on fret 0 sounds at the capo; every other fret is counted from the nut */
+  const midiOf = (n) => (open[n.s] !== undefined ? open[n.s] : 64) + (+tun[n.s] || 0) + (n.f > 0 ? n.f : S.capo);
+  /* a note without a sustain rings until the string is played again */
+  const last = {};
+  for (let i = S.all.length - 1; i >= 0; i--){
+    const n = S.all[i], nx = last[n.s];
+    n.ring = sustained(n) ? Math.max(n.sus, 0.03) : clamp(nx ? nx.t - n.t : 0.55, 0.10, n.pm ? 0.14 : 0.55);
+    last[n.s] = n;
+  }
+  const ev = [];
+  for (let i = 0; i < S.all.length; ){
+    let j = i;
+    while (j < S.all.length && S.all[j].t === S.all[i].t) j++;
+    for (let q = i; q < j; q++) ev.push({ t:S.all[q].t, n:S.all[q], m:midiOf(S.all[q]), k:j - i, o:q - i });
+    i = j;
+  }
+  /* a repeated chord that carries no notes of its own strums the chord before it */
+  let prev = null;
+  for (const c of S.chords){
+    if (c.notes.length){ prev = c.notes; continue; }
+    if (prev) prev.forEach((n, o) => ev.push({ t:c.t, m:midiOf(n), k:prev.length, o,
+      n:{ f:n.f, s:n.s, pm:n.pm, mt:n.mt, ac:false, ring:0.22, sus:0, bn:0, sl:-1, slu:-1 } }));
+  }
+  S.syn = ev.sort((p, q) => p.t - q.t);
+  SY.idx = 0;
+}
+
+function synInit(){
+  if (SY.out || !A.ctx) return;
+  const c = A.ctx;
+  SY.out = c.createGain(); SY.out.gain.value = S.synthLevel;
+  const comp = c.createDynamicsCompressor();          // full chords must not clip
+  comp.threshold.value = -16; comp.ratio.value = 4; comp.attack.value = 0.003; comp.release.value = 0.12;
+  SY.out.connect(comp); comp.connect(c.destination);  // beside the song, so muting the song leaves the synth
+  /* the harmonics of a string plucked about a fifth of the way along it */
+  const N = 28, re = new Float32Array(N), im = new Float32Array(N);
+  for (let h = 1; h < N; h++) im[h] = Math.sin(h*Math.PI*0.19)/Math.pow(h, 1.25);
+  SY.wave = c.createPeriodicWave(re, im);
+  const nb = c.createBuffer(1, Math.floor(c.sampleRate*0.2), c.sampleRate), d = nb.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random()*2 - 1;
+  SY.noise = nb;
+}
+
+function synVoice(e, when){
+  const c = A.ctx, n = e.n;
+  const t0 = when + e.o*0.007;                        // a chord is strummed, low string first
+  const soft = n.ho || n.po || n.tp || n.linked;
+  const level = 0.30/Math.sqrt(e.k) * (n.ac ? 1.3 : 1) * (soft ? 0.72 : 1);
+  const g = c.createGain();
+  g.connect(SY.out);
+
+  if (n.mt){                                          // muted string: a short thud, no pitch
+    const src = c.createBufferSource(); src.buffer = SY.noise;
+    const bp = c.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 1.1;
+    bp.frequency.value = clamp(440*Math.pow(2, (e.m - 69)/12)*2, 160, 900);
+    g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(level*1.1, t0 + 0.002);
+    g.gain.setTargetAtTime(0, t0 + 0.004, 0.022);
+    src.connect(bp); bp.connect(g); src.start(t0); src.stop(t0 + 0.16);
+    SY.voices.push({ g, osc:src, end:t0 + 0.2 });
+    return;
+  }
+
+  let midi = e.m, pure = false;
+  if (n.hm && n.f > 0){ midi = e.m - n.f + (HARMONIC[n.f] || 12); pure = true; }
+  else if (n.hp){ midi = e.m + 24; pure = true; }
+  const f0 = 440*Math.pow(2, (midi - 69)/12);
+  const dur = Math.max(0.08, n.ring || 0.3)/S.rate, tEnd = t0 + dur;   // longer when the song is slowed
+
+  const osc = c.createOscillator();
+  if (pure) osc.type = "triangle"; else osc.setPeriodicWave(SY.wave);
+  osc.frequency.value = f0;
+
+  const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 0.7;
+  lp.frequency.setValueAtTime(Math.min(f0*(n.pm ? 2.2 : 9) + 400, 9000), t0);
+  lp.frequency.exponentialRampToValueAtTime(Math.min(f0*(n.pm ? 1.2 : 2.2) + 200, 4000), t0 + (n.pm ? 0.05 : 0.35));
+
+  /* low strings ring longer; a held note is not allowed to die before its end */
+  let tau = n.pm ? 0.045 : clamp(1.6 - (midi - 40)*0.022, 0.45, 1.6);
+  if (sustained(n)) tau = Math.max(tau, dur*0.9);
+  const att = soft ? 0.010 : 0.003;
+  g.gain.setValueAtTime(0, t0);
+  g.gain.linearRampToValueAtTime(level, t0 + att);
+  g.gain.setTargetAtTime(0, t0 + att, tau);
+  if (n.tr)                                           // tremolo picking: struck again and again
+    for (let tt = t0 + 0.075; tt < tEnd - 0.02; tt += 0.075){
+      g.gain.setValueAtTime(level*0.9, tt);
+      g.gain.setTargetAtTime(0, tt + 0.002, 0.07);
+    }
+  g.gain.setTargetAtTime(0, tEnd, 0.03);
+
+  const tgt = n.sl > 0 ? n.sl : n.slu > 0 ? n.slu : 0;
+  if (n.bn > 0){                                      // the same shape the highway draws
+    osc.detune.setValueAtTime(0, t0);
+    osc.detune.linearRampToValueAtTime(n.bn*100, t0 + Math.max(0.08, dur*0.45));
+  } else if (tgt && n.f > 0){
+    osc.detune.setValueAtTime(0, t0 + dur*0.3);
+    osc.detune.linearRampToValueAtTime((tgt - n.f)*100, tEnd);
+  }
+  let lfo = null;
+  if (n.vb){
+    lfo = c.createOscillator(); lfo.frequency.value = 5.5;
+    const depth = c.createGain();
+    depth.gain.setValueAtTime(0, t0 + 0.10); depth.gain.linearRampToValueAtTime(30, t0 + 0.28);   // cents
+    lfo.connect(depth); depth.connect(osc.detune);
+    lfo.start(t0); lfo.stop(tEnd + 0.25);
+  }
+  osc.connect(lp); lp.connect(g);
+  osc.start(t0); osc.stop(tEnd + 0.25);
+  SY.voices.push({ g, osc, lfo, end:tEnd + 0.3 });
+}
+
+/* schedule what is about to be played - called every frame, like the metronome */
+function synPump(){
+  if (!S.synthOn || !A.playing || !A.ctx || A.ctx.state !== "running" || !S.syn.length) return;
+  synInit();
+  const now = songTime() - S.offMs/1000, E = S.syn, ct = A.ctx.currentTime;
+  while (SY.idx < E.length){
+    const e = E[SY.idx], dt = e.t - now;
+    if (dt > 0.25*S.rate) break;
+    SY.idx++;
+    if (dt < -0.06) continue;                         // already past
+    synVoice(e, ct + Math.max(0, dt)/S.rate);
+  }
+  if (SY.voices.length > 48) SY.voices = SY.voices.filter(v => v.end > ct);
+}
+/* after a jump: carry on from the first note at the new position */
+function synSync(){
+  SY.idx = lowerBound(S.syn, "t", songTime() - S.offMs/1000 - 0.03);
+}
+/* silence what is ringing and cancel what was scheduled */
+function synKill(){
+  if (!A.ctx || !SY.voices.length) return;
+  const ct = A.ctx.currentTime;
+  for (const v of SY.voices){
+    try {
+      v.g.gain.cancelScheduledValues(ct); v.g.gain.setTargetAtTime(0, ct, 0.012);
+      v.osc.stop(ct + 0.08); if (v.lfo) v.lfo.stop(ct + 0.08);
+    } catch (err) {}
+  }
+  SY.voices = [];
+}
+
+/* ── camera ──────────────────────────────────────────────────────────────────
+   Measured off the reference captures (1125 px tall, 50° vertical FOV):
+     - one fret is 0.164·H wide when a 4-fret anchor is framed, 0.067·H when
+       the upcoming anchors span 14 frets
+     - the camera sits ~24° above the neck and ~6.5° to its right, and looks
+       down the highway rather than at the neck, so the fretboard lands in the
+       lower third of the view and the vanishing point right of centre       */
+const CAM_EASE = 0.85;              // camera spring stiffness, 1/s - lower is lazier (x the Camera speed option)
+const LOOK_BACK = 1.5;              // seconds of anchors just played that stay in frame
+const FOV = 50*Math.PI/180, CAM_ELEV = 24*Math.PI/180, CAM_YAW = 6.5*Math.PI/180;
+
+function makeCam(W, H, cFret, span, nStr, zoom){
+  const k = (H/2)/Math.tan(FOV/2);
+  let ppf = 0.164*H*Math.pow(4/span, 0.72);       // pixels per fret at the hit plane
+  ppf = Math.min(ppf, 0.60*W/span) * zoom;
+  const d = k*FW/ppf;                              // distance camera -> neck
+  const pitch = (10*Math.PI/180)*Math.pow(4/span, 0.45);
+  const sy = Math.sin(CAM_YAW), cy = Math.cos(CAM_YAW);
+  const sp = Math.sin(pitch), cp = Math.cos(pitch);
+  const ce = Math.cos(CAM_ELEV), se = Math.sin(CAM_ELEV);
+  return {
+    px: fretX(cFret) + d*ce*sy,
+    py: YLO + (nStr-1)*PITCH/2 + d*se,
+    pz: d*ce*cy,
+    fx: -sy*cp, fy: -sp,  fz: -cy*cp,              // forward
+    rx:  cy,    ry: 0,    rz: -sy,                 // right
+    ux: -sy*sp, uy: cp,   uz: -cy*sp,              // up
+    k, cx: W/2, cy: H*0.48, ppf,
+  };
+}
+
+function project(cam, x, y, z){
+  const dx = x - cam.px, dy = y - cam.py, dz = z - cam.pz;
+  const zc = dx*cam.fx + dy*cam.fy + dz*cam.fz;
+  if (zc < 0.03) return null;
+  const s = cam.k / zc;
+  return { x: cam.cx + (dx*cam.rx + dy*cam.ry + dz*cam.rz)*s,
+           y: cam.cy - (dx*cam.ux + dy*cam.uy + dz*cam.uz)*s, s };
+}
+
+/* ── canvas ──────────────────────────────────────────────────────────────── */
+const cv = document.getElementById("hw"), ctx = cv.getContext("2d", {alpha:false});
+let W = 1, H = 1, dpr = 1;
+function resize(){
+  const r = cv.getBoundingClientRect();
+  /* render scale: fewer pixels to fill. dynScale is the automatic part - it
+     drops while the frame rate is low (see autoResolution) */
+  dpr = (window.devicePixelRatio || 1) * S.rscale * (S.autoScale ? S.dynScale : 1);
+  W = Math.max(1, Math.round(r.width)); H = Math.max(1, Math.round(r.height));
+  if (SPR.dpr !== dpr){ SPR.dpr = dpr; SPR.text.clear(); SPR.head.clear(); }   // sprites are made for one pixel density
+  if (cv.width !== Math.round(W*dpr) || cv.height !== Math.round(H*dpr)){
+    cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
+  }
+}
+window.addEventListener("resize", resize);
+
+/* cached soft glow sprite - far cheaper than shadowBlur per note */
+const glowCache = new Map();
+function glowSprite(color){
+  let c = glowCache.get(color);
+  if (c) return c;
+  c = document.createElement("canvas"); c.width = c.height = 64;
+  const g = c.getContext("2d");
+  const rg = g.createRadialGradient(32,32,0, 32,32,32);
+  rg.addColorStop(0, color); rg.addColorStop(0.35, color + "88");
+  rg.addColorStop(1, color + "00");
+  g.fillStyle = rg; g.fillRect(0,0,64,64);
+  glowCache.set(color, c);
+  return c;
+}
+function glow(color, x, y, rw, rh, a){
+  if (!S.fx || a <= 0.004 || rw < 1 || rh < 1) return;
+  ctx.globalCompositeOperation = "lighter";
+  ctx.globalAlpha = Math.min(1, a);
+  ctx.drawImage(glowSprite(color), 0, 0, 64, 64, x - rw, y - rh, rw*2, rh*2);
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+}
+
+function quad(a, b, c, d, fill){
+  if (!a || !b || !c || !d) return;
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y);
+  ctx.closePath();
+  ctx.fillStyle = fill; ctx.fill();
+}
+function seg(a, b){ if (a && b){ ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); } }
+
+/* rounded rectangle path, centred coordinates */
+function rr(x, y, w, h, r, c){
+  c = c || ctx;                                   // the canvas to trace the path on
+  r = Math.min(r, w/2, h/2);
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.lineTo(x + w - r, y); c.quadraticCurveTo(x + w, y, x + w, y + r);
+  c.lineTo(x + w, y + h - r); c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  c.lineTo(x + r, y + h); c.quadraticCurveTo(x, y + h, x, y + h - r);
+  c.lineTo(x, y + r); c.quadraticCurveTo(x, y, x + r, y);
+  c.closePath();
+}
+
+/* ── sprites ─────────────────────────────────────────────────────────────────
+   Outlined, glowing text and detailed noteheads are slow to draw from scratch:
+   a stroked glyph outline, a blurred shadow, a clip region. A busy passage has
+   dozens of each on screen, every frame. So each distinct one is drawn once
+   into a small off-screen canvas and from then on only stamped with drawImage,
+   which is about the cheapest thing a canvas can do.
+
+   A sprite is rendered at the next size up in a short ladder of sizes and
+   scaled down to the exact size when stamped, so a note growing as it
+   approaches re-uses a handful of sprites instead of one per pixel size.   */
+const SPR = { text:new Map(), head:new Map() };
+function sprCanvas(w, h){
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.ceil(w*dpr)); c.height = Math.max(1, Math.ceil(h*dpr));
+  const g = c.getContext("2d");
+  g.scale(dpr, dpr);
+  return [c, g];
+}
+/* stamp a sprite centred on (x, y), scaled by k, optionally in the neck's own axes */
+function sprStamp(sp, x, y, k, a, ax, ox, oy){
+  const w = sp.w*k, h = sp.h*k;
+  ctx.globalAlpha = a;
+  if (ax){
+    ctx.setTransform(dpr*ax.ex[0], dpr*ax.ex[1], dpr*ax.ey[0], dpr*ax.ey[1], dpr*x, dpr*y);
+    ctx.drawImage(sp.c, (ox || 0) - sp.cx*k, (oy || 0) - sp.cy*k, w, h);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  } else ctx.drawImage(sp.c, x + (ox || 0) - sp.cx*k, y + (oy || 0) - sp.cy*k, w, h);
+  ctx.globalAlpha = 1;
+}
+function textSprite(txt, size, color, glowCol){
+  const q = size <= 14 ? Math.ceil(size) : size <= 30 ? Math.ceil(size/2)*2 : Math.ceil(size/4)*4;
+  const glowOn = glowCol && S.fx ? glowCol : "";
+  const key = txt + "|" + q + "|" + color + "|" + glowOn + "|" + dpr;
+  let sp = SPR.text.get(key);
+  if (sp) return sp;
+  if (SPR.text.size > 1200) SPR.text.clear();
+  const font = "700 " + q + "px " + FONT;
+  ctx.font = font;
+  const tw = ctx.measureText(txt).width, pad = q*(glowOn ? 0.75 : 0.25) + 3;
+  const w = tw + pad*2, h = q*1.35 + pad*2;
+  const [c, g] = sprCanvas(w, h);
+  g.font = font; g.textAlign = "center"; g.textBaseline = "middle"; g.lineJoin = "round";
+  if (glowOn){ g.shadowColor = glowOn; g.shadowBlur = q*0.45*dpr; }
+  g.lineWidth = Math.max(2, q*0.16); g.strokeStyle = "rgba(0,0,0,0.78)";
+  g.strokeText(txt, w/2, h/2);
+  g.shadowBlur = 0;
+  g.fillStyle = color;
+  g.fillText(txt, w/2, h/2);
+  sp = { c, w, h, cx:w/2, cy:h/2, q, tw };
+  SPR.text.set(key, sp);
+  return sp;
+}
+
+/* text with a dark rim so it stays readable on the lit lanes.
+   `ax` (from neckAxes) writes it in the plane of the fretboard instead of flat */
+function label(txt, x, y, size, color, a, glowCol, ax){
+  if (a <= 0.004 || size < 1) return;
+  const sp = textSprite(txt, size, color, glowCol);
+  sprStamp(sp, x, y, size/sp.q, a, ax);
+}
+
+/* A head or a frame lies in the plane of the neck, so its sides must run
+   parallel to the frets and its top and bottom parallel to the strings. Seen
+   from the camera those two directions are not at right angles: the shape is
+   drawn in a skewed frame - x along the string, y along the fret. setSkew
+   takes the projections of a point above and below the note and returns the
+   distance between them in pixels. */
+const SK = { x:0, y:1, on:false };
+function setSkew(pu, pd){
+  SK.on = false;
+  if (!pu || !pd) return 0;
+  const dx = pd.x - pu.x, dy = pd.y - pu.y, L = Math.hypot(dx, dy);
+  if (L < 0.5) return 0;
+  SK.x = dx/L; SK.y = dy/L; SK.on = true;
+  return L;
+}
+function headFrame(x, y, ang){
+  const c = Math.cos(ang), sn = Math.sin(ang);
+  if (SK.on) ctx.transform(c, sn, SK.x, SK.y, x, y);
+  else ctx.transform(c, sn, -sn, c, x, y);
+}
+
+/* ── noteheads ───────────────────────────────────────────────────────────────
+   Shapes from the Rocksmith 2014 notehead and tail guide. Drawn in the head's
+   own frame: origin at its centre, hw/hh = half width / half height.        */
+const HEAD_SIZES = [3, 4, 5.5, 7.5, 10, 13, 17, 22, 28, 36, 46, 60, 80, 110];   // half-widths a head sprite is drawn at
+function drawHead(x, y, ang, hw, hh, col, n, a){
+  if (a <= 0.004) return;
+  const c0 = Math.cos(ang), s0 = Math.sin(ang);
+  const ex = SK.on ? SK.x : -s0, ey = SK.on ? SK.y : c0;           // the head's own frame, see setSkew
+  if (hw < 2.4){                                   // too far away for any detail
+    ctx.globalAlpha = a; ctx.fillStyle = col;
+    ctx.setTransform(dpr*c0, dpr*s0, dpr*ex, dpr*ey, dpr*x, dpr*y);
+    ctx.fillRect(-hw, -Math.max(0.8, hh), hw*2, Math.max(1.6, hh*2));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.globalAlpha = 1;
+    return;
+  }
+  const marks = S.showLabels && hh > 2.6;
+  let q = hw;
+  for (const v of HEAD_SIZES) if (v >= hw){ q = v; break; }
+  const bend = n.bn > 0 ? (n.bn < 1.5 ? 1 : n.bn < 2.5 ? 2 : 3) : 0;
+  const key = col + "|" + q + "|" + (n.tp ? 1 : 0) + (n.ac ? 1 : 0) + (n.pm ? 1 : 0) + (n.mt ? 1 : 0) + (n.hm ? 1 : 0)
+            + (n.hp ? 1 : 0) + (n.ho ? 1 : 0) + (n.po ? 1 : 0) + bend + (marks ? 1 : 0) + "|" + dpr;
+  let sp = SPR.head.get(key);
+  if (!sp){
+    if (SPR.head.size > 900) SPR.head.clear();
+    const qh = q*hh/hw;                                             // same proportions at the sprite's size
+    const mx = q*0.55 + 3, top = qh*(1.6 + bend*0.8) + 4, bot = qh*0.9 + 4;   // room for the accent frame, chevrons, wedge
+    const w = (q + mx)*2, h = qh*2 + top + bot;
+    const [c, g] = sprCanvas(w, h);
+    g.translate(q + mx, qh + top);
+    headShape(g, q, qh, col, n, marks);
+    sp = { c, w, h, cx:q + mx, cy:qh + top, q };
+    SPR.head.set(key, sp);
+  }
+  const k = hw/sp.q;
+  ctx.globalAlpha = a;
+  ctx.setTransform(dpr*c0, dpr*s0, dpr*ex, dpr*ey, dpr*x, dpr*y);
+  ctx.drawImage(sp.c, -sp.cx*k, -sp.cy*k, sp.w*k, sp.h*k);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.globalAlpha = 1;
+}
+/* the picture of one notehead, drawn around the origin of `g` - used to make its sprite */
+function headShape(g, hw, hh, col, n, marks){
+  g.lineJoin = "round"; g.lineCap = "round";
+  const lw = Math.max(1.2, hh*0.30);
+  const fhm = n.mt, isPM = n.pm && !fhm, harm = n.hm || n.hp;
+
+  if (n.tp){
+    /* tap: a wedge pointing down at the string */
+    const t = hh*1.35;
+    g.beginPath();
+    g.moveTo(-hw, -t); g.lineTo(-hw*0.42, -t); g.lineTo(0, t*0.05);
+    g.lineTo(hw*0.42, -t); g.lineTo(hw, -t); g.lineTo(0, t);
+    g.closePath();
+    g.fillStyle = shade(col, 0.78); g.fill();
+    g.strokeStyle = tint(col, 0.5); g.lineWidth = lw*0.8; g.stroke();
+  } else {
+    if (n.ac){                                     // accent: a second, glowing frame
+      rr(-hw - lw*1.5, -hh - lw*1.5, hw*2 + lw*3, hh*2 + lw*3, hh*0.6, g);
+      g.strokeStyle = rgba(col, 0.55); g.lineWidth = lw*1.5; g.stroke();
+    }
+    rr(-hw, -hh, hw*2, hh*2, hh*0.32, g);
+    g.fillStyle = (isPM || fhm) ? shade(col, 0.22) : n.hp ? shade(col, 0.95) : shade(col, 0.80);
+    g.fill();
+    if (isPM && marks){                            // palm mute: the head is crossed out in its own colour
+      g.save(); g.clip();
+      g.strokeStyle = col; g.lineWidth = Math.max(1.4, hh*0.55); g.lineCap = "butt";
+      g.beginPath();
+      g.moveTo(-hw, -hh); g.lineTo(hw, hh); g.moveTo(hw, -hh); g.lineTo(-hw, hh);
+      g.stroke();
+      g.restore();
+      rr(-hw, -hh, hw*2, hh*2, hh*0.32, g);
+    }
+    g.strokeStyle = n.ac ? tint(col, 0.75) : tint(col, 0.42); g.lineWidth = lw; g.stroke();
+    if (!isPM && !fhm && !harm && !n.ho && !n.po && hw > 6){
+      /* the lighter inner frame every plain head has */
+      rr(-hw + lw*1.25, -hh + lw*1.15, hw*2 - lw*2.5, hh*2 - lw*2.3, hh*0.15, g);
+      g.strokeStyle = "rgba(255,255,255,0.50)"; g.lineWidth = Math.max(1, lw*0.42); g.stroke();
+    }
+  }
+
+  if (marks){
+    const u = hh*0.72;
+    if (fhm){                                      // frethand mute: white cross
+      g.strokeStyle = "#fff"; g.lineWidth = Math.max(1.3, hh*0.34);
+      g.beginPath();
+      g.moveTo(-u*1.25, -u); g.lineTo(u*1.25, u); g.moveTo(u*1.25, -u); g.lineTo(-u*1.25, u);
+      g.stroke();
+    } else if (harm){                              // harmonic: white target; pinch: dark target
+      const c2 = n.hp ? "rgba(40,22,0,0.85)" : "#fff";
+      g.strokeStyle = c2; g.fillStyle = c2; g.lineWidth = Math.max(1.1, hh*0.26);
+      g.beginPath(); g.ellipse(0, 0, u*1.15, u*0.86, 0, 0, Math.PI*2); g.stroke();
+      g.beginPath(); g.arc(0, 0, Math.max(0.8, u*0.30), 0, Math.PI*2); g.fill();
+    } else if ((n.ho || n.po) && !n.tp){           // hammer-on points down, pull-off up
+      const dir = n.po ? -1 : 1;
+      g.fillStyle = "#fff";
+      g.beginPath();
+      g.moveTo(-u*1.05, -u*0.85*dir); g.lineTo(u*1.05, -u*0.85*dir); g.lineTo(0, u*0.95*dir);
+      g.closePath(); g.fill();
+    }
+    if (n.bn > 0){                                 // bend: one chevron per half step, stacked on the head
+      const cnt = n.bn < 1.5 ? 1 : n.bn < 2.5 ? 2 : 3;
+      g.strokeStyle = tint(col, 0.35); g.lineWidth = Math.max(1.2, hh*0.30);
+      g.beginPath();
+      for (let i = 0; i < cnt; i++){
+        const yy = -hh - lw - hh*0.55 - i*hh*0.75;
+        g.moveTo(-hw*0.5, yy + hh*0.45); g.lineTo(0, yy - hh*0.15); g.lineTo(hw*0.5, yy + hh*0.45);
+      }
+      g.stroke();
+    }
+  }
+}
+
+/* ── data ────────────────────────────────────────────────────────────────── */
+function currentArr(){ return S.arrs[S.arrIdx] || null; }
+
+/* Does this note have a length worth drawing (a tail, a held frame)?
+   Normally only past 0.06 s - shorter "sustains" are just how a plain note is
+   written. But a quick slide, or one link of a chain of joined notes, can be
+   shorter than that (a fast slide down and back is two notes of 0.059 s) and
+   is all tail: leaving those out breaks the line in two. */
+const SUS_MIN = 0.06, SUS_MIN_MOVING = 0.012;
+function sustained(n){
+  return n.sus > SUS_MIN || (n.sus > SUS_MIN_MOVING && (n.sl > 0 || n.slu > 0 || n.ln || n.linked));
+}
+function mkNote(n, t, ci){
+  return { t:+t, t0:+t, ch:ci, s:n.s|0, f:n.f|0, sus:Math.max(0, +(n.sus||0)),
+           ho:!!n.ho, po:!!n.po, sl:(n.sl|0) > 0 ? n.sl|0 : -1, slu:(n.slu|0) > 0 ? n.slu|0 : -1,
+           bn:+(n.bn||0), hm:!!n.hm, hp:!!n.hp, pm:!!n.pm, mt:!!(n.mt || n.fhm),
+           vb:!!n.vb, tr:!!n.tr, ac:!!n.ac, tp:!!n.tp, ln:!!n.ln,
+           rep:false, linked:false, hide:false, lab:true };
+}
+
+/* the anchor in force at time t */
+function anchorIdx(t){
+  const A = S.anchors;
+  let lo = 0, hi = A.length - 1, r = 0;
+  while (lo <= hi){ const m = (lo + hi) >> 1; if (A[m].t <= t){ r = m; lo = m + 1; } else hi = m - 1; }
+  return r;
+}
+function handAt(t){                               // index of the hand shape holding at t, or -1
+  const Hs = S.hands;
+  let lo = 0, hi = Hs.length - 1, r = -1;
+  while (lo <= hi){ const m = (lo + hi) >> 1; if (Hs[m].t <= t + 0.004){ r = m; lo = m + 1; } else hi = m - 1; }
+  return (r >= 0 && t <= Hs[r].t1 + 0.004) ? r : -1;
+}
+
+function selectArrangement(i){
+  S.arrIdx = clamp(i, 0, Math.max(0, S.arrs.length - 1));
+  const a = currentArr();
+  if (!a) return;
+  const name = (a.name || "").toLowerCase();
+  S.nStr = name.includes("bass") ? 4 : 6;
+  S.capo = a.capo | 0;
+  const tpl = a.templates || [];
+
+  S.hands = (a.handshapes || []).map(h => ({ t:+h.start_time, t0:+h.start_time, t1:+h.end_time,
+                                             e0:+h.end_time, arp:!!h.arp, id:h.chord_id|0 }))
+            .filter(h => h.t1 > h.t).sort((p, q) => p.t - q.t);
+
+  const all = [];
+  for (const n of a.notes || []) all.push(mkNote(n, n.t, undefined));
+
+  /* Chord events. The first chord of a hand shape is drawn in full; the same
+     chord strummed again is the low "repeat the previous chord" frame, with
+     no noteheads of its own. */
+  S.chords = [];
+  let prev = null;
+  (a.chords || []).forEach((c, ci) => {
+    const ns = (c.notes || []).map(cn => mkNote(cn, c.t, ci));
+    const T = tpl[c.id];
+    const ev = { t:+c.t, t0:+c.t, notes:ns, rep:false, sig:"", top:0,
+                 name: T ? chordLabel(T.displayName || T.display_name || T.name) : "",
+                 mute: ns.length > 0 && ns.every(n => n.mt),
+                 pm: ns.length > 0 && ns.every(n => n.pm) };
+    if (!ns.length){
+      ev.rep = true;
+      if (prev){ ev.mute = prev.mute; ev.pm = prev.pm; }
+    } else {
+      ev.sig = (c.id|0) + "|" + ns.map(n => n.s + ":" + n.f).sort().join(",");
+      ev.top = Math.min.apply(null, ns.map(n => n.s));        // highest string on screen
+      const plain = ns.every(n => n.sus < 0.25 && n.sl < 0 && n.slu < 0 && !n.bn);
+      if (prev && prev.sig === ev.sig && plain){
+        const h0 = handAt(prev.t), h1 = handAt(ev.t);
+        ev.rep = (h1 >= 0) ? (h0 === h1 && ev.t - prev.t < 2.5) : (ev.t - prev.t < 0.6);
+      }
+      if (c.hd && prev) ev.rep = true;
+      /* one fret number per distinct fret of the chord */
+      const seen = new Set();
+      for (const n of ns){
+        n.hide = ev.rep;
+        n.lab = n.f > 0 && !seen.has(n.f);
+        seen.add(n.f);
+        all.push(n);
+      }
+    }
+    S.chords.push(ev);
+    if (ns.length) prev = ev;
+  });
+
+  S.all = all.sort((p, q) => p.t - q.t || p.s - q.s);
+
+  /* A note that continues the one before it on the same string (linkNext) has
+     no head of its own - only its tail is drawn. */
+  {
+    const last = new Array(8).fill(null);
+    for (const n of S.all){
+      const p = last[n.s];
+      if (p && p.ln && n.t <= p.t + p.sus + 0.06) n.linked = true;
+      last[n.s] = n;
+    }
+  }
+
+  /* A run of the same single note is one gesture: only its first event carries
+     a fret number. */
+  {
+    let prevSig = null, prevT = -Infinity, start = 0;
+    for (let i = 1; i <= S.all.length; i++){
+      if (i < S.all.length && S.all[i].t === S.all[i-1].t) continue;   // same event
+      const parts = [];
+      let chord = false;
+      for (let k = start; k < i; k++){
+        const n = S.all[k];
+        if (n.ch !== undefined) chord = true;
+        parts.push(n.s + ":" + n.f);
+      }
+      const sig = parts.sort().join("|"), t0 = S.all[start].t;
+      const isRep = !chord && prevSig !== null && sig === prevSig && (t0 - prevT) <= REPEAT_GAP;
+      if (!chord) for (let k = start; k < i; k++){ S.all[k].rep = isRep; S.all[k].lab = !isRep && S.all[k].f > 0; }
+      prevSig = chord ? null : sig; prevT = t0;
+      start = i;
+    }
+  }
+
+  S.maxSus = 0; S.fMin = 99; S.fMax = -1;
+  for (const n of S.all){
+    if (n.sus > S.maxSus) S.maxSus = n.sus;
+    if (n.f > 0){ if (n.f < S.fMin) S.fMin = n.f; if (n.f > S.fMax) S.fMax = n.f; }
+  }
+  if (S.fMax < 0){ S.fMin = 1; S.fMax = 4; }
+
+  /* anchors: where the fretting hand sits. Without them, park one 4-fret
+     anchor on the lowest fret in use. */
+  S.anchors = (a.anchors || []).map(x => ({ t:+x.time, t0:+x.time, fret: clamp(x.fret|0, 1, 24),
+                                            width: clamp((x.width|0) || 4, 1, 24) }))
+              .sort((p, q) => p.t - q.t);
+  if (!S.anchors.length) S.anchors = [{ t:0, t0:0, fret: clamp(S.fMin, 1, 21), width:4 }];
+  /* Which hand moves get a row of fret numbers on the floor. A busy passage
+     would bury the lanes in numbers, so rows closer than 0.8 s to the one
+     before are left out. This is decided here, once, for the whole chart: if
+     it were decided per frame from "the next anchor onwards", the choice would
+     flip every time an anchor passed the neck and the rows would flicker. */
+  {
+    let lastRow = -1e9;
+    S.anchors.forEach((an, i) => {
+      an.row = false;
+      if (i === 0) return;
+      const pv = S.anchors[i-1];
+      if (an.fret === pv.fret && an.width === pv.width) return;
+      if (an.t - lastRow < 0.8) return;
+      lastRow = an.t; an.row = true;
+    });
+  }
+
+  buildHolds(tpl);
+  buildSynth(a);
+  clearLoopBars();
+  buildPhrases();
+  if (!S.keepCam) S.camC = null;                  // a new chart cuts the camera, unless it should glide over
+  S.tones = a.tones || { base:"", changes:[], names:{} };
+  hudToneKey = undefined;
+  document.getElementById("hudArr").textContent = a.name || "—";
+  showTuning(a);
+  document.getElementById("bpm").textContent = S.bpm ? S.bpm.toFixed(1) : "—";
+  applyOffset(S.offMs);
+}
+
+/* The tuning of the arrangement on screen, for the song info: its usual name,
+   the open strings from the lowest, and the capo if there is one. */
+const NOTE_NAMES = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"];
+const NAMED_TUNINGS = { "-2,0,0,0,-2,-2":"DADGAD", "-2,-2,0,0,0,-2":"Open G", "-2,0,0,-1,-2,-2":"Open D",
+                        "0,2,2,1,0,0":"Open E", "0,0,2,2,2,0":"Open A" };
+function tuningText(a){
+  const open = S.nStr === 4 ? OPEN_BASS : OPEN_GTR;
+  const t = open.map((_, i) => +((a.tuning || [])[i]) || 0);
+  const nm = (i) => NOTE_NAMES[(((open[i] + t[i]) % 12) + 12) % 12];
+  let name = NAMED_TUNINGS[t.join(",")] || "Custom tuning";
+  if (t.every(v => v === t[0])) name = nm(0) + " Standard";
+  else if (t[0] === t[1] - 2 && t.slice(1).every(v => v === t[1])) name = "Drop " + nm(0);
+  return { name, notes: open.map((_, i) => nm(i)).join(" "), capo: S.capo > 0 ? "Capo " + S.capo : "" };
+}
+function showTuning(a){
+  const el = document.getElementById("tuning"), T = tuningText(a);
+  el.textContent = "";
+  const b = document.createElement("b"); b.textContent = T.name; el.appendChild(b);
+  el.appendChild(document.createTextNode("  ·  " + T.notes + (T.capo ? "  ·  " + T.capo : "")));
+  el.title = "Tuning of the " + (a.name || "") + " arrangement, lowest string first";
+}
+
+/* chord names the way the game prints them: A♭ sus 4, F♯5 */
+function chordLabel(s){
+  return String(s || "").trim().replace(/(^|\/)([A-G])b/g, "$1$2♭").replace(/#/g, "♯");
+}
+
+/* What the fretting hand is holding, for the finger markers and the chord
+   name at the neck. Every hand shape points at a chord template, and the
+   template says which finger is on which string and fret (0 = thumb).
+   The same shape coming straight back - nothing else played in between -
+   is one hold: the markers and the name stay up instead of blinking.
+
+   S.hits is every moment something is struck, for the note-hit light. */
+const HOLD_GAP = 3.0;
+const FING_IN = 0.30, FING_GAP = 0.60, FING_MOVE = 0.25, FING_Z = FW*1.1;
+function buildHolds(tpl){
+  const out = [];
+  const played = (a, b) => {                        // is any note struck strictly between a and b?
+    const i = lowerBound(S.all, "t", a + 0.03);
+    return i < S.all.length && S.all[i].t < b - 0.03;
+  };
+  for (const h of S.hands){
+    const T = tpl[h.id];
+    if (!T) continue;
+    const fr = T.frets || [], fg = T.fingers || [];
+    const name = chordLabel(T.displayName || T.display_name || T.name);
+    const by = new Map();                           // one marker per finger and fret; several strings = a barre
+    for (let s = 0; s < fr.length && s < S.nStr; s++){
+      if (!(fr[s] > 0) || !(fg[s] >= 0)) continue;
+      const k = fg[s] + ":" + fr[s], m = by.get(k);
+      if (m){ m.s0 = Math.min(m.s0, s); m.s1 = Math.max(m.s1, s); }
+      else by.set(k, { g: fg[s] === 0 ? "T" : String(fg[s]), f: fr[s], s0:s, s1:s });
+    }
+    if (!by.size && !name) continue;
+    const sig = name + "|" + fr.join(",") + "|" + fg.join(",");
+    const p = out[out.length - 1];
+    if (p && p.sig === sig && h.t - p.t1 <= HOLD_GAP && !played(p.t1, h.t)){ p.t1 = h.t1; continue; }
+    let top = 0;
+    while (top < fr.length - 1 && !(fr[top] >= 0)) top++;       // highest string of the shape on screen
+    out.push({ t:h.t, t1:h.t1, sig, name, top, pills:[...by.values()], frets: fr.slice(0, S.nStr) });
+  }
+  /* How a hold's finger markers arrive. After a pause they fade in over
+     FING_IN seconds. When the hold follows the previous one closely the
+     markers already on the neck are reused: they slide to their new places
+     (link), finishing as the new chord lands. */
+  for (let i = 0; i < out.length; i++){
+    const h = out[i], q = out[i-1];
+    const gap = q ? h.t - q.t1 : 1e9;
+    h.link = gap <= FING_GAP;
+    h.in0 = h.link ? h.t - Math.min(FING_MOVE, Math.max(gap, 0.12)) : h.t - FING_IN;
+    if (q && h.in0 <= q.in0) h.in0 = q.in0 + 0.001;
+  }
+  S.holds = out;
+
+  /* a chord inside a hold of the same name: 1 = it starts the hold, 2 = the name is already up */
+  for (const ev of S.chords){
+    ev.hold = 0;
+    if (!ev.name) continue;
+    const h = out[lowerBound(out, "t", ev.t + 0.01) - 1];
+    if (h && ev.t <= h.t1 + 0.01 && h.name === ev.name) ev.hold = ev.t > h.t + 0.02 ? 2 : 1;
+  }
+
+  const hs = new Set();
+  for (const n of S.all) if (!n.linked) hs.add(n.t);
+  for (const c of S.chords) hs.add(c.t);
+  S.hits = [...hs].sort((p, q) => p - q);
+}
+/* 1 at the instant a note is struck, falling to 0 in an eighth of a second */
+function hitFlash(t){
+  const Hs = S.hits;
+  let lo = 0, hi = Hs.length - 1, r = -1;
+  while (lo <= hi){ const m = (lo + hi) >> 1; if (Hs[m] <= t){ r = m; lo = m + 1; } else hi = m - 1; }
+  if (r < 0) return 0;
+  const d = t - Hs[r];
+  return d < 0.12 ? 1 - d/0.12 : 0;
+}
+
+/* The bars above the highway: one per phrase, as tall as the phrase is hard.
+   A chart with dynamic difficulty carries its phrases; for the others the
+   song is cut every four measures (and at every section), and how busy each
+   slice is stands in for its difficulty. */
+function buildPhrases(){
+  const a = currentArr();
+  S.phrases = []; S.phReal = false;
+  if (!a) return;
+  const src = (a.phrases || []).filter(p => +p.end_time > +p.start_time);
+  if (src.length > 1){
+    let mx = 1;
+    for (const p of src) mx = Math.max(mx, p.max_difficulty|0);
+    S.phrases = src.map(p => ({ t0:+p.start_time, t1:+p.end_time,
+                                lv: (p.max_difficulty|0) > 0 ? 0.18 + 0.82*(p.max_difficulty|0)/mx : 0 }));
+    S.phReal = true;
+    return;
+  }
+  const D = S.duration || (S.all.length ? S.all[S.all.length-1].t + 4 : 0);
+  if (D <= 0) return;
+  const cuts = new Set([0]);
+  const secT = S.sections.map(s => +s.time);
+  let si = 0, cnt = 0;
+  const downs = S.beats.filter(b => b.measure >= 0);
+  if (downs.length > 4){
+    for (const b of downs){
+      let crossed = false;
+      while (si < secT.length && secT[si] <= b.time + 0.02){ si++; crossed = true; }
+      if (crossed){ cnt = 0; cuts.add(+b.time.toFixed(3)); }
+      else if (++cnt % 4 === 0) cuts.add(+b.time.toFixed(3));
+    }
+  } else {
+    for (let x = 8; x < D; x += 8) cuts.add(x);
+    for (const x of secT) cuts.add(x);
+  }
+  const ts = [...cuts].filter(x => x >= 0 && x < D - 0.5).sort((p, q) => p - q);
+  const ph = [];
+  for (let i = 0; i < ts.length; i++){
+    const t0 = ts[i], t1 = i + 1 < ts.length ? ts[i+1] : D;
+    if (t1 - t0 < 0.4){ if (ph.length) ph[ph.length-1].t1 = t1; continue; }
+    ph.push({ t0, t1, lv:0, w:0 });
+  }
+  /* weight of what is played in each slice: events per second, techniques extra */
+  let pi = 0, lastT = -1;
+  for (const n of S.all){
+    while (pi < ph.length - 1 && n.t0 >= ph[pi].t1) pi++;
+    if (n.t0 < ph[pi].t0) continue;
+    ph[pi].w += (n.t0 === lastT ? 0.35 : 1)
+              + ((n.ho || n.po || n.tp || n.bn || n.sl > 0 || n.hm || n.hp) ? 0.5 : 0);
+    lastT = n.t0;
+  }
+  const dens = ph.map(p => p.w / (p.t1 - p.t0)).filter(x => x > 0).sort((p, q) => p - q);
+  const ref = dens.length ? dens[Math.min(dens.length - 1, Math.floor(dens.length*0.92))] : 1;
+  for (const p of ph){
+    const d = p.w / (p.t1 - p.t0);
+    p.lv = d > 0 ? 0.22 + 0.78*Math.min(1, d/ref) : 0;
+  }
+  S.phrases = ph;
+}
+
+/* The note offset moves the chart's whole clock against the audio: the highway
+   is drawn at chart time = audio time - offset. Notes, anchors, hand shapes,
+   beat lines, phrases, sections, tone switches and lyrics all read that one
+   clock, so they stay locked to each other while the offset is dialled in. */
+const chartTime = () => S.time - S.offMs/1000;
+function applyOffset(ms){
+  S.offMs = Math.round(ms);
+  const badge = document.getElementById("syncoff");
+  if (badge){
+    badge.textContent = S.offMs ? (S.offMs > 0 ? "+" : "") + S.offMs + "ms" : "";
+    badge.style.display = S.offMs ? "inline-block" : "none";
+  }
+  const inp = document.getElementById("fOffset");
+  if (inp && +inp.value !== S.offMs) inp.value = S.offMs;
+  renderTimeline();
+  hudSecIdx = -2;
+  if (S.clickOn) syncBeats();
+  synKill(); synSync();
+  if (S.loopSel && SEL.i0 >= 0 && S.phrases[SEL.i1]){
+    S.loopA = Math.max(0, S.phrases[SEL.i0].t0 + S.offMs/1000); S.loopB = S.phrases[SEL.i1].t1 + S.offMs/1000;
+  }
+}
+
+/* Lyric lines are shown two at a time, like the game does: the pair stays up
+   while both are sung, then the next pair replaces it. When nothing is sung
+   for more than LYR_GAP seconds the lyrics go away as soon as the line is
+   over, and the next pair comes up LYR_LEAD seconds before its first word. */
+const LYR_GAP = 5.0, LYR_LEAD = 3.0;
+function buildLyricPairs(){
+  const L = S.lyrics, pairs = [];
+  for (let i = 0; i < L.length; ){
+    const p = { a: L[i], b: null, show: 0, end: 0, gone: Infinity };
+    if (i + 1 < L.length && L[i+1].t - L[i].end <= LYR_GAP){ p.b = L[i+1]; i += 2; } else i += 1;
+    p.end = (p.b || p.a).end;
+    const q = pairs.length ? pairs[pairs.length-1] : null;
+    if (!q || p.a.t - q.end > LYR_GAP){
+      p.show = p.a.t - LYR_LEAD;
+      if (q) q.gone = q.end + 1.0;                  // a silence follows: fade out right after the line
+    } else p.show = Math.min(p.a.t - 0.05, q.end + 0.25);
+    pairs.push(p);
+  }
+  if (pairs.length) pairs[pairs.length-1].gone = pairs[pairs.length-1].end + 1.0;
+  S.lyrPairs = pairs;
+}
+
+function loadSongData(d){
+  S.meta = d.meta || {};
+  S.arrs = (d.arrangements || []).filter(a => (a.notes || []).length || (a.chords || []).length);
+  S.beats = (d.beats || []).slice().sort((a,b) => a.time - b.time);
+  S.sections = (d.sections || []).slice().sort((a,b) => a.time - b.time);
+  S.stems = d.stems || [];
+  S.lyrics = ((d.lyrics && d.lyrics.lines) || []).slice().sort((a, b) => a.t - b.t);
+  /* Lyrics the server judged broken are not shown; the player is told once,
+     where the lyrics would have been, and the notice then goes away. */
+  const lerr = (d.lyrics && d.lyrics.error) || "";
+  if (lerr && !loadSongData.told){
+    loadSongData.told = true;
+    S.lyrics = [];
+    const el = document.getElementById("lyrErr");
+    document.getElementById("lyrErrWhy").textContent =
+      lerr.charAt(0).toUpperCase() + lerr.slice(1) + ". Lyrics are hidden - repair them with Sync lyrics.";
+    el.classList.add("show");
+    setTimeout(() => el.classList.remove("show"), 12000);
+    console.warn("lyrics not shown:", lerr);
+  } else if (lerr) S.lyrics = [];
+  for (const ln of S.lyrics){
+    if (!ln.syl || !ln.syl.length) ln.syl = [[ln.t, Math.max(0.2, (ln.end || ln.t + 2) - ln.t), ln.text]];
+    if (!(ln.end > ln.t)) ln.end = ln.t + 2;
+  }
+  buildLyricPairs();
+}
+
+/* Start-up, in the order the user sees it:
+     1. the server is already up, so the page and the saved settings load at once
+     2. wait while the server opens the pack (a .psarc is converted first)
+     3. read the chart and show the highway
+     4. fetch and decode the audio - the slow part, done last
+     5. play                                                              */
+async function waitForPack(){
+  for (;;){
+    let st;
+    try { st = await (await fetch("/api/status")).json(); }
+    catch (e) { st = { stage:"starting", message:"Waiting for the Play Song server…" }; }
+    if (st.stage === "ready" || st.stage === "empty") return st;
+    if (st.stage === "error") throw new Error(st.error || "the pack could not be opened");
+    busy(st.message || "Processing…");
+    await new Promise(r => setTimeout(r, 400));
+  }
+}
+
+let framesRunning = false, firstSong = true;
+
+/* ── the resting highway ─────────────────────────────────────────────────────
+   While a song is being opened or converted there is nothing to play, so the
+   highway is shown at rest: no notes, no lyrics, no finger markers or chord
+   names, and the camera at its normal four-fret zoom around the 7th fret.
+   What was on screen fades out first; the camera then glides to the rest
+   position, and from there to the new song's first position when it arrives. */
+function fadeTo(v){
+  S.visTo = v;
+  return new Promise(res => {
+    const t0 = performance.now();
+    const chk = () => {
+      if (Math.abs(S.vis - v) < 0.01 || performance.now() - t0 > 900){ S.vis = v; res(); }
+      else setTimeout(chk, 40);
+    };
+    chk();
+  });
+}
+function restChart(){
+  S.all = []; S.chords = []; S.hands = []; S.holds = []; S.hits = []; S.syn = []; S.phrases = [];
+  S.lyrics = []; S.lyrPairs = []; S.beats = []; S.sections = [];
+  S.tones = { base:"", changes:[], names:{} };
+  S.anchors = [{ t:0, t0:0, fret:6, width:4, row:false }];      // frets 6-9: centred on the 7th fret line
+  S.maxSus = 0; S.capo = 0; S.resting = true;
+  S.time = 0; A.offset = 0;
+  SEL.i0 = SEL.i1 = -1; SEL.drag = null;
+  S.loop = false; S.loopSel = false; S.loopB = 0;
+  document.getElementById("bLoop").classList.remove("on");
+  lyrPair = null; document.getElementById("lyr").style.display = "none";
+  hudSecIdx = -2; hudToneKey = undefined;
+  document.getElementById("hudArr").textContent = "—";
+  document.getElementById("tuning").textContent = "";
+  document.getElementById("stem").style.display = "none";          // no song, no stems to pick
+  renderTimeline(); paintClock();
+}
+function startFrames(){
+  if (!framesRunning){ framesRunning = true; requestAnimationFrame(frame); }
+}
+
+function showHint(on){
+  document.getElementById("hint").classList.toggle("hide", !on);
+}
+async function boot(){
+  busy("Starting…");
+  await loadPrefs();
+  restChart(); resize(); startFrames();           // the empty highway is up straight away
+
+  /* Is a Play Song server behind this page? If not, the page is on its own:
+     load the in-page converter and wait for a dropped file. */
+  SERVER = await serverAvailable();
+  if (!SERVER){
+    try {
+      await loadStatics();
+    } catch (e) {
+      busy("The page could not load its converter: " + e.message);
+      return;
+    }
+    idle();
+    document.getElementById("title").textContent = "Play Song";
+    document.getElementById("artist").textContent = "no song open";
+    document.getElementById("hintNote").textContent =
+      "The file is opened on this page - it is never uploaded, and nothing is changed in your file.";
+    showHint(true);
+    return;
+  }
+
+  fetch("/api/limits").then(r => r.json()).then(L => {
+    document.getElementById("hintNote").textContent =
+      "The file is sent to this server to be converted (up to " + L.max_upload_mb + " MB), and deleted after "
+      + L.idle_minutes + " minutes without use. Nothing is changed in your file.";
+  }).catch(() => {});
+  const st = await waitForPack();
+  if (st.stage === "empty"){                      // the usual start: nothing open yet
+    idle();
+    document.getElementById("title").textContent = "Play Song";
+    document.getElementById("artist").textContent = "no song open";
+    showHint(true);
+    return;
+  }
+  await showSong();                               // the visitor came back to a session that still has a song
+}
+
+/* Read the song the page has - fetched from the server, or converted locally -
+   and play it. Runs at start-up, and again whenever another song is dropped. */
+async function showSong(noPlay){
+  showHint(false);
+  busy("Reading the chart…");
+  const d = LOCAL.payload || await (async () => {
+    const res = await fetch("/api/song");
+    return res.json();
+  })();
+  if (d.error) throw new Error(d.error);
+
+  /* forget the previous song */
+  if (A.playing) pause();
+  A.buf = null; A.offset = 0; A.playing = false;
+  S.time = 0; S.playing = false; S.offMs = 0; S.bpm = 0; S.loopB = 0;
+  if (S.loop){ S.loop = false; document.getElementById("bLoop").classList.remove("on"); }
+  setPlayIcon(false);
+  lyrPair = null; document.getElementById("lyr").style.display = "none";
+  loadSongData.told = false; document.getElementById("lyrErr").classList.remove("show");
+  hudSecIdx = -2; hudToneKey = undefined;
+
+  loadSongData(d);
+  S.duration = +(d.meta && d.meta.duration) || 0;
+
+  // BPM from the beat grid (median gap, so a stray beat cannot skew it)
+  if (S.beats.length > 3){
+    const gaps = [];
+    for (let i = 1; i < S.beats.length; i++){
+      const g = S.beats[i].time - S.beats[i-1].time;
+      if (g > 0.08 && g < 2) gaps.push(g);
+    }
+    gaps.sort((a,b) => a-b);
+    if (gaps.length) S.bpm = 60 / gaps[gaps.length >> 1];
+  }
+
+  // header
+  const T = (s) => (s || "—");
+  document.getElementById("title").textContent = T(S.meta.title);
+  document.getElementById("artist").textContent = T(S.meta.artist);
+  document.getElementById("album").textContent = [S.meta.album, S.meta.year].filter(Boolean).join(" · ") || "";
+  document.title = (S.meta.title ? S.meta.title + " - " : "") + "Play Song";
+
+  {
+    const c = document.getElementById("cover");
+    c.innerHTML = '<div class="ph">NO ART</div>';
+    const src = LOCAL.payload ? LOCAL.cover : ("/api/art?" + Date.now());
+    if (S.meta.cover && src){
+      const img = new Image();
+      img.onload = () => { c.innerHTML = ""; c.appendChild(img); };
+      img.src = src;                                // not the previous song's picture
+    }
+  }
+
+  // arrangements
+  const fArr = document.getElementById("fArr");
+  fArr.innerHTML = "";
+  S.arrs.forEach((a, i) => {
+    const o = document.createElement("option"); o.value = i; o.textContent = a.name || ("arr " + i);
+    fArr.appendChild(o);
+  });
+  fArr.onchange = () => { selectArrangement(+fArr.value); };
+
+  // stems: only worth a picker when the pack really was separated
+  const stemSel = document.getElementById("stemSel");
+  stemSel.length = 1; stemSel.value = "";
+  document.getElementById("stem").style.display = S.stems.length > 1 ? "flex" : "none";
+  if (S.stems.length > 1){
+    for (const s of S.stems){
+      const o = document.createElement("option");
+      o.value = s.id; o.textContent = s.id.charAt(0).toUpperCase() + s.id.slice(1);
+      stemSel.appendChild(o);
+    }
+    stemSel.onchange = async () => {
+      const keep = songTime(), was = S.playing;
+      pause(); setPlayIcon(false);
+      busy("Decoding the audio…");
+      try { await loadAudio(stemSel.value); } finally { idle(); }
+      seek(Math.min(keep, S.duration - 0.05));
+      if (was){ play(); setPlayIcon(true); }
+    };
+  }
+
+  /* When another song replaces the one on screen, the camera is not cut: it
+     keeps where it was and eases to the new song's first position while the
+     audio is being decoded. */
+  S.keepCam = S.camC !== null;                    // glide over from wherever the camera is (the rest position)
+  S.resting = false;
+  S.vis = 0; S.visTo = 1;                         // the new chart fades in
+  selectArrangement(0);
+  S.keepCam = false;
+  updGeom();
+  document.getElementById("tdur").textContent = fmt(S.duration);
+  renderTimeline();
+  paintClock();
+  {
+    const cum = +(S.meta.note_offset_ms || 0);
+    const om = document.getElementById("offMsg");
+    if (om) om.textContent = cum
+      ? "this pack has already been shifted " + (cum > 0 ? "+" : "") + cum + " ms in total"
+      : "positive offset = chart later than the audio";
+  }
+
+  // deep link: ?t=SECONDS&arr=N  (handy when linking a section from the GUI); ?paused = do not auto-play.
+  // Only for the song the page was opened with.
+  const q = new URLSearchParams(firstSong ? location.search : "");
+  firstSong = false;
+  if (q.has("arr")){
+    const i = clamp(parseInt(q.get("arr"), 10) || 0, 0, Math.max(0, S.arrs.length - 1));
+    selectArrangement(i); fArr.value = i;
+  }
+  if (q.has("t")) seek(clamp(parseFloat(q.get("t")) || 0, 0, Math.max(0, S.duration - 0.1)));
+  if (q.has("cfg")) document.getElementById("cfg").classList.add("show");
+  if (q.has("off")) applyOffset(clamp(Math.round(parseFloat(q.get("off")) || 0), -60000, 60000));
+
+  resize();
+  startFrames();                      // the highway is on screen while the audio is still coming
+
+  busy("Decoding the audio…");
+  try {
+    await loadAudio("");
+    buildPhrases();                   // the decoded audio may be longer than the manifest said
+  } catch (err) {
+    console.warn("audio unavailable:", err);
+    notice("The audio could not be decoded - the highway still plays, silently.");
+    setTimeout(idle, 6000);
+    return;
+  }
+  idle();
+  if (noPlay || q.has("paused")) return;
+  play(); setPlayIcon(true);
+  if (A.ctx.state === "suspended"){   // the browser wants a click before it lets the page make sound
+    waitingForGesture = true;
+    notice("Ready - click anywhere or press Space to start");
+  }
+}
+
+/* ── drop a song on the window to play it ────────────────────────────────────
+   The file itself is sent to the server (a page is not told where a dropped
+   file lives), which opens it like the one it was started with. The song that
+   is playing stays if the new one cannot be opened. */
+let opening = false;
+/* send the file, reporting how far it has got (it may be a slow line) */
+function upload(file, onProgress){
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open("POST", "/api/open");
+    x.setRequestHeader("Content-Type", "application/octet-stream");
+    x.setRequestHeader("X-Filename", encodeURIComponent(file.name));
+    x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded/e.total); };
+    x.onerror = () => reject(new Error("the upload failed - is the server still there?"));
+    x.onload = () => {
+      let d = {};
+      try { d = JSON.parse(x.responseText); } catch (e) {}
+      if (x.status >= 200 && x.status < 300 && !d.error) resolve(d);
+      else reject(new Error(d.error || ("HTTP " + x.status)));
+    };
+    x.send(file);
+  });
+}
+async function openDropped(file){
+  if (opening) return;
+  if (!/\.(psarc|feedpak)$/i.test(file.name)){
+    notice("Only .psarc and .feedpak files can be played - not " + file.name);
+    setTimeout(idle, 5000);
+    return;
+  }
+  opening = true;
+  let cleared = Promise.resolve();
+  try {
+    if (S.playing){ pause(); setPlayIcon(false); }
+    showHint(false);
+    try { audioInit(); A.ctx.resume(); } catch (e) {}     // while the click or drop still counts as the user's
+    SERVER = await serverAvailable();                     // a drop can beat boot()'s probe
+
+    if (!SERVER){
+      /* no server: convert here, in this tab (the scripts may still be loading) */
+      await loadStatics();
+      if (!window.CDLC || !window.WW2OGG){
+        throw new Error("the in-page converter did not load (web/converter.js)");
+      }
+      cleared = fadeTo(0).then(() => {
+        restChart(); S.visTo = 1;
+        document.getElementById("title").textContent = file.name;
+        document.getElementById("artist").textContent = "opening…";
+        document.getElementById("album").textContent = "";
+      });
+      const song = await openLocal(file, (m) => busy(m));
+      await cleared;
+      LOCAL.payload = song.payload;
+      LOCAL.cover = song.cover;
+      LOCAL.audio = song.audio;
+      LOCAL.stems = song.stems;
+      await showSong();
+      return;
+    }
+
+    busy("Uploading " + file.name + "…");
+    /* what is on screen fades away and the highway goes to rest while the new song is opened */
+    cleared = fadeTo(0).then(() => {
+      restChart(); S.visTo = 1;
+      document.getElementById("title").textContent = file.name;       // what is being opened, not the song that left
+      document.getElementById("artist").textContent = "opening…";
+      document.getElementById("album").textContent = "";
+    });
+    await upload(file, (f) => busy("Uploading " + file.name + "… " + Math.round(f*100) + "%"));
+    const st = await waitForPack();
+    if (st.open_error) throw new Error(st.open_error);
+    await cleared;
+    await showSong();
+  } catch (err) {
+    let back = false;
+    try { await cleared; await showSong(true); back = true; } catch (e2) {}   // bring back the song that was on, paused
+    notice("Could not open that song: " + err.message);
+    setTimeout(idle, 8000);
+    if (!back){                                    // there was none: back to the welcome card
+      document.getElementById("title").textContent = "Play Song";
+      document.getElementById("artist").textContent = "no song open";
+      showHint(true);
+    }
+  } finally {
+    opening = false;
+  }
+}
+{
+  const veil = document.getElementById("drop");
+  let depth = 0;
+  const hasFiles = (e) => e.dataTransfer && [...e.dataTransfer.types].includes("Files");
+  window.addEventListener("dragenter", (e) => { if (!hasFiles(e)) return; e.preventDefault(); depth++; veil.classList.add("show"); });
+  window.addEventListener("dragover",  (e) => { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = "copy"; });
+  window.addEventListener("dragleave", (e) => { if (!hasFiles(e)) return; if (--depth <= 0){ depth = 0; veil.classList.remove("show"); } });
+  window.addEventListener("drop", (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault(); depth = 0; veil.classList.remove("show");
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) openDropped(f);
+  });
+}
+
+{
+  const pick = document.getElementById("filePick");
+  const choose = () => { pick.value = ""; pick.click(); };
+  document.getElementById("hintPick").onclick = choose;
+  document.getElementById("bOpen").onclick = choose;
+  pick.onchange = () => { if (pick.files && pick.files[0]) openDropped(pick.files[0]); };
+}
+
+/* ── formatting ──────────────────────────────────────────────────────────── */
+function fmt(t){
+  t = Math.max(0, t || 0);
+  const m = Math.floor(t/60), s = Math.floor(t%60);
+  return m + ":" + String(s).padStart(2, "0");
+}
+function paintClock(){
+  document.getElementById("tcur").textContent = fmt(S.time);
+  document.getElementById("tdur").textContent = fmt(S.duration);
+}
+
+/* ── timeline ────────────────────────────────────────────────────────────── */
+const SECCOL = {riff:"#2c5b93", verse:"#3f7fbe", prechorus:"#5b4b9e", chorus:"#6b4bb0",
+                solo:"#a8842c", intro:"#39434d", outro:"#39434d", bridge:"#2f7d78"};
+function secColor(name){
+  const k = (name || "").toLowerCase();
+  for (const key in SECCOL) if (k.includes(key)) return SECCOL[key];
+  let h = 0; for (let i = 0; i < k.length; i++) h = (h*31 + k.charCodeAt(i)) | 0;
+  return "hsl(" + (Math.abs(h) % 360) + " 30% 36%)";
+}
+
+let secEls = [], secCur = -1;
+function renderTimeline(){
+  const box = document.getElementById("tlsec");
+  box.innerHTML = "";
+  secEls = []; secCur = -1; hudSecIdx = -2;
+  const D = S.duration || (S.beats.length ? S.beats[S.beats.length-1].time + 2 : 1);
+  const secs = S.sections.length ? S.sections : [];
+  const off = S.offMs/1000;
+  for (let i = 0; i < secs.length; i++){
+    const t0 = Math.max(0, secs[i].time + off), t1 = (i+1 < secs.length) ? secs[i+1].time + off : D;
+    if (t1 <= t0) continue;
+    const el = document.createElement("div");
+    el.className = "s";
+    el.style.left = (100*t0/D) + "%";
+    el.style.width = (100*(t1-t0)/D) + "%";
+    el.style.background = secColor(secs[i].name);
+    const sp = document.createElement("span");
+    sp.textContent = secLabel(secs[i].name);
+    el.appendChild(sp);
+    box.appendChild(el);
+    secEls[i] = el;
+  }
+  if (!secs.length){
+    const el = document.createElement("div");
+    el.className = "s gap"; el.style.left = "0%"; el.style.width = "100%";
+    el.innerHTML = "<span style='color:#4a5560'>no sections in this chart</span>";
+    box.appendChild(el);
+  }
+  /* where the tone switches */
+  const tb = document.getElementById("tltone");
+  tb.innerHTML = "";
+  for (const c of S.tones.changes){
+    const x = (c.t + off)/D;
+    if (x < 0 || x > 1) continue;
+    const el = document.createElement("div");
+    el.className = "tn"; el.style.left = (100*x) + "%";
+    tb.appendChild(el);
+  }
+  fitTimeline();
+}
+/* the tone in force at chart time tc: its key, or "" */
+function toneKeyAt(tc){
+  let key = S.tones.base || "";
+  for (const c of S.tones.changes){ if (c.t > tc) break; key = c.name; }
+  return key;
+}
+function toneLabel(key){
+  const nm = S.tones.names[key];
+  return nm ? (nm.real || nm.raw) : key;
+}
+const secLabel = (name) => String(name || "").replace(/[_-]+/g, " ").trim();
+/* a section too narrow for its name shows no name at all (hover tells it) */
+function fitTimeline(){
+  for (const el of secEls){
+    if (!el || !el.firstChild) continue;
+    el.classList.remove("tight");
+    if (el.firstChild.offsetWidth > el.clientWidth - 8) el.classList.add("tight");
+  }
+}
+{ let tm = 0; window.addEventListener("resize", () => { clearTimeout(tm); tm = setTimeout(fitTimeline, 120); }); }
+
+function sectionAt(t){
+  const s = S.sections;
+  if (!s.length) return null;
+  const off = S.offMs/1000;                       // t, start and end are audio times
+  let idx = 0;
+  for (let i = 0; i < s.length; i++) if (s[i].time + off <= t + 0.001) idx = i;
+  return { idx, start: Math.max(0, s[idx].time + off),
+           end: (idx+1 < s.length) ? s[idx+1].time + off : S.duration, name: s[idx].name };
+}
+
+/* -- timeline -------------------------------------------------------------- */
+function updateHeadPct(){
+  const tl = document.getElementById("tl");
+  const D = S.duration || 1;
+  const x = Math.round(clamp(S.time/D, 0, 1) * tl.clientWidth);
+  document.getElementById("tlhead").style.transform = "translateX(" + x + "px)";
+  document.getElementById("tlplayed").style.width = x + "px";
+}
+
+/* scrub */
+(function(){
+  const tl = document.getElementById("tl"), hint = document.getElementById("tlhint");
+  let drag = false;
+  const seekTo = (e) => {
+    const r = tl.getBoundingClientRect();
+    seek(clamp((e.clientX - r.left)/r.width, 0, 1) * (S.duration || 0));
+  };
+  tl.addEventListener("pointerdown", (e) => { drag = true; tl.setPointerCapture(e.pointerId); seekTo(e); });
+  tl.addEventListener("pointermove", (e) => {
+    const r = tl.getBoundingClientRect();
+    const f = clamp((e.clientX - r.left)/r.width, 0, 1);
+    const tt = f * (S.duration || 0), sec = sectionAt(tt);
+    hint.style.display = "block";
+    hint.style.left = clamp(e.clientX, 60, window.innerWidth - 60) + "px";
+    hint.style.top = (r.top - 7) + "px";
+    hint.innerHTML = "<b></b><span></span>";
+    hint.firstChild.textContent = fmt(tt);
+    const tone = S.tones.changes.length ? toneLabel(toneKeyAt(tt - S.offMs/1000)) : "";
+    hint.lastChild.textContent = [sec ? secLabel(sec.name) : "", tone].filter(Boolean).join("  ·  ");
+    if (drag) seekTo(e);
+  });
+  tl.addEventListener("pointerup", () => { drag = false; });
+  tl.addEventListener("pointerleave", () => { hint.style.display = "none"; drag = false; });
+})();
+
+/* ── drawing ─────────────────────────────────────────────────────────────── */
+
+/* where a note is along the neck, u = 0..1 through its sustain (slides move) */
+function noteX(n, u, zoneMid){
+  if (n.f <= 0) return zoneMid;
+  const tgt = n.sl > 0 ? n.sl : n.slu > 0 ? n.slu : 0;
+  if (!tgt) return fretMid(n.f);
+  return lerp(fretMid(n.f), fretMid(tgt), sstep((u - 0.3)/0.7));
+}
+/* how far a bend has lifted the tail at u */
+function bendY(n, u){
+  return n.bn > 0 ? Math.min(PITCH*1.5, n.bn*PITCH*0.42) * sstep(u/0.45) : 0;
+}
+
+/* Vibrato is the string being pushed up and down across the fret, so the tail
+   (and the held note at the neck) wave vertically. The chart only says that a
+   note has vibrato, not how wide, so every vibrato gets the same swing. */
+const VIB_HZ = 5.5, VIB_AMP = PITCH*0.26;
+const vibY = (n, tau) => n.vb ? Math.sin((tau - n.t)*Math.PI*2*VIB_HZ) * VIB_AMP * Math.min(1, (tau - n.t)*6) : 0;
+
+/* sustain tail: a flat ribbon at string height. A slide bends it across the
+   frets, a bend lifts it, vibrato waves it up and down and tremolo makes it
+   a zigzag. */
+function drawTail(cam, n, t, y, col, zoneMid, halfW, fog){
+  const tA = Math.max(n.t, t), tB = Math.min(n.t + n.sus, t + G.hor);
+  if (tB - tA < 0.01) return;
+  const open = n.f <= 0;
+  const ts = [];
+  if (n.tr){
+    const step = 1/20;
+    ts.push(tA);
+    for (let k = Math.ceil((tA - n.t)/step + 0.001); n.t + k*step < tB; k++) ts.push(n.t + k*step);
+    ts.push(tB);
+  } else {
+    const curved = n.sl > 0 || n.slu > 0 || n.bn > 0 || n.vb;
+    const N = curved ? clamp(Math.ceil((tB - tA)*(n.vb ? 44 : 16)), 8, 90) : 1;
+    for (let i = 0; i <= N; i++) ts.push(lerp(tA, tB, i/N));
+  }
+  const Lp = [], Rp = [];
+  for (const tau of ts){
+    const u = (tau - n.t)/n.sus;
+    let x = noteX(n, u, zoneMid);
+    if (n.tr) x += ((Math.round((tau - n.t)*20) & 1) ? 1 : -1) * FW*0.10;
+    const yy = y + bendY(n, u) + vibY(n, tau), z = -(tau - t)*G.sc;
+    const a = project(cam, x - halfW, yy, z), b = project(cam, x + halfW, yy, z);
+    if (!a || !b) return;
+    Lp.push(a); Rp.push(b);
+  }
+  const p0 = Lp[0], p1 = Lp[Lp.length - 1];
+  const a0 = fog(tA), a1 = fog(tB) * (n.slu > 0 && tB >= n.t + n.sus - 0.01 ? 0.15 : 1);
+  const k = open ? 0.16 : 0.62;
+  let fill, edge;
+  if (Math.hypot(p1.x - p0.x, p1.y - p0.y) < 2 || Math.abs(a0 - a1) < 0.02){
+    fill = rgba(col, k*a0); edge = rgba(col, 0.95*a0);
+  } else {
+    fill = ctx.createLinearGradient(p0.x, p0.y, p1.x, p1.y);
+    fill.addColorStop(0, rgba(col, k*a0)); fill.addColorStop(1, rgba(col, k*a1));
+    edge = ctx.createLinearGradient(p0.x, p0.y, p1.x, p1.y);
+    edge.addColorStop(0, rgba(col, 0.95*a0)); edge.addColorStop(1, rgba(col, 0.95*a1));
+  }
+  ctx.beginPath();
+  ctx.moveTo(Lp[0].x, Lp[0].y);
+  for (let i = 1; i < Lp.length; i++) ctx.lineTo(Lp[i].x, Lp[i].y);
+  for (let i = Rp.length - 1; i >= 0; i--) ctx.lineTo(Rp[i].x, Rp[i].y);
+  ctx.closePath();
+  ctx.fillStyle = fill; ctx.fill();
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = edge; ctx.lineWidth = clamp(Lp[0].s*FW*0.022, 0.8, 2.6);
+  ctx.beginPath();
+  ctx.moveTo(Lp[0].x, Lp[0].y);
+  for (let i = 1; i < Lp.length; i++) ctx.lineTo(Lp[i].x, Lp[i].y);
+  ctx.moveTo(Rp[0].x, Rp[0].y);
+  for (let i = 1; i < Rp.length; i++) ctx.lineTo(Rp[i].x, Rp[i].y);
+  ctx.stroke();
+}
+
+/* the frame a chord flies in: thick cyan posts, a thin lid, a slab on the floor */
+function drawChordBox(cam, ev, x0, x1, yTopBox, z, a, near){
+  const bl = project(cam, x0, 0, z), br = project(cam, x1, 0, z);
+  const tr = project(cam, x1, yTopBox, z), tl = project(cam, x0, yTopBox, z);
+  if (!bl || !br || !tr || !tl) return;
+  const lw = clamp(bl.s*FW*0.085, 1.2, 9);
+
+  /* slab on the floor under the frame */
+  const d = FW*0.30;
+  ctx.globalAlpha = 1;
+  quad(project(cam, x0, 0, z + d), project(cam, x1, 0, z + d),
+       project(cam, x1, 0, z - d), project(cam, x0, 0, z - d), "rgba(120,190,205," + (0.30*a).toFixed(3) + ")");
+
+  ctx.beginPath();
+  ctx.moveTo(bl.x, bl.y); ctx.lineTo(br.x, br.y); ctx.lineTo(tr.x, tr.y); ctx.lineTo(tl.x, tl.y);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(30,200,220," + ((ev.rep ? 0.16 : 0.10)*a).toFixed(3) + ")";
+  ctx.fill();
+
+  if (lw > 2.5 && near > 0.5) glow("#2fe6ff", (bl.x + br.x)/2, (bl.y + tl.y)/2,
+                     Math.abs(br.x - bl.x)*0.75, Math.abs(bl.y - tl.y)*0.95, 0.10*a*near);
+
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  const c1 = "rgba(64,236,255," + (0.95*a).toFixed(3) + ")";
+  ctx.strokeStyle = c1; ctx.lineWidth = ev.rep ? lw*0.55 : lw;
+  ctx.beginPath(); seg(bl, tl); seg(br, tr); ctx.stroke();
+  ctx.lineWidth = Math.max(1, lw*0.45);
+  ctx.beginPath(); seg(tl, tr); seg(bl, br); ctx.stroke();
+
+  if (ev.rep && (ev.mute || ev.pm)){               // a muted strum is crossed out
+    ctx.strokeStyle = "rgba(64,236,255," + (0.55*a).toFixed(3) + ")";
+    ctx.lineWidth = Math.max(1, lw*0.5);
+    ctx.beginPath(); seg(bl, tr); seg(br, tl); ctx.stroke();
+  }
+  ctx.lineCap = "butt";
+
+  /* The name rides at the top-left corner of the frame. Only the first chord
+     of a hold carries it; once that chord lands, the hold's own name takes
+     over at the same corner (see 7b) and stays while the chord is repeated. */
+  if (!ev.rep && ev.name && ev.hold !== 2 && !(ev.hold === 1 && ev.landed)){
+    const p = project(cam, x0, nameY(), z);
+    if (p) chordName(ev.name, p, p.s, a, neckAxes(cam, x0, nameY(), z));
+  }
+}
+
+/* A chord's name stands left of its frame at one fixed height: a string's
+   width above the top string, whatever the chord and however tall its frame.
+   So it never lies across the strings. `tl` is the projected point on the
+   frame's left edge at that height; the text sits on it, right-aligned. */
+const nameY = () => YLO + S.nStr*PITCH;
+/* The name is written in the plane of the fretboard, not flat on the screen:
+   its baseline runs along the strings and its uprights along the frets, so it
+   leans and slopes exactly as the neck does from the camera. `ax` holds those
+   two directions on screen (see neckAxes); without it the text is drawn flat. */
+function chordName(name, tl, sc, a, ax){
+  const fs = clamp(sc*FW*0.62, 0, 54);
+  if (fs < 9 || a <= 0.01) return;
+  const sp = textSprite(name, fs, "#eef1f3", null), k = fs/sp.q, tw = sp.tw*k;
+  /* right-aligned to the frame, sitting on the line; kept on screen at the left edge */
+  const right = Math.max(tw + 10, tl.x - fs*0.45) - tl.x;
+  sprStamp(sp, tl.x, tl.y, k, a, ax, right - tw/2, -fs*0.36);
+}
+/* On screen, which way the strings run (ex) and which way "down the fret" points
+   (ey) at a point of the neck plane. Unit vectors: they turn and skew what is
+   drawn with them, without changing its size. */
+function neckAxes(cam, x, y, z){
+  const p = project(cam, x, y, z), q = project(cam, x + FW, y, z), u = project(cam, x, y + PITCH, z);
+  if (!p || !q || !u) return null;
+  const lx = Math.hypot(q.x - p.x, q.y - p.y), ly = Math.hypot(p.x - u.x, p.y - u.y);
+  if (lx < 0.5 || ly < 0.5) return null;
+  return { ex:[(q.x - p.x)/lx, (q.y - p.y)/lx], ey:[(p.x - u.x)/ly, (p.y - u.y)/ly] };
+}
+
+/* difficulty bars across the top */
+const BARS = { x0:0, x1:1, top:0, h:1 };
+function drawPhraseBars(t, off){
+  BARS.x0 = W*0.126; BARS.x1 = W*0.895;
+  BARS.h = clamp(H*0.066, 22, 76); BARS.top = Math.max(8, H*0.048);
+  const ph = S.phrases, D = S.duration || 0;
+  if (!ph.length || D <= 0) return;
+  const base = BARS.top + BARS.h, span = BARS.x1 - BARS.x0;
+  const tick = Math.max(2, Math.round(BARS.h*0.055));
+  const gFut = ctx.createLinearGradient(0, BARS.top, 0, base);
+  gFut.addColorStop(0, "#d63cff"); gFut.addColorStop(1, "#b40fe8");
+  /* the bars picked for looping (or being picked right now, while the mouse is held) */
+  const sel = selRange();
+  for (let pi = 0; pi < ph.length; pi++){
+    const p = ph[pi];
+    const xa = BARS.x0 + span*clamp((p.t0 + off)/D, 0, 1), xb = BARS.x0 + span*clamp((p.t1 + off)/D, 0, 1);
+    const w = Math.max(1, xb - xa - (xb - xa > 5 ? 2 : 0.5));
+    const picked = sel && pi >= sel[0] && pi <= sel[1];
+    ctx.globalAlpha = sel && !picked ? 0.38 : 1;
+    if (picked){                                    // a lit column behind the bar, so even an empty phrase shows
+      ctx.fillStyle = "rgba(120,235,255,0.20)";
+      ctx.fillRect(xa, BARS.top - 3, w, BARS.h + 3);
+    }
+    const cur = t >= p.t0 && t < p.t1, past = t >= p.t1;
+    const bh = Math.max(p.lv > 0 ? 3 : 0, BARS.h*p.lv);
+    if (bh > 0){
+      ctx.fillStyle = past ? "#3a1c4e" : cur ? "#ff5cf4" : gFut;
+      ctx.fillRect(xa, base - bh, w, bh);
+      if (cur){                                     // the part of the phrase already played
+        ctx.fillStyle = "#4a1fd0";
+        ctx.fillRect(xa, base - bh, w*clamp((t - p.t0)/(p.t1 - p.t0), 0, 1), bh);
+      }
+    }
+    ctx.fillStyle = picked ? "#7ff0ff" : past ? "#4b4b55" : cur ? "#20b8cc" : "#ff8a00";
+    ctx.fillRect(xa, base + tick, w, picked ? tick*1.6 : tick);
+    if (picked && bh > 0){                          // and the bar itself brightens
+      ctx.fillStyle = "rgba(255,255,255,0.22)";
+      ctx.fillRect(xa, base - bh, w, bh);
+    }
+  }
+  ctx.globalAlpha = 1;
+  if (sel){                                         // one frame round the whole selection
+    const xa = BARS.x0 + span*clamp((ph[sel[0]].t0 + off)/D, 0, 1), xb = BARS.x0 + span*clamp((ph[sel[1]].t1 + off)/D, 0, 1);
+    ctx.strokeStyle = "rgba(127,240,255,0.95)"; ctx.lineWidth = 1.5;
+    ctx.strokeRect(xa - 1.5, BARS.top - 4.5, xb - xa + 1, BARS.h + tick*3 + 7);
+  }
+  /* tone switches: a small flag above the bars, dimmed once it is behind */
+  const tcs = S.tones.changes;
+  if (tcs.length){
+    const r = clamp(BARS.h*0.10, 3, 6.5), y0 = BARS.top - r*2.1;
+    ctx.fillStyle = "#ffe9a8";
+    for (const c of tcs){
+      const x = BARS.x0 + span*clamp((c.t + off)/D, 0, 1);
+      ctx.globalAlpha = t >= c.t ? 0.40 : 1;
+      ctx.beginPath(); ctx.moveTo(x - r, y0); ctx.lineTo(x + r, y0); ctx.lineTo(x, y0 + r*1.7); ctx.closePath(); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* The note-hit light, under the middle of the bars: it blinks at the instant
+   a note reaches the fretboard. Watch it against the music while turning the
+   note offset - when the blink sits on the attack, the chart is in sync. */
+function drawHitLight(t){
+  const r = clamp(H*0.0105, 5, 11);
+  const cx = (BARS.x0 + BARS.x1)/2, cy = BARS.top + BARS.h + Math.max(2, Math.round(BARS.h*0.055))*2 + r*2.1;
+  const k = hitFlash(t);
+  if (k > 0) glow("#49e9ff", cx, cy, r*4.5, r*4.5, 0.95*k);
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
+  ctx.fillStyle = "#0a0d11"; ctx.fill();
+  if (k > 0){ ctx.globalAlpha = k; ctx.fillStyle = "#e6fdff"; ctx.fill(); ctx.globalAlpha = 1; }
+  ctx.lineWidth = Math.max(1.2, r*0.22);
+  ctx.strokeStyle = k > 0 ? "rgba(120,240,255," + (0.45 + 0.55*k).toFixed(3) + ")" : "#3b4753";
+  ctx.stroke();
+}
+
+/* a finger marker: a white capsule over the strings one finger holds, with the
+   finger's number in it (at the top of a barre) */
+/* The markers of the hand at time t, as world-space pills {g, x, ya, yb, yt, k}:
+   k is how far the marker has come in - it fades with k and hangs in front
+   of the neck by (1 - k), so it is seen approaching and then sticking to the
+   fretboard, and lifting off again when it leaves. */
+function fingerPills(t, yOf){
+  const Hd = S.holds, k = lowerBound(Hd, "in0", t + 1e-6) - 1;
+  if (k < 0) return [];
+  const h = Hd[k], nx = Hd[k+1], e = PITCH*0.20;
+  const geo = (m, kk) => ({ g:m.g, x:fretMid(m.f), ya:yOf(m.s0) + e, yb:yOf(m.s1) - e,
+                            yt: m.s1 > m.s0 ? yOf(m.s0) : (yOf(m.s0) + yOf(m.s1))/2, k:kk });
+  const u = clamp((t - h.in0)/Math.max(0.01, h.t - h.in0), 0, 1);
+  if (u < 1 && h.link){
+    /* sliding over from the previous hold: a finger in both moves in a straight line */
+    const out = [], prev = new Map(Hd[k-1].pills.map(m => [m.g, m]));
+    for (const m of h.pills){
+      const b = geo(m, 1), o = prev.get(m.g);
+      if (o){
+        const a = geo(o, 1);
+        for (const key of ["x", "ya", "yb", "yt"]) b[key] = lerp(a[key], b[key], u);
+        prev.delete(m.g);
+      } else b.k = u;
+      out.push(b);
+    }
+    for (const o of prev.values()) out.push(geo(o, 1 - u));
+    return out;
+  }
+  let kk = u;
+  if (t > h.t1 && !(nx && nx.link)) kk = clamp(1 - (t - h.t1)/FING_IN, 0, 1);
+  return kk > 0.01 ? h.pills.map(m => geo(m, kk)) : [];
+}
+
+function drawPill(pa, pb, pt, r, txt, a, axes){
+  const ax = pa.x, ay = pa.y, bx = pb.x, by = pb.y;
+  const ang = Math.atan2(by - ay, bx - ax);
+  const path = () => {
+    ctx.beginPath();
+    ctx.arc(ax, ay, r, ang + Math.PI/2, ang + Math.PI*1.5);
+    ctx.arc(bx, by, r, ang - Math.PI/2, ang + Math.PI/2);
+    ctx.closePath();
+  };
+  ctx.globalAlpha = a; ctx.lineJoin = "round";
+  path(); ctx.fillStyle = "rgba(255,255,255,0.13)"; ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,0.55)"; ctx.lineWidth = Math.max(3, r*0.34); ctx.stroke();
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = Math.max(1.4, r*0.15); ctx.stroke();
+  ctx.globalAlpha = 1;
+  label(txt, pt.x, pt.y, r*1.7, "#fff", a, null, axes);        // the number slants with the neck
+}
+
+/* ── chord diagram ───────────────────────────────────────────────────────────
+   Under the lyrics, a flat picture of the chord the hand is holding: the same
+   strings in the same colours and order as the neck (low E on top), frets left
+   to right, a numbered dot per finger, a capsule for a barre, a ring for an
+   open string and a cross for a string that is not played. It holds still
+   where the highway shows the chord only in passing and in perspective.
+   It stays up between two shapes that follow each other closely, and dims
+   when the highway runs behind it. */
+function drawChordDiagram(t, cam, curA){
+  const Hd = S.holds, k = lowerBound(Hd, "t", t + 1e-6) - 1;
+  if (k < 0) return;
+  const h = Hd[k], nx = Hd[k+1];
+  if (!h.frets || !h.frets.some(f => f >= 0)) return;
+  let a = (nx && nx.link) ? (t < nx.t ? 1 : 0) : clamp((h.t1 + 0.30 - t)/0.30, 0, 1);
+  a *= S.vis;
+  if (a <= 0.01) return;
+
+  const nS = S.nStr, fr = h.frets;
+  const fretted = fr.filter(f => f > 0);
+  const lo = fretted.length ? Math.min.apply(null, fretted) : 1;
+  const hi = fretted.length ? Math.max.apply(null, fretted) : 1;
+  const base = hi <= 5 ? 1 : lo;                               // low chords are shown from the nut
+  const nF = clamp(hi - base + 1, 4, 7);
+  const cw = clamp(H*0.055, 22, 58), sp = cw*0.44;             // fret cell width, string spacing
+  const x0 = W*0.08, yName = Math.max(H*0.335, BARS.top + BARS.h + cw*2.2);
+  const gx = x0 + cw*0.75, gy = yName + cw*0.62;               // top-left of the grid
+  const gw = nF*cw, gh = (nS - 1)*sp;
+
+  /* dim it while the highway is behind it */
+  {
+    const xl = fretX(curA.fret - 1), xr = fretX(Math.min(24, curA.fret + curA.width - 1));
+    for (let i = 0; i <= 8 && a > 0.3; i++){
+      for (const xx of [xl, xr]){
+        const p = project(cam, xx, 0, -ZFAR*i/8);
+        if (p && p.x > x0 - cw && p.x < gx + gw + cw && p.y > yName - cw && p.y < gy + gh + cw*1.3){ a = Math.min(a, 0.28); break; }
+      }
+    }
+  }
+
+  ctx.save();
+  ctx.globalAlpha = a; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.fillStyle = "rgba(0,0,0,0.45)";
+  rr(x0 - cw*0.35, yName - cw*0.62, gx + gw + cw*0.45 - (x0 - cw*0.35), gy + gh + cw*1.05 - (yName - cw*0.62), cw*0.22);
+  ctx.fill();
+
+  if (h.name){
+    ctx.font = "700 " + (cw*0.72).toFixed(1) + "px " + FONT;
+    ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillStyle = "#f2f4f5";
+    ctx.fillText(h.name, x0, yName);
+  }
+  /* frets, with the nut as a thick bar when the diagram starts at fret 1 */
+  for (let i = 0; i <= nF; i++){
+    const x = gx + i*cw, nut = base === 1 && i === 0;
+    ctx.strokeStyle = nut ? "#e9e2cf" : "#58626e"; ctx.lineWidth = nut ? Math.max(3, cw*0.12) : 1.5;
+    ctx.beginPath(); ctx.moveTo(x, gy - sp*0.25); ctx.lineTo(x, gy + gh + sp*0.25); ctx.stroke();
+  }
+  /* strings, and what each one does when it is not fretted */
+  const yS = (s) => gy + s*sp;
+  for (let s = 0; s < nS; s++){
+    const used = fr[s] >= 0, col = LANE[s] || "#9aa7b2", y = yS(s);
+    ctx.strokeStyle = used ? col : rgba(col, 0.28); ctx.lineWidth = used ? Math.max(1.6, cw*0.055) : 1.2;
+    ctx.beginPath(); ctx.moveTo(gx, y); ctx.lineTo(gx + gw, y); ctx.stroke();
+    const mx = gx - cw*0.42, r = sp*0.30;
+    if (fr[s] === 0){                                           // open string
+      ctx.strokeStyle = col; ctx.lineWidth = Math.max(1.5, r*0.36);
+      ctx.beginPath(); ctx.arc(mx, y, r, 0, Math.PI*2); ctx.stroke();
+    } else if (!used){                                          // not played
+      ctx.strokeStyle = "#7b8794"; ctx.lineWidth = Math.max(1.4, r*0.34);
+      ctx.beginPath(); ctx.moveTo(mx - r*0.8, y - r*0.8); ctx.lineTo(mx + r*0.8, y + r*0.8);
+      ctx.moveTo(mx + r*0.8, y - r*0.8); ctx.lineTo(mx - r*0.8, y + r*0.8); ctx.stroke();
+    }
+  }
+  /* fingers: a barre first, so the single dots sit on top of it */
+  const R = sp*0.44;
+  const cellX = (f) => gx + (f - base + 0.5)*cw;
+  const num = (txt, x, y) => {
+    ctx.font = "700 " + (R*1.45).toFixed(1) + "px " + FONT;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#fff";
+    ctx.fillText(txt, x, y + R*0.06);
+  };
+  const pills = h.pills.filter(m => m.f >= base && m.f < base + nF);
+  for (const m of pills){
+    if (m.s1 === m.s0) continue;
+    const x = cellX(m.f);
+    ctx.strokeStyle = "rgba(235,240,245,0.92)"; ctx.lineWidth = R*2;
+    ctx.beginPath(); ctx.moveTo(x, yS(m.s0)); ctx.lineTo(x, yS(m.s1)); ctx.stroke();
+    ctx.strokeStyle = "#2a323c"; ctx.lineWidth = R*2 - Math.max(3, R*0.42);
+    ctx.beginPath(); ctx.moveTo(x, yS(m.s0)); ctx.lineTo(x, yS(m.s1)); ctx.stroke();
+    num(m.g, x, yS(m.s0));
+  }
+  /* a string under a barre that another finger frets higher belongs to that finger */
+  for (let s = 0; s < nS; s++){
+    const f = fr[s];
+    if (!(f > 0) || f < base || f >= base + nF) continue;
+    const m = pills.find(q => q.f === f && s >= q.s0 && s <= q.s1);
+    if (m && m.s1 !== m.s0) continue;                           // part of the barre itself
+    const x = cellX(f), y = yS(s), col = LANE[s] || "#9aa7b2";
+    ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI*2);
+    ctx.fillStyle = shade(col, 0.62); ctx.fill();
+    ctx.strokeStyle = tint(col, 0.55); ctx.lineWidth = Math.max(1.4, R*0.20); ctx.stroke();
+    if (m) num(m.g, x, y);
+  }
+  /* fret numbers under the cells */
+  ctx.font = "700 " + (cw*0.36).toFixed(1) + "px " + FONT;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (let i = 0; i < nF; i++){
+    ctx.fillStyle = i === 0 || INLAY.has(base + i) ? "#ffb01f" : "#7d6a3c";
+    ctx.fillText(String(base + i), gx + (i + 0.5)*cw, gy + gh + cw*0.60);
+  }
+  ctx.restore();
+}
+
+function draw(dt){
+  const t = chartTime();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+
+  if ((!S.all || !S.all.length) && !S.resting){
+    ctx.fillStyle = "#4d5a68"; ctx.font = "13px 'Segoe UI',system-ui,sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("this arrangement has no notes to draw", W/2, H/2);
+    ctx.textAlign = "left";
+    return;
+  }
+
+  const nStr = S.nStr;
+  const yOf = (s) => YLO + (nStr - 1 - clamp(s, 0, nStr - 1))*PITCH;
+  const yTop = yOf(0), yBot = yOf(nStr - 1);
+  const HOR = G.hor, tEnd = t + HOR;
+  const zOf = (tau) => -(tau - t)*G.sc;
+  /* S.vis fades the whole chart out and in (see restChart): lanes, notes,
+     frames, tails and numbers all take their alpha from fog() */
+  const fog = (tau) => clamp((tEnd - tau)/(HOR*0.30), 0, 1)*S.vis;
+
+  /* ── camera: frame the anchors of the next LOOK seconds ──────────────── */
+  const A = S.anchors, ai = anchorIdx(t), curA = A[ai];
+  let lo, hi;
+  if (S.autoPan){
+    lo = curA.fret - 1; hi = curA.fret + curA.width - 1;
+    for (let i = anchorIdx(t - LOOK_BACK); i < A.length && A[i].t < t + LOOK; i++){
+      lo = Math.min(lo, A[i].fret - 1); hi = Math.max(hi, A[i].fret + A[i].width - 1);
+    }
+  } else {
+    lo = Math.max(0, S.fMin - 1); hi = Math.max(lo + 4, S.fMax);
+  }
+  const wantC = (lo + hi)/2, wantS = Math.max(4, hi - lo);
+  if (S.camC === null){ S.camC = wantC; S.camS = wantS; S.camCv = S.camSv = 0; }
+  else {
+    /* A critically damped spring: the camera eases out of one framing and
+       into the next over four to five seconds, with no sudden start or stop.
+       Because it frames LOOK seconds ahead, it has all but finished moving
+       before the notes that needed the new angle arrive. */
+    const w = CAM_EASE * S.camRate;
+    S.camCv += ((wantC - S.camC)*w*w - 2*w*S.camCv)*dt;  S.camC += S.camCv*dt;
+    S.camSv += ((wantS - S.camS)*w*w - 2*w*S.camSv)*dt;  S.camS = Math.max(4, S.camS + S.camSv*dt);
+  }
+  const cam = makeCam(W, H, S.camC, S.camS, nStr, S.zoom);
+  const P = (x, y, z) => project(cam, x, y, z);
+  const zx0 = fretX(curA.fret - 1), zx1 = fretX(Math.min(24, curA.fret + curA.width - 1));
+
+  /* glow behind the far end of the highway */
+  {
+    const v = P((zx0 + zx1)/2, 0, -ZFAR);
+    if (v) glow("#0a3a6a", v.x, v.y + H*0.05, W*0.30, H*0.20, 0.55);
+  }
+
+  /* ── 1. every fret as a thin teal line running to the horizon ────────── */
+  ctx.lineWidth = 1;
+  for (let f = 0; f <= 24; f++){
+    const a = P(fretX(f), 0, 0), b = P(fretX(f), 0, -ZFAR);
+    if (!a || !b) continue;
+    if (Math.max(a.x, b.x) < -60 || Math.min(a.x, b.x) > W + 60) continue;
+    const g = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+    g.addColorStop(0, "rgba(0,176,170,0.46)"); g.addColorStop(0.65, "rgba(0,150,160,0.20)");
+    g.addColorStop(1, "rgba(0,150,160,0)");
+    ctx.strokeStyle = g;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  }
+
+  /* ── 2. the lit lanes of each anchor, cut at every beat ──────────────── */
+  {
+    const cuts = [{ t, k:0 }];
+    for (let i = lowerBound(S.beats, "time", t + 0.0005); i < S.beats.length && S.beats[i].time < tEnd; i++)
+      cuts.push({ t: S.beats[i].time, k: S.beats[i].measure >= 0 ? 2 : 1 });
+    for (let i = ai + 1; i < A.length && A[i].t < tEnd; i++) cuts.push({ t: A[i].t, k:0 });
+    cuts.sort((p, q) => p.t - q.t);
+    let run = null;
+    const fillRun = (r) => {
+      const al = r.al === undefined ? 1 : r.al;
+      const c1 = "rgba(7,30,60," + (0.92*al).toFixed(3) + ")", c2 = "rgba(26,92,168," + (0.30*al).toFixed(3) + ")";
+      for (let f = r.f0; f <= r.f1; f++){
+        const xa = fretX(f - 1), xb = fretX(f);
+        quad(P(xa, 0, r.zNear), P(xb, 0, r.zNear), P(xb, 0, r.zFar), P(xa, 0, r.zFar), c1);
+        if (S.fx) quad(P(xa + FW*0.20, 0, r.zNear), P(xb - FW*0.20, 0, r.zNear),
+                       P(xb - FW*0.20, 0, r.zFar), P(xa + FW*0.20, 0, r.zFar), c2);
+      }
+    };
+    const lines = [];                                          // drawn after the fills, so a fill never covers a line
+    for (let i = cuts.length - 1; i >= 0; i--){               // far to near
+      const ta = cuts[i].t, tb = i + 1 < cuts.length ? cuts[i+1].t : tEnd;
+      if (tb - ta < 0.002) continue;
+      const an = A[anchorIdx((ta + tb)/2)];
+      const f0 = an.fret, f1 = Math.min(24, an.fret + an.width - 1);
+      const z0 = zOf(ta), z1 = zOf(tb) - 0.004, al = fog((ta + tb)/2);
+      if (al <= 0.01) continue;
+      /* The floor of a lane is the same colour from cell to cell until the fog
+         starts, so the fully lit cells of one anchor are filled as one long
+         quad per fret (run), not one per beat cell. Lines stay per cell: their
+         width follows the distance. */
+      if (al < 0.999 || !run || run.an !== an){
+        if (run) fillRun(run);
+        run = al >= 0.999 ? { an, f0, f1, zNear:z0, zFar:z1 } : null;
+        if (!run) fillRun({ an, f0, f1, zNear:z0, zFar:z1, al });
+      } else run.zNear = z0;                                   // going far to near: extend toward the neck
+      lines.push({ i, f0, f1, z0, z1, al });
+    }
+    if (run) fillRun(run);
+    for (const L of lines){
+      const { i, f0, f1, z0, z1, al } = L;
+      const near = P(fretX(f0 - 1), 0, z0);
+      const sc = near ? near.s*FW : 20;
+      ctx.lineCap = "butt";
+      ctx.strokeStyle = "rgba(0,196,232," + (0.85*al).toFixed(3) + ")";
+      ctx.lineWidth = clamp(sc*0.022, 0.8, 2.2);
+      ctx.beginPath();
+      for (let f = f0; f < f1; f++) seg(P(fretX(f), 0, z0), P(fretX(f), 0, z1));
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(70,236,255," + al.toFixed(3) + ")";
+      ctx.lineWidth = clamp(sc*0.045, 1.1, 4.2);
+      ctx.beginPath();
+      seg(P(fretX(f0 - 1), 0, z0), P(fretX(f0 - 1), 0, z1)); seg(P(fretX(f1), 0, z0), P(fretX(f1), 0, z1));
+      ctx.stroke();
+      if (S.showCells && cuts[i].k){                           // beat line / measure line
+        ctx.strokeStyle = cuts[i].k === 2 ? "rgba(150,214,244," + (0.62*al).toFixed(3) + ")"
+                                          : "rgba(84,150,196," + (0.34*al).toFixed(3) + ")";
+        ctx.lineWidth = cuts[i].k === 2 ? clamp(sc*0.03, 1, 3) : 1;
+        ctx.beginPath(); seg(P(fretX(f0 - 1), 0, z0), P(fretX(f1), 0, z0)); ctx.stroke();
+      }
+    }
+  }
+
+  /* ── 3. hand shapes: the edges of the anchor glow for as long as the
+          chord is held (purple-white for an arpeggio) ─────────────────── */
+  for (let i = Math.max(0, lowerBound(S.hands, "t", t - 30)); i < S.hands.length; i++){
+    const h = S.hands[i];
+    if (h.t > tEnd) break;
+    if (h.t1 < t) continue;
+    const ta = Math.max(h.t, t), tb = Math.min(h.t1, tEnd);
+    if (tb - ta < 0.02) continue;
+    const an = A[anchorIdx(h.t + 0.002)];
+    const z0 = zOf(ta), z1 = zOf(tb), wd = FW*0.085;
+    const al = (fog(ta) + fog(tb))/2;
+    const colr = h.arp ? "rgba(190,170,255," : "rgba(70,240,255,";
+    for (const x of [fretX(an.fret - 1), fretX(Math.min(24, an.fret + an.width - 1))])
+      quad(P(x - wd, 0, z0), P(x + wd, 0, z0), P(x + wd, 0, z1), P(x - wd, 0, z1), colr + (0.92*al).toFixed(3) + ")");
+  }
+
+  /* ── 4. fret numbers on the floor where the hand moves to a new anchor ── */
+  if (S.showNums){
+    for (let i = ai + 1; i < A.length && A[i].t < tEnd; i++){
+      const an = A[i], pv = A[i-1];
+      if (!an.row) continue;                                   // thinned out once, when the chart was loaded
+      const z = zOf(an.t) + FW*0.30;
+      const al = fog(an.t) * clamp((an.t - t - 0.25)/0.5, 0, 1);   // gone before it reaches the neck's own numbers
+      if (al <= 0.02) continue;
+      const lo2 = an.fret, hi2 = an.fret + an.width - 1;
+      for (let f = Math.max(1, lo2 - 3); f <= Math.min(24, hi2 + 5); f++){
+        const inZone = f >= lo2 && f <= hi2;
+        if (!inZone && !INLAY.has(f)) continue;
+        const p = P(fretMid(f), 0, z);
+        if (!p) continue;
+        const fs = p.s*FW*0.46;
+        if (fs < 7) continue;
+        label(String(f), p.x, p.y, Math.min(fs, 34), inZone ? "#a9dcec" : "#1f8f88", (inZone ? 0.85 : 0.75)*al, null,
+              neckAxes(cam, fretMid(f), 0, z));                  // slanted with the neck, like the numbers under it
+      }
+    }
+  }
+
+  /* ── notes in view ───────────────────────────────────────────────────── */
+  /* While a stretch is being looped, the notes that lie outside it are still
+     shown as they come down the highway, but without their colour - they are
+     not part of what is being practised. */
+  const off0 = S.offMs/1000;
+  const lpA = S.loop && S.loopB ? S.loopA - off0 - 0.005 : -Infinity;
+  const lpB = S.loop && S.loopB ? S.loopB - off0 - 0.005 : Infinity;
+  const outside = (tt) => tt < lpA || tt >= lpB;
+  const items = [];
+  const act = new Array(nStr).fill(0);
+  for (let i = lowerBound(S.all, "t", t - S.maxSus - 0.3); i < S.all.length; i++){
+    const n = S.all[i];
+    if (n.t > tEnd) break;
+    if (n.hide) continue;
+    const d = n.t - t;
+    if (d < -0.25 && n.t + n.sus < t) continue;
+    items.push({ d, n, ev:null });
+    const s = clamp(n.s, 0, nStr - 1);
+    const lit = d >= 0 ? clamp(1 - d/1.6, 0, 1) : (n.t + n.sus > t ? 1 : clamp(1 + d/0.25, 0, 1));
+    if (lit*S.vis > act[s]) act[s] = lit*S.vis;
+  }
+  for (let i = lowerBound(S.chords, "t", t - 0.16); i < S.chords.length; i++){
+    const ev = S.chords[i];
+    if (ev.t > tEnd) break;
+    items.push({ d: ev.t - t + 1e-6, n:null, ev });            // the frame goes behind its own notes
+  }
+  items.sort((p, q) => q.d - p.d);                             // furthest first
+
+  /* ── 5. the fretboard at the hit plane ───────────────────────────────── */
+  const zf0 = curA.fret - 1, zf1 = Math.min(24, curA.fret + curA.width - 1);
+  const pNear = P(fretX(S.camC), yBot, 0);
+  const ppf = pNear ? pNear.s*FW : cam.ppf;                    // pixels per fret at the neck
+
+  /* inlay dots */
+  for (let f = 1; f <= 24; f++){
+    if (!INLAY.has(f)) continue;
+    const inZone = f > zf0 && f <= zf1;
+    const ys = (f % 12 === 0) ? [lerp(yBot, yTop, 0.25), lerp(yBot, yTop, 0.75)] : [(yBot + yTop)/2];
+    for (const yy of ys){
+      const p = P(fretMid(f), yy, 0);
+      if (!p || p.x < -40 || p.x > W + 40) continue;
+      const r = p.s*FW*0.105;
+      ctx.globalAlpha = inZone ? 0.95 : 0.80;
+      ctx.fillStyle = inZone ? "#b08a22" : "#0c5f58";
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, r, r*0.92, 0, 0, Math.PI*2); ctx.fill();
+      ctx.lineWidth = Math.max(1, r*0.16); ctx.strokeStyle = inZone ? "#e2bd4a" : "#17877c";
+      ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  /* frets: copper where the hand is, dark elsewhere */
+  ctx.lineCap = "round";
+  for (let f = 0; f <= 24; f++){
+    const a = P(fretX(f), yBot - PITCH*0.55, 0), b = P(fretX(f), yTop + PITCH*0.55, 0);
+    if (!a || !b || a.x < -30 || a.x > W + 30) continue;
+    const inZone = f >= zf0 && f <= zf1;
+    const lw = clamp(a.s*FW*(f === 0 ? 0.09 : 0.045), 1.2, f === 0 ? 12 : 6);
+    ctx.strokeStyle = "rgba(0,0,0,0.55)"; ctx.lineWidth = lw + 2;
+    ctx.beginPath(); ctx.moveTo(a.x + 1.5, a.y); ctx.lineTo(b.x + 1.5, b.y); ctx.stroke();
+    const g = ctx.createLinearGradient(a.x - lw, 0, a.x + lw, 0);
+    if (f === 0){ g.addColorStop(0, "#8d8676"); g.addColorStop(0.5, "#e9e2cf"); g.addColorStop(1, "#7d7666"); }
+    else if (inZone){ g.addColorStop(0, "#7a4a1c"); g.addColorStop(0.45, "#e6a35a"); g.addColorStop(1, "#6a3f18"); }
+    else { g.addColorStop(0, "#241a12"); g.addColorStop(0.45, "#5b4530"); g.addColorStop(1, "#1e160f"); }
+    ctx.strokeStyle = g; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  }
+  ctx.lineCap = "butt";
+
+  /* capo */
+  if (S.capo > 0 && S.capo <= 24){
+    const a = P(fretMid(S.capo) + FW*0.2, yBot - PITCH*0.7, 0), b = P(fretMid(S.capo) + FW*0.2, yTop + PITCH*0.7, 0);
+    if (a && b){
+      ctx.lineCap = "round"; ctx.strokeStyle = "rgba(210,214,222,0.92)"; ctx.lineWidth = clamp(a.s*FW*0.16, 3, 16);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.lineCap = "butt";
+      label("CAPO", b.x, b.y - ppf*0.22, clamp(ppf*0.16, 9, 16), "#d2d6de", 0.9, null);
+    }
+  }
+
+  /* strings: dim until a note is on its way down that string.
+
+     A string that has just been struck is drawn moving. From the spot the
+     note is fretted at (the nut, for an open string) toward the bridge it
+     swings up and down, widest away from the finger, and dies away - quickly
+     for a plain or palm-muted note, slowly under a held one. Behind the
+     finger, toward the nut, it stays still.
+
+     A bend pushes the string out of line: it runs straight from the nut to
+     the note's spot, where it is pushed furthest, and straight back from
+     there toward the bridge. That spot is exactly where the held note's frame
+     is drawn (same position, same bend and vibrato), so the corner of the
+     string sits in the frame. */
+  const sxR = Math.max(NECK_END + 3*FW, cam.px + 40*FW);
+  const struck = new Array(nStr).fill(null);
+  for (let i = lowerBound(S.all, "t", t + 1e-6) - 1; i >= 0; i--){
+    const n = S.all[i], age = t - n.t;
+    if (age > Math.max(1.0, S.maxSus + 0.1)) break;
+    const si = clamp(n.s, 0, nStr - 1);
+    if (struck[si]) continue;                                  // the latest strike on each string decides
+    const held = sustained(n) && age < n.sus;
+    struck[si] = (n.mt || (age > 1.0 && !held)) ? { still:true } : { n, age, held };
+  }
+  for (let s = 0; s < nStr; s++){
+    const y = yOf(s), col = LANE[s] || "#9aa7b2";
+    const k = act[s];
+    const lw = clamp(ppf*(0.030 - s*0.0028), 1, 5.5);
+    const hit = struck[s] && !struck[s].still ? struck[s] : null;
+
+    /* where the string is, as a list of points: rest line, bend corner, swing */
+    let pts, ghost = null;
+    const swing = (() => {
+      if (!hit || S.vis < 0.05) return 0;
+      const n = hit.n;
+      const tau = n.pm ? 0.06 : hit.held ? Math.max(0.6, n.sus*0.7) : 0.30;
+      return PITCH*(n.pm ? 0.09 : 0.17)*(n.ac ? 1.25 : 1)*Math.exp(-hit.age/tau)*S.vis;
+    })();
+    const u = hit && hit.held ? (t - hit.n.t)/hit.n.sus : 0;
+    const push = hit && hit.held ? bendY(hit.n, u) + vibY(hit.n, t) : 0;      // how far the finger pushes it
+    if (swing < PITCH*0.006 && Math.abs(push) < PITCH*0.01){
+      const a = P(fretX(-2.2), y, 0), b = P(sxR, y, 0);
+      if (!a || !b) continue;
+      pts = [a, b];
+    } else {
+      const n = hit.n;
+      const xp = n.f > 0 ? noteX(n, hit.held ? u : 0, 0) : fretX(0);          // the finger, or the nut
+      const ph = Math.sin(hit.age*Math.PI*2*(19 + s*2.3));                    // where in its swing it is now
+      const shape = (x) => x <= xp ? 0 : 1 - Math.exp(-(x - xp)/(FW*1.5));    // none at the finger, full a few frets on
+      const rest = (x) => x <= 0 ? 0 : x <= xp ? push*(x/Math.max(xp, 1e-6)) : push*(1 - (x - xp)/(sxR - xp));
+      const xs = [fretX(-2.2), 0];
+      if (xp > 0.0001) xs.push(xp);
+      for (let q = 1; q <= 14; q++){ const x = xp + q*FW*0.5; if (x < sxR) xs.push(x); }
+      xs.push(sxR);
+      pts = []; const up = [], dn = [];
+      for (const x of xs){
+        const w = shape(x)*swing, r0 = rest(x);
+        const c = P(x, y + r0 + w*ph, 0);
+        if (!c) continue;
+        pts.push(c);
+        if (swing >= PITCH*0.02){
+          const e1 = P(x, y + r0 + w, 0), e2 = P(x, y + r0 - w, 0);
+          if (e1 && e2){ up.push(e1); dn.push(e2); }
+        }
+      }
+      if (pts.length < 2) continue;
+      if (up.length > 1) ghost = [up, dn];
+    }
+    const trace = (L) => { ctx.beginPath(); ctx.moveTo(L[0].x, L[0].y); for (let i = 1; i < L.length; i++) ctx.lineTo(L[i].x, L[i].y); };
+
+    if (k > 0.02 && S.fx){
+      ctx.globalCompositeOperation = "lighter";
+      /* one wide additive stroke across the screen per lit string (it used to
+         be two): this is the costliest thing a chord lights up */
+      ctx.strokeStyle = rgba(col, 0.36*k); ctx.lineWidth = lw*3.8;
+      trace(pts); ctx.stroke();
+      ctx.globalCompositeOperation = "source-over";
+    }
+    if (ghost){                                                // the blur of the swing: its two extremes, faint
+      ctx.strokeStyle = rgba(col, 0.30); ctx.lineWidth = Math.max(1, lw*0.7); ctx.lineJoin = "round";
+      trace(ghost[0]); ctx.stroke();
+      trace(ghost[1]); ctx.stroke();
+    }
+    ctx.strokeStyle = k > 0.02 ? tint(col, 0.25*k) : col;
+    ctx.globalAlpha = 0.50 + 0.50*k;
+    ctx.lineWidth = lw*(1 + 0.35*k); ctx.lineJoin = "round";
+    trace(pts); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  /* ── 6. notes and chord frames, far to near ──────────────────────────── */
+  for (const it of items){
+    if (it.ev){
+      const ev = it.ev, d = ev.t - t;
+      const an = A[anchorIdx(ev.t + 0.002)];
+      const x0 = fretX(an.fret - 1), x1 = fretX(Math.min(24, an.fret + an.width - 1));
+      const a = d < 0 ? clamp(1 + d/0.15, 0, 1) : fog(ev.t);
+      if (a <= 0.01) continue;
+      const top = ev.rep ? YLO + PITCH*1.25 : yOf(ev.top) + PITCH*0.95;
+      ev.landed = d < 0;
+      drawChordBox(cam, ev, x0, x1, top, d < 0 ? 0 : zOf(ev.t), a, clamp(1 - d/1.2, 0, 1));
+      continue;
+    }
+    const n = it.n, d = it.d;
+    const s = clamp(n.s, 0, nStr - 1), grey = outside(n.t), col = grey ? GREY_NOTE : (LANE[s] || "#9aa7b2"), y = yOf(s);
+    const an = A[anchorIdx(n.t + 0.002)];
+    const ax0 = fretX(an.fret - 1), ax1 = fretX(Math.min(24, an.fret + an.width - 1));
+    const zoneMid = (ax0 + ax1)/2, open = n.f <= 0;
+
+    if (sustained(n))
+      drawTail(cam, n, t, y, col, zoneMid, open ? (ax1 - ax0)*0.5 : FW*0.13, fog);
+    if (n.linked || d < 0) continue;                // played heads are handled at the hit plane
+
+    const z = zOf(n.t), al = fog(n.t);
+    if (al <= 0.01) continue;
+    const inChord = n.ch !== undefined;
+
+    if (open){
+      /* open string: a bar across the whole anchor, on legs when it is a single note */
+      const hh = PITCH*0.16;
+      const a = P(ax0, y - hh, z), b = P(ax1, y - hh, z), c = P(ax1, y + hh, z), e = P(ax0, y + hh, z);
+      if (!a || !b || !c || !e) continue;
+      if (!inChord){
+        ctx.strokeStyle = rgba(col, 0.7*al); ctx.lineWidth = clamp(a.s*FW*0.03, 1, 3);
+        ctx.beginPath(); seg(P(ax0, 0, z), P(ax0, y, z)); seg(P(ax1, 0, z), P(ax1, y, z)); ctx.stroke();
+      }
+      ctx.globalAlpha = al;
+      quad(a, b, c, e, n.pm || n.mt ? shade(col, 0.45) : col);
+      ctx.strokeStyle = tint(col, 0.5); ctx.lineWidth = clamp(a.s*FW*0.018, 0.8, 2);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(e.x, e.y);
+      ctx.closePath(); ctx.stroke();
+      ctx.globalAlpha = 1;
+      if (d < 0.9) glow(col, (a.x + b.x)/2, (a.y + e.y)/2, Math.abs(b.x - a.x)*0.6, Math.max(6, a.s*PITCH*1.2), 0.30*(1 - d/0.9)*al);
+      continue;
+    }
+
+    const xc = fretMid(n.f);
+    const pl = P(xc - FW*0.30, y, z), pr = P(xc + FW*0.30, y, z);
+    if (!pl || !pr) continue;
+    const cx = (pl.x + pr.x)/2, cy2 = (pl.y + pr.y)/2;
+    if (cx < -80 || cx > W + 80) continue;
+    const hw = Math.hypot(pr.x - pl.x, pr.y - pl.y)/2, hh = hw*(PITCH*0.41)/(FW*0.30);
+
+    if (!inChord){
+      /* pad on the floor and the stem that carries the head */
+      quad(P(xc - FW*0.46, 0, z + FW*0.22), P(xc + FW*0.46, 0, z + FW*0.22),
+           P(xc + FW*0.46, 0, z - FW*0.22), P(xc - FW*0.46, 0, z - FW*0.22),
+           "rgba(122,176,196," + (0.42*al).toFixed(3) + ")");
+      const base = P(xc, 0, z);
+      if (base){
+        ctx.strokeStyle = rgba(col, 0.85*al); ctx.lineWidth = clamp(hw*0.11, 1, 4);
+        ctx.beginPath(); ctx.moveTo(base.x, base.y); ctx.lineTo(cx, cy2 + hh); ctx.stroke();
+      }
+    }
+
+    const slope = Math.atan2(pr.y - pl.y, pr.x - pl.x);
+    setSkew(P(xc, y + PITCH*0.4, z), P(xc, y - PITCH*0.4, z));
+    if (d < 0.7 && !grey) glow(col, cx, cy2, hw*2.3, hh*3.6, (0.16 + 0.34*(1 - d))*al);
+    drawHead(cx, cy2, slope, hw, hh, col, n, al);
+
+    /* fret number on the floor in front of the note */
+    if (S.showNums && n.lab){
+      const p = P(xc, 0, z + FW*(inChord ? 0.62 : 0.60));
+      if (p){
+        const fs = p.s*FW*0.50;
+        /* the number fades out over the last stretch before the neck, where
+           the neck's own fret numbers take over (by distance, so it looks the
+           same at every note speed) */
+        const na = al * clamp((d*G.sc - 0.12)/0.80, 0, 1);
+        if (fs >= 7 && na > 0.02) label(String(n.f), p.x, p.y, Math.min(fs, 40), grey ? "#aab2ba" : "#ffab1f", na, !grey && d < 1.2 && na > 0.5 ? "rgba(255,150,0,0.8)" : null,
+                                        neckAxes(cam, xc, 0, z + FW*(inChord ? 0.62 : 0.60)));
+      }
+    }
+  }
+
+  /* ── 7. at the hit plane: the frame a note lands in, and its flash ───── */
+  for (const it of items){
+    const n = it.n;
+    if (!n || n.f <= 0) continue;
+    const d = it.d, held = d < 0 && n.t + n.sus > t && sustained(n);
+    if (!held && (d > 0.75 || d < -0.22)) continue;
+    if (n.linked && !held) continue;
+    const s = clamp(n.s, 0, nStr - 1), col = outside(n.t) ? GREY_NOTE : LANE[s], y = yOf(s);
+    const u = held ? (t - n.t)/n.sus : 0;
+    const xc = noteX(n, u, 0), yy = y + (held ? bendY(n, u) + vibY(n, t) : 0);
+    const pl = P(xc - FW*0.34, yy, 0), pr = P(xc + FW*0.34, yy, 0);
+    if (!pl || !pr) continue;
+    const cx = (pl.x + pr.x)/2, cy2 = (pl.y + pr.y)/2;
+    /* the frame is exactly one string lane tall, so two on neighbouring strings never overlap */
+    const lane = setSkew(P(xc, yy + PITCH*0.40, 0), P(xc, yy - PITCH*0.40, 0));
+    let hw = Math.hypot(pr.x - pl.x, pr.y - pl.y)/2, hh = lane > 0 ? lane/2 : hw*(PITCH*0.40)/(FW*0.34);
+    let a, lw = Math.max(1.5, hh*0.34);
+    if (held){ a = 1; glow(col, cx, cy2, hw*2.6, hh*4.2, 0.55); }
+    else if (d >= 0){ a = 0.25 + 0.75*(1 - d/0.75); }
+    else {
+      const k = -d/0.22;                            // struck: the frame bursts outward
+      a = 1 - k; hw *= 1 + 0.30*k; hh *= 1 + 0.22*k;
+      glow(col, cx, cy2, hw*2.8, hh*4.6, 0.75*(1 - k));
+    }
+    ctx.save(); headFrame(cx, cy2, Math.atan2(pr.y - pl.y, pr.x - pl.x));
+    ctx.globalAlpha = a*S.vis; ctx.lineJoin = "round";
+    rr(-hw, -hh, hw*2, hh*2, hh*0.3);
+    if (held || d < 0){ ctx.fillStyle = rgba(col, held ? 0.45 : 0.35); ctx.fill(); }
+    ctx.strokeStyle = (held || d < 0.12) ? tint(col, 0.55) : col; ctx.lineWidth = lw; ctx.stroke();
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+
+  /* ── 7b. what the fretting hand holds right now: a marker per finger on
+           the neck, and the chord's name above the strings, left of the
+           anchor. Both stay for as long as the same shape keeps being played. */
+  if (S.showFingers && S.holds.length){
+    for (const m of fingerPills(t, yOf)){
+      const kk = sstep(m.k)*S.vis, z = (1 - kk)*FING_Z;                // comes in from in front of the neck
+      const pa = P(m.x, m.ya, z), pb = P(m.x, m.yb, z), pt = P(m.x, m.yt, z);
+      if (pa && pb && pt && pa.x > -40 && pa.x < W + 40) drawPill(pa, pb, pt, pt.s*FW*0.15, m.g, kk, neckAxes(cam, m.x, m.yt, z));
+    }
+  }
+  if (S.showChord && S.holds.length){
+    const hi3 = lowerBound(S.holds, "t", t + 1e-6) - 1;          // the last hold that has landed
+    const h = S.holds[hi3], nx = S.holds[hi3 + 1];
+    if (h && h.name && t <= h.t1 + 0.30){
+      /* it makes way just before the next chord's name arrives at the same spot */
+      let a = clamp((h.t1 + 0.30 - t)/0.30, 0, 1);
+      if (nx && nx.name) a = Math.min(a, clamp((nx.t - 0.22 - t)/0.20, 0, 1));
+      const an = A[anchorIdx(h.t + 0.002)];
+      const p = P(fretX(an.fret - 1), nameY(), 0);
+      if (p) chordName(h.name, p, p.s, a*S.vis, neckAxes(cam, fretX(an.fret - 1), nameY(), 0));
+    }
+  }
+
+  /* ── 8. fret numbers under the neck: every fret of the anchor, and the
+          inlay frets everywhere else ──────────────────────────────────── */
+  for (let f = 1; f <= 24; f++){
+    const inZone = f > zf0 && f <= zf1;
+    if (!inZone && !INLAY.has(f)) continue;
+    const p = P(fretMid(f), 0, FW*0.40);
+    if (!p || p.x < -30 || p.x > W + 30) continue;
+    const fs = clamp(p.s*FW*0.40, 9, 44);
+    /* slanted with the neck, like the chord name */
+    const ax = neckAxes(cam, fretMid(f), 0, FW*0.40);
+    if (inZone) label(String(f), p.x, p.y, fs, "#ffb01f", 1, "rgba(255,140,0,0.75)", ax);
+    else label(String(f), p.x, p.y, fs*0.92, "#1c8f86", 0.85, null, ax);
+  }
+
+  drawPhraseBars(t, S.offMs/1000);
+  if (S.showHit) drawHitLight(t);
+  if (S.showDiagram && S.holds.length) drawChordDiagram(t, cam, curA);
+}
+
+/* ── looping a stretch of bars ───────────────────────────────────────────────
+   The difficulty bars are the loop selector, as in the game:
+     press and hold on the bars, drag across the ones you want, let go
+         -> those bars light up and loop, starting two seconds before them
+     a plain click on the bars while a selection is up
+         -> jump to the start of the nearest selected bar (again two seconds early)
+     a plain click on the bars with nothing selected -> seek there
+     a click anywhere else on the highway -> the selection is cleared
+   A press counts as "hold" once it has lasted a quarter of a second or moved
+   on to another bar.                                                         */
+const SEL = { i0:-1, i1:-1, drag:null };
+const GREY_NOTE = "#8d959e";                       // a note outside the loop
+const HOLD_MS = 250;
+function selRange(){
+  const d = SEL.drag;
+  if (d && (d.moved || performance.now() - d.t0 >= HOLD_MS)) return [Math.min(d.a, d.b), Math.max(d.a, d.b)];
+  return SEL.i0 >= 0 && SEL.i1 < S.phrases.length ? [SEL.i0, SEL.i1] : null;
+}
+function loopStartAt(audioT){                      // go there with a run-up, playing
+  seek(Math.max(0, audioT - LOOP_LEAD));
+  if (!S.playing){ play(); setPlayIcon(true); }
+}
+function setLoopBars(i0, i1){
+  const ph = S.phrases, off = S.offMs/1000;
+  SEL.i0 = i0; SEL.i1 = i1;
+  S.loop = true; S.loopSel = true;
+  S.loopA = Math.max(0, ph[i0].t0 + off); S.loopB = ph[i1].t1 + off;
+  document.getElementById("bLoop").classList.add("on");
+  loopStartAt(S.loopA);
+}
+function clearLoopBars(){
+  if (SEL.i0 < 0 && !S.loopSel) return;
+  SEL.i0 = SEL.i1 = -1;
+  if (S.loopSel){ S.loop = false; S.loopSel = false; S.loopB = 0; document.getElementById("bLoop").classList.remove("on"); }
+}
+(function(){
+  const pos = (e) => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  const inBars = (x, y) => S.phrases.length > 0 && y >= BARS.top - 8 && y <= BARS.top + BARS.h + 14
+                           && x >= BARS.x0 - 3 && x <= BARS.x1 + 3;
+  const barAt = (x) => {                            // the bar under x, or the nearest one
+    const ph = S.phrases, D = S.duration || 1;
+    const tc = clamp((x - BARS.x0)/(BARS.x1 - BARS.x0), 0, 1)*D - S.offMs/1000;
+    let i = 0;
+    while (i < ph.length - 1 && ph[i].t1 <= tc) i++;
+    return i;
+  };
+  cv.addEventListener("pointermove", (e) => {
+    const [x, y] = pos(e), d = SEL.drag;
+    if (d){
+      const i = barAt(x);
+      if (i !== d.b){ d.b = i; d.moved = true; }
+      return;
+    }
+    cv.style.cursor = inBars(x, y) ? "pointer" : "default";
+  });
+  cv.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    const [x, y] = pos(e);
+    if (!inBars(x, y)){ clearLoopBars(); return; }  // a click off the bars lets the loop go
+    const i = barAt(x);
+    SEL.drag = { a:i, b:i, t0:performance.now(), moved:false, x };
+    try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  const finish = (e, cancelled) => {
+    const d = SEL.drag;
+    if (!d) return;
+    SEL.drag = null;
+    if (cancelled) return;
+    const held = d.moved || performance.now() - d.t0 >= HOLD_MS;
+    const ph = S.phrases, off = S.offMs/1000;
+    if (held) setLoopBars(Math.min(d.a, d.b), Math.max(d.a, d.b));
+    else if (SEL.i0 >= 0) loopStartAt(ph[clamp(d.a, SEL.i0, SEL.i1)].t0 + off);   // nearest selected bar
+    else seek(clamp((d.x - BARS.x0)/(BARS.x1 - BARS.x0), 0, 1)*(S.duration || 0));
+  };
+  cv.addEventListener("pointerup", (e) => finish(e, false));
+  cv.addEventListener("pointercancel", (e) => finish(e, true));
+})();
+
+/* ── lyrics ──────────────────────────────────────────────────────────────────
+   Two lines at a time. In the line being sung the syllables already sung go
+   grey, the current one is blue and the rest are white; the line still to
+   come is light grey and a line that is over goes dark.                     */
+let lyrPair = null;
+function lyrBuild(el, line){
+  el.textContent = "";
+  el._spans = [];
+  if (!line) return;
+  for (const sy of line.syl){
+    const sp = document.createElement("span");
+    sp.textContent = sy[2];
+    el.appendChild(sp); el._spans.push(sp);
+  }
+}
+function lyrPaint(el, line, t){
+  if (!line) return;
+  const state = t < line.t - 0.02 ? "next" : t > line.end + 0.12 ? "done" : "live";
+  if (el._state !== state){ el._state = state; el.className = "ln " + state; }
+  if (state !== "live") return;
+  let cur = -1;
+  for (let i = 0; i < line.syl.length; i++) if (line.syl[i][0] <= t + 0.02) cur = i;
+  for (let i = 0; i < el._spans.length; i++){
+    const c = i < cur ? "sung" : i === cur ? "now" : "";
+    if (el._spans[i]._c !== c){ el._spans[i]._c = c; el._spans[i].className = c; }
+  }
+}
+function updateLyrics(){
+  const box = document.getElementById("lyr");
+  if (!box) return;
+  const hide = () => { if (lyrPair !== null){ box.style.display = "none"; lyrPair = null; } };
+  if (!S.showLyrics || !S.lyrPairs.length) return hide();
+  /* lyrics ride the same clock as the notes, so they take the sync offset too */
+  const t = S.time - S.offMs/1000;
+  const Pp = S.lyrPairs;
+  let lo = 0, hi = Pp.length - 1, idx = -1;
+  while (lo <= hi){ const m = (lo + hi) >> 1; if (Pp[m].show <= t){ idx = m; lo = m + 1; } else hi = m - 1; }
+  if (idx < 0) return hide();
+  const p = Pp[idx];
+  if (t > p.gone) return hide();                   // nothing sung for a while
+  const A = document.getElementById("lyrA"), B = document.getElementById("lyrB");
+  if (lyrPair !== p){
+    /* A new pair of lines takes over the two rows. The rows still carry the
+       colour of the lines they just held - often the white of a line being
+       sung - and a colour change is animated, so without care the new text
+       would be seen fading from that white to its own grey: a flash. The
+       animation is switched off for this one change. */
+    lyrPair = p;
+    A.style.transition = B.style.transition = "none";
+    lyrBuild(A, p.a); lyrBuild(B, p.b);
+    A._state = B._state = "";
+    A.className = B.className = "ln next";
+    lyrPaint(A, p.a, t); lyrPaint(B, p.b, t);
+    box.style.display = "block";
+    void box.offsetWidth;                           // apply it now, before the animation is back
+    A.style.transition = B.style.transition = "";
+  }
+  box.style.opacity = (clamp(Math.min((t - p.show)/0.3, (p.gone - t)/0.6), 0, 1)*S.vis).toFixed(3);
+  lyrPaint(A, p.a, t); lyrPaint(B, p.b, t);
+}
+
+/* corner read-out: section, and the tone in force with its raw key */
+let hudSecIdx = -2, hudToneKey, hudToneUntil = 0;
+function updateHud(){
+  const s = sectionAt(S.time);
+  const idx = s ? s.idx : -1;
+  if (idx !== hudSecIdx){
+    hudSecIdx = idx;
+    if (secEls[secCur]) secEls[secCur].classList.remove("cur");
+    secCur = idx;
+    if (secEls[secCur]) secEls[secCur].classList.add("cur");
+    document.getElementById("hudSecRow").style.display = s ? "" : "none";
+    if (s) document.getElementById("hudSec").textContent =
+      secLabel(s.name) || "—";
+  }
+
+  const T = S.tones, row = document.getElementById("hudToneRow"), tc = chartTime();
+  let key = T.base || "";
+  for (let i = 0; i < T.changes.length && T.changes[i].t <= tc; i++) key = T.changes[i].name;
+  if (key !== hudToneKey){
+    const first = hudToneKey === undefined;
+    hudToneKey = key;
+    row.style.display = key ? "" : "none";
+    if (key){
+      const nm = T.names[key] || { raw:key, real:"" };
+      document.getElementById("hudTone").textContent = nm.real || nm.raw;
+      document.getElementById("hudRaw").textContent = nm.raw;
+      document.getElementById("hudToneK").textContent = first ? "TONE" : "TONE SWITCH";
+      row.classList.add("flash");
+      hudToneUntil = performance.now() + 3500;
+    }
+  } else if (hudToneUntil && performance.now() > hudToneUntil){
+    hudToneUntil = 0; row.classList.remove("flash");
+  }
+}
+
+/* ── automatic resolution ────────────────────────────────────────────────────
+   A busy passage is hard on the graphics card, not on this code: glows, lit
+   strings and translucent frames all add up to pixels filled many times over,
+   on a canvas of several million. When the frame rate falls well under what
+   the screen has been reaching, the canvas is drawn with fewer pixels (it is
+   stretched to the same size, so only sharpness changes); when the rate has
+   been at the top for a while, the pixels come back a step at a time.
+   If a step up brings the slowness straight back, that level is left alone
+   for half a minute, so the picture does not pump. */
+const AR = { peak:0, low:0, high:0, ceil:1, ceilUntil:0, upAt:0 };
+const AR_STEPS = [1, 0.85, 0.72, 0.6, 0.5];
+function autoLabel(){
+  const el = document.getElementById("rvAuto");
+  if (el) el.textContent = S.autoScale && S.dynScale < 0.999 ? Math.round(S.dynScale*100) + "%" : "";
+}
+function autoResolution(span){
+  if (!S.autoScale || !S.playing || document.hidden || S.fps < 4) { AR.low = AR.high = 0; return; }
+  const now = performance.now();
+  AR.peak = Math.max(AR.peak*0.999, Math.min(S.fps, 240));       // what this screen can reach
+  if (AR.peak < 20) return;
+  AR.low  = S.fps < AR.peak*0.80 ? AR.low + span : 0;
+  AR.high = S.fps > AR.peak*0.95 ? AR.high + span : 0;
+  const i = AR_STEPS.findIndex(v => v <= S.dynScale + 0.001);
+  if (AR.low >= 1.0 && i < AR_STEPS.length - 1){
+    if (now - AR.upAt < 4000){ AR.ceil = AR_STEPS[i + 1]; AR.ceilUntil = now + 30000; }   // the step up did not hold
+    S.dynScale = AR_STEPS[i + 1]; AR.low = AR.high = 0;
+    resize(); autoLabel();
+  } else if (AR.high >= 4.0 && i > 0){
+    if (now > AR.ceilUntil) AR.ceil = 1;
+    if (AR_STEPS[i - 1] <= AR.ceil + 0.001){
+      S.dynScale = AR_STEPS[i - 1]; AR.low = AR.high = 0; AR.upAt = now;
+      resize(); autoLabel();
+    }
+  }
+}
+
+/* ── frame loop ─────────────────────────────────────────────────────────── */
+let last = performance.now(), fpsAcc = 0, fpsN = 0, fpsT = 0;
+const LOOP_LEAD = 2.0;              // seconds of run-up before a looped section
+
+function frame(now){
+  const dt = Math.min(0.1, (now - last)/1000);
+  last = now;
+
+  S.time = songTime();
+  if (S.vis !== S.visTo){
+    const step = dt/0.42;
+    S.vis = S.visTo > S.vis ? Math.min(S.visTo, S.vis + step) : Math.max(S.visTo, S.vis - step);
+  }
+
+  // loop section
+  /* The loop restarts LOOP_LEAD seconds before the section, so there is time
+     to get ready. The looped section stays the same until the player jumps
+     somewhere else. */
+  if (S.loop && S.playing && S.duration){
+    if (!S.loopSel && (!S.loopB || S.time < S.loopA - LOOP_LEAD - 0.3 || S.time > S.loopB + 0.3)){
+      const sec = sectionAt(S.time);
+      if (sec){ S.loopA = sec.start; S.loopB = sec.end; }
+    }
+    if (S.loopB && S.time >= S.loopB - 0.02) seek(Math.max(0, S.loopA - LOOP_LEAD));
+  }
+
+  draw(dt);
+  paintClock();
+  updateHeadPct();
+  updateLyrics();
+  updateHud();
+  pump();
+  synPump();
+
+  fpsAcc += dt; fpsN++;
+  if (now - fpsT > 250){
+    S.fps = fpsN / Math.max(0.001, fpsAcc);
+    autoResolution((now - fpsT)/1000);
+    document.getElementById("fps").textContent = Math.round(S.fps) + " FPS"
+      + (S.autoScale && S.dynScale < 0.999 ? " · " + Math.round(S.dynScale*100) + "%" : "");
+    fpsAcc = 0; fpsN = 0; fpsT = now;
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ── controls ───────────────────────────────────────────────────────────── */
+function setPlayIcon(on){
+  document.getElementById("icPlay").style.display = on ? "none" : "block";
+  document.getElementById("icPause").style.display = on ? "block" : "none";
+  document.getElementById("bPlay").title = on ? "Pause (Space)" : "Play (Space)";
+  document.getElementById("bPlay").classList.toggle("on", on);
+}
+
+document.getElementById("bPlay").onclick = togglePlay;
+document.getElementById("bRestart").onclick = () => { seek(0); };
+document.getElementById("bPrev").onclick = () => {
+  const s = sectionAt(S.time - 0.25);
+  seek(s ? s.start : 0);
+};
+document.getElementById("bNext").onclick = () => {
+  const s = sectionAt(S.time + 0.05);
+  if (s && s.idx + 1 < S.sections.length) seek(S.sections[s.idx+1].time);
+  else seek(S.duration - 0.05);
+};
+/* The loop button loops the section the song is in (the sections of the seek
+   bar). If bars are selected on the difficulty bars, it switches that loop off. */
+document.getElementById("bLoop").onclick = (e) => {
+  if (S.loopSel){ clearLoopBars(); return; }
+  S.loop = !S.loop;
+  document.getElementById("bLoop").classList.toggle("on", S.loop);
+  const s = sectionAt(S.time);
+  if (S.loop && s){ S.loopA = s.start; S.loopB = s.end; } else S.loopB = 0;
+};
+document.getElementById("bCfg").onclick = () =>
+  document.getElementById("cfg").classList.toggle("show");
+
+document.getElementById("vMaster").oninput = (e) => {
+  S.master = (+e.target.value)/100;
+  document.getElementById("lMaster").textContent = e.target.value;
+  if (!S.muted && A.gain) A.gain.gain.value = S.master;
+  savePrefs();
+};
+document.getElementById("bMute").onclick = () => {
+  S.muted = !S.muted;
+  document.getElementById("bMute").classList.toggle("on", S.muted);
+  if (A.gain) A.gain.gain.value = S.muted ? 0 : S.master;
+  savePrefs();
+};
+document.getElementById("vClick").oninput = (e) => {
+  S.clickLevel = (+e.target.value)/100;
+  document.getElementById("lClick").textContent = e.target.value;
+  if (A.gainClick) A.gainClick.gain.value = S.clickLevel;
+  savePrefs();
+};
+/* song speed: the label follows the thumb, the speed changes when it is let go */
+document.getElementById("vSpeed").oninput = (e) => { document.getElementById("lSpeed").textContent = e.target.value + "%"; };
+document.getElementById("vSpeed").onchange = (e) => { setSongSpeed((+e.target.value)/100); };
+document.getElementById("vSynth").oninput = (e) => {
+  S.synthLevel = (+e.target.value)/100;
+  document.getElementById("lSynth").textContent = e.target.value;
+  if (SY.out) SY.out.gain.value = S.synthLevel;
+  savePrefs();
+};
+document.getElementById("bSynth").onclick = () => {
+  S.synthOn = !S.synthOn;
+  document.getElementById("bSynth").classList.toggle("on", S.synthOn);
+  if (S.synthOn) synSync(); else synKill();
+  savePrefs();
+};
+document.getElementById("bClick").onclick = () => {
+  S.clickOn = !S.clickOn;
+  document.getElementById("bClick").classList.toggle("on", S.clickOn);
+  if (S.clickOn) syncBeats();
+  savePrefs();
+};
+
+/* every option is remembered for the next run */
+{
+  const bind = (id, key) => { document.getElementById(id).onchange = (e) => { S[key] = e.target.checked; savePrefs(); }; };
+  bind("fCells", "showCells"); bind("fNums", "showNums"); bind("fLabels", "showLabels");
+  bind("fLyrics", "showLyrics"); bind("fPan", "autoPan"); bind("fFingers", "showFingers");
+  bind("fChord", "showChord"); bind("fDiag", "showDiagram"); bind("fHit", "showHit"); bind("fFx", "fx");
+  document.getElementById("fAuto").onchange = (e) => {
+    S.autoScale = e.target.checked; S.dynScale = 1; AR.ceil = 1; resize(); autoLabel(); savePrefs();
+  };
+  document.getElementById("fSpeed").oninput = (e) => { S.speed = (+e.target.value)/100; updGeom(); savePrefs(); };
+  document.getElementById("fCam").oninput = (e) => {
+    S.camRate = (+e.target.value)/100;
+    document.getElementById("rvCam").textContent = e.target.value + "%";
+    savePrefs();
+  };
+  document.getElementById("fScale").onchange = (e) => { S.rscale = +e.target.value || 1; resize(); savePrefs(); };
+}
+
+/* ── sync offset ─────────────────────────────────────────────────────────── */
+document.getElementById("fOffset").onchange = (e) =>
+  applyOffset(clamp(Math.round(+e.target.value || 0), -60000, 60000));
+document.querySelectorAll("#cfg .nudge").forEach(b => {
+  b.onclick = () => applyOffset(clamp(S.offMs + (+b.dataset.d), -60000, 60000));
+});
+
+
+
+window.addEventListener("wheel", (e) => {
+  if (e.target.closest("#bar, #cfg")) return;
+  e.preventDefault();
+  S.zoom = clamp(S.zoom * (e.deltaY < 0 ? 1.06 : 0.94), 0.55, 3.0);
+  savePrefs();
+}, {passive:false});
+
+window.addEventListener("keydown", (e) => {
+  if (e.target.tagName === "SELECT" || (e.target.tagName === "INPUT" && e.target.type !== "range")) return;
+  const k = e.key;
+  if (e.target.tagName === "INPUT" && k.startsWith("Arrow")) return;   // the arrows belong to a focused slider
+  if (k === " "){ e.preventDefault(); togglePlay(); }
+  else if (unlockAudio()) return;
+  else if (k === "m" || k === "M"){ document.getElementById("bMute").click(); }
+  else if (k === "c" || k === "C"){ document.getElementById("bClick").click(); }
+  else if (k === "n" || k === "N"){ document.getElementById("bSynth").click(); }
+  else if (k === "ArrowLeft"){ seek(S.time - (e.shiftKey ? 5 : 1)); }
+  else if (k === "ArrowRight"){ seek(S.time + (e.shiftKey ? 5 : 1)); }
+  else if (k === "["){ const s = sectionAt(S.time - 0.25); seek(s ? (s.start > S.time - 0.6 ? (sectionAt(s.start - 0.1) || s).start : s.start) : 0); }
+  else if (k === "]"){ const s = sectionAt(S.time + 0.05); if (s && s.idx+1 < S.sections.length) seek(S.sections[s.idx+1].time); }
+  else if (k === "l" || k === "L"){ document.getElementById("bLoop").click(); }
+  else if (k === "r" || k === "R"){ seek(0); }
+  else if (k === "o" || k === "O"){ document.getElementById("cfg").classList.toggle("show"); }
+  else if (k === ","){ applyOffset(S.offMs - 1); }
+  else if (k === "."){ applyOffset(S.offMs + 1); }
+  else if (k >= "1" && k <= "6"){
+    const i = +k - 1;
+    if (i < S.arrs.length){ selectArrangement(i); document.getElementById("fArr").value = i; }
+  }
+});
+
+/* go */
+resize();
+boot().catch(err => {
+  notice("Could not start: " + err.message);
+  console.error(err);
+});
+</script>
+</body>
+</html>
