@@ -1,5 +1,5 @@
 (() => {
-  // static_web_feasibility/psarc.js
+  // psarc.js
   var MAGIC = 1347633490;
   var BLOCK_SIZE_DEFAULT = 65536;
   var ENTRY_SIZE = 30;
@@ -291,7 +291,7 @@
     return v;
   }
 
-  // static_web_feasibility/js/sng.js
+  // js/sng.js
   var PC_KEY = hex("CB648DF3D12A16BF71701414E69619EC171CCA5D2A142E3E59DE7ADDA18A3A30");
   var MAC_KEY = hex("9821330E34B91F70D0A48CBD625993126970CEA09192C0E6CDA676CC9838289D");
   function hex(s) {
@@ -336,6 +336,34 @@
       throw new Error(`SNG size mismatch: header says ${want}, inflated ${out.length}`);
     }
     return out;
+  }
+  async function sngIsSigned(data, platform = "pc") {
+    if (data.length < 24 + 4 + 56 + 8) return false;
+    const tail = data.subarray(data.length - 56);
+    if (tail.every((b2) => b2 === 0)) return false;
+    const iv = data.slice(8, 24);
+    const keyBytes = platform === "mac" ? MAC_KEY : PC_KEY;
+    const key = await crypto.subtle.importKey("raw", keyBytes, "AES-CTR", false, ["decrypt"]);
+    const dec = new Uint8Array(
+      await crypto.subtle.decrypt({ name: "AES-CTR", counter: iv, length: 128 }, key, data.slice(24))
+    );
+    const want = dec[0] | dec[1] << 8 | dec[2] << 16 | dec[3] << 24;
+    let out;
+    try {
+      out = await inflateZlib(dec.slice(4, dec.length - 56), want);
+    } catch {
+      return false;
+    }
+    if (!want || out.length !== want) return false;
+    let a = 1, b = 0;
+    for (let i = 0; i < out.length; i++) {
+      a = (a + out[i]) % 65521;
+      b = (b + a) % 65521;
+    }
+    const adler = (b << 16 | a) >>> 0;
+    const e = dec.length - 56;
+    const stored = (dec[e - 4] << 24 | dec[e - 3] << 16 | dec[e - 2] << 8 | dec[e - 1]) >>> 0;
+    return adler === stored;
   }
   var R = class {
     constructor(bytes) {
@@ -760,7 +788,7 @@
     };
   }
 
-  // static_web_feasibility/js/xml.js
+  // js/xml.js
   function elementFromDom(el) {
     xmlStats.count = (xmlStats.count || 0) + 1;
     const attrs = {};
@@ -867,7 +895,7 @@
     archiveCache.clear();
   }
 
-  // static_web_feasibility/js/song.js
+  // js/song.js
   var r3 = (v) => Math.round(v * 1e3) / 1e3;
   function noteToWire(n) {
     const out = {
@@ -1521,7 +1549,7 @@
     return song;
   }
 
-  // static_web_feasibility/js/tones.js
+  // js/tones.js
   var NON_TONE = /* @__PURE__ */ new Set(["vocals", "showlights", "jvocals"]);
   var tokens = (s) => new Set((s || "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
   var stemOf = (n) => {
@@ -1648,7 +1676,7 @@
     return out;
   }
 
-  // static_web_feasibility/js/convert.js
+  // js/convert.js
   var r32 = (v) => Math.round(v * 1e3) / 1e3;
   function arrId(name, used) {
     let base = name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "arr";
@@ -1723,30 +1751,34 @@
     }
     return out;
   }
+  var LYRIC_LINE_GAP = 10;
   function lyricsFromTokens(tokens2) {
     const lines = [];
-    let cur = [], syl = [], start = null, last = 0;
+    let cur = [], syl = [], start = null, last = 0, prevT = null;
     const flush = () => {
       if (cur.length) lines.push({ t: r32(start), end: r32(last), text: joinWords(cur), syl });
       cur = [];
       syl = [];
       start = null;
+      last = 0;
     };
     for (const tok of tokens2) {
       if (!tok || typeof tok !== "object") continue;
       let w = String(tok.w ?? "");
       const t = Number(tok.t || 0), d = Number(tok.d || 0);
-      if (start === null) start = t;
       const eol = w.endsWith("+");
       if (eol) w = w.slice(0, -1);
       const cont = w.endsWith("-");
       if (cont) w = w.slice(0, -1);
-      if (w) {
+      if (w.trim()) {
+        if (cur.length && prevT !== null && t - prevT > LYRIC_LINE_GAP) flush();
+        if (start === null) start = t;
         const glue = !cur.length || cur[cur.length - 1][1] ? "" : " ";
         cur.push([w, cont]);
         syl.push([r32(t), r32(d), glue + w]);
+        last = Math.max(last, d > 0 ? t + d : t + 0.3);
+        prevT = t;
       }
-      last = Math.max(last, d > 0 ? t + d : t + 0.3);
       if (eol) flush();
     }
     flush();
@@ -1805,6 +1837,7 @@
     out.changes.sort((a, b) => a.t - b.t);
     return out;
   }
+  var OFFICIAL_SONG = "this is an official song from the game's store. Play Song only opens custom songs (CDLC) and .feedpak files";
   async function convertPsarc(bytes, { name = "song.psarc", onProgress = () => {
   } } = {}) {
     onProgress("Opening the archive\u2026");
@@ -1817,6 +1850,38 @@
       if ((i & 7) === 0) onProgress(`Reading the chart\u2026 ${Math.round(i / wanted.length * 100)}%`);
     }
     const hasDds = names.some((n) => n.toLowerCase().endsWith(".dds"));
+    onProgress("Checking the song\u2026");
+    if (!names.some((n) => /toolkit\.version$/i.test(n))) {
+      const sngs = [...files.keys()].filter((n) => /\.sng$/i.test(n) && !/vocals/i.test(n));
+      for (const n of sngs.slice(0, 3)) {
+        if (await sngIsSigned(files.get(n), /macos|\/mac\//i.test(n) ? "mac" : "pc")) {
+          throw new Error(OFFICIAL_SONG);
+        }
+      }
+    }
+    const payload = await buildPayload(files, { name, hasCover: hasDds, onProgress });
+    return { payload, psarc, names, files };
+  }
+  async function convertXmlSet(entries, { name = "song", onProgress = () => {
+  } } = {}) {
+    onProgress("Reading the XML\u2026");
+    const files = /* @__PURE__ */ new Map();
+    for (const e of entries) {
+      if (!/\.(xml|json)$/i.test(e.name)) continue;
+      const base = e.name.split(/[\\/]/).join("/");
+      let key = base, i = 2;
+      while (files.has(key)) key = base.replace(/(\.[^.]+)$/, `_${i++}$1`);
+      files.set(key, e.bytes instanceof Uint8Array ? e.bytes : new Uint8Array(e.bytes));
+    }
+    if (!files.size) throw new Error("no .xml file among the dropped files");
+    if (!hasArrangementXml(files)) {
+      throw new Error("no arrangement XML found - a chart XML has a <song> root (vocals alone cannot be played)");
+    }
+    const payload = await buildPayload(files, { name, hasCover: false, onProgress });
+    if (!payload.meta.title) payload.meta.title = name.replace(/\.[^.]+$/, "");
+    return { payload };
+  }
+  async function buildPayload(files, { name, hasCover, onProgress }) {
     onProgress("Parsing the arrangements\u2026");
     const xmlMode = hasArrangementXml(files);
     const song = xmlMode ? loadSong(files, true) : await loadSongFromExtract(files);
@@ -1879,7 +1944,7 @@
         duration: r32(song.song_length || 0),
         pack: name,
         converted: true,
-        cover: hasDds,
+        cover: !!hasCover,
         note_offset_ms: 0
       },
       arrangements: arrs,
@@ -1888,10 +1953,11 @@
       lyrics: lyricError ? { lines: [], source, error: lyricError } : { lines, source },
       stems: [{ id: "full", file: "stems/full.wav" }]
     };
-    return { payload, psarc, names, song, files };
+    return payload;
   }
 
-  // static_web_feasibility/vendor/js-yaml.mjs
+  // vendor/js-yaml.mjs
+  /*! js-yaml 4.1.0 https://github.com/nodeca/js-yaml @license MIT */
   function isNothing(subject) {
     return typeof subject === "undefined" || subject === null;
   }
@@ -4513,7 +4579,7 @@
   };
   var js_yaml_default = jsYaml;
 
-  // static_web_feasibility/js/zip.js
+  // js/zip.js
   var SIG_EOCD = 101010256;
   var SIG_CENTRAL = 33639248;
   var SIG_LOCAL = 67324752;
@@ -4616,7 +4682,7 @@
     }
   };
 
-  // static_web_feasibility/js/feedpak.js
+  // js/feedpak.js
   var r33 = (v) => Math.round(v * 1e3) / 1e3;
   var utf84 = new TextDecoder("utf-8", { fatal: false });
   var LYRIC_LINE_RE = /^\s*\[(\d+):(\d+(?:\.\d+)?)\]\s*(.*)$/;
@@ -4717,7 +4783,7 @@
     return { payload, coverBlob, stems };
   }
 
-  // static_web_feasibility/js/cover.js
+  // js/cover.js
   function decodeDds(bytes) {
     const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     if (String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]) !== "DDS ") {
@@ -4836,7 +4902,6 @@
     return out;
   }
 
-  // web/converter.entry.js
-  window.CDLC = { convertPsarc, convertFeedpak, decodeDds, clearXmlCache, xmlStats };
+  // converter.entry.js
+  window.CDLC = { convertPsarc, convertXmlSet, convertFeedpak, decodeDds, clearXmlCache, xmlStats };
 })();
-/*! js-yaml 4.1.0 https://github.com/nodeca/js-yaml @license MIT */

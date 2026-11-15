@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Song</title>
-<meta name="description" content="Play a Rocksmith 2014 chart on a note highway in your browser: drop a .psarc or .feedpak file.">
+<meta name="description" content="Play a guitar chart on a 3-D note highway or as tablature in your browser: drop a .psarc or .feedpak file.">
 <style>
 :root{
   --bg:#0c0e16; --panel:#101216; --panel2:#191d23; --line:#2b3138; --ink:#e6edf3; --dim:#8b97a3;
@@ -18,6 +18,43 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 /* ── highway ───────────────────────────────────────────────────────────── */
 #stage{position:relative;min-height:0;overflow:hidden;background:#000}
 #hw{display:block;width:100%;height:100%}
+/* tab view: replaces the highway, as on a page of tablature */
+#tabview{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;background:#fff;display:none;color:#222}
+#stage.tabmode #tabview{display:block}
+#stage.tabmode #hw,#stage.tabmode #lyr,#stage.tabmode #lyrErr,#stage.tabmode #hud{display:none!important}
+#tabpage{position:relative;min-height:100%}
+.tabrow{position:absolute;left:0;cursor:pointer}
+.tabempty{padding:48px;color:#777;font:15px "Segoe UI",system-ui,sans-serif;text-align:center}
+/* the pointer: a thin line gliding with the music, through rests and empty
+   bars alike; the notes sounding at the moment are marked themselves */
+#tabcur{position:absolute;left:0;top:0;width:2px;margin-left:-1px;background:#2fae4e;border-radius:1px;
+  pointer-events:none;display:none;box-shadow:0 0 6px rgba(47,174,78,.55);will-change:transform}
+.tabrow .thl{fill:#d9f2e1;opacity:0;transition:opacity .12s}
+.tabrow .te.on .thl{opacity:1;transition:none}
+.tabrow .te.on .tf{fill:#0e7a33;stroke:#d9f2e1}
+.tabrow .tl{stroke:#c9c9c9;stroke-width:1}
+.tabrow .tb{stroke:#b9b9b9;stroke-width:1}
+.tabrow .tn{font:600 10px Arial,Helvetica,sans-serif;fill:#9a9a9a}
+.tabrow .tsec{font:italic 15px Georgia,"Times New Roman",serif;fill:#333}
+.tabrow .tch{font:700 11px Arial,Helvetica,sans-serif;fill:#555;text-anchor:middle}
+.tabrow .tpm{font:11px Arial,Helvetica,sans-serif;fill:#555;text-anchor:middle}
+.tabrow .tpml{font:11px Arial,Helvetica,sans-serif;fill:#555}
+.tabrow .tdash{stroke:#888;stroke-dasharray:3 3;stroke-width:1}
+.tabrow .tthin{stroke:#666;fill:none;stroke-width:1}
+.tabrow .tf{font:700 12.5px Arial,Helvetica,sans-serif;fill:#1a1a1a;text-anchor:middle;
+  paint-order:stroke;stroke:#fff;stroke-width:5px;stroke-linejoin:round}
+.tabrow .tarc{fill:none;stroke:#444;stroke-width:1}
+.tabrow .tslide{stroke:#333;stroke-width:1.3}
+.tabrow .tbend{fill:none;stroke:#333;stroke-width:1.1}
+.tabrow .tarrow{fill:#333}
+.tabrow .tbl{font:10px Arial,Helvetica,sans-serif;fill:#333;text-anchor:middle}
+.tabrow .tacc{font:700 12px Arial,Helvetica,sans-serif;fill:#333;text-anchor:middle}
+.tabrow .tstem{stroke:#9a9a9a;stroke-width:1}
+.tabrow .tbeam{stroke:#9a9a9a;stroke-width:2.5}
+.tabrow .tdot{fill:#9a9a9a}
+.tabrow .ttri{font:9px Arial,Helvetica,sans-serif;fill:#888;text-anchor:middle}
+.tabrow .tly{font:13px Arial,Helvetica,sans-serif;fill:#8a8a8a}
+#bTab{width:auto;padding:0 11px;gap:7px;font:600 12.5px "Segoe UI",system-ui,sans-serif;border-color:#2b3138;margin-left:6px}
 /* what the player is busy with: starting, converting, reading, decoding */
 #msg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:11px;
      max-width:80%;padding:11px 18px;border-radius:999px;background:rgba(10,13,18,.88);border:1px solid #2b3138;
@@ -35,6 +72,9 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 #hint button{background:#2f6fd0;border:0;color:#fff;font:600 14px "Segoe UI",system-ui,sans-serif;
   padding:9px 20px;border-radius:8px;cursor:pointer}
 #hint button:hover{background:#3b7fe6}
+#hint #hintLegal{margin-top:14px;padding-top:12px;border-top:1px solid #2b3138;color:#9aa7b2;font-size:12px;line-height:1.5}
+#hint #hintLegal b{color:#e6edf3;font-weight:600}
+#hint p.sub{font-size:12.5px;color:#9aa7b2;margin-top:-4px}
 #hint small{display:block;margin-top:16px;color:#6f7c89;font-size:12px;line-height:1.5}
 #bOpen{width:auto;padding:0 11px;gap:7px;font:600 12.5px "Segoe UI",system-ui,sans-serif;border-color:#2b3138}
 /* drop a song anywhere on the window to play it */
@@ -48,7 +88,7 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
      animation:spin .8s linear infinite}
 #msg.plain .spin{display:none}
 @keyframes spin{to{transform:rotate(360deg)}}
-/* lyrics and the corner read-out use the game's geometric sans */
+/* lyrics and the corner read-out use a geometric sans */
 #lyr,#hud{font-family:"Century Gothic","Futura","Tw Cen MT","Trebuchet MS","Segoe UI",sans-serif;
   pointer-events:none;text-shadow:0 2px 6px #000, 0 0 2px #000}
 #lyr{position:absolute;left:8%;top:17%;max-width:62%;display:none}
@@ -74,8 +114,8 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 #hud .k{font-weight:600;font-size:clamp(10px,1.8vh,19px);line-height:1.1;letter-spacing:.02em}
 #hud .v{font-weight:700;font-size:clamp(13px,2.9vh,31px);line-height:1.1;margin-bottom:.42em;
   text-transform:uppercase;white-space:nowrap}
-/* tone read-out: the name the game shows, with the tone's raw key under it.
-   It lights up at a tone switch and settles back, like the game's notice. */
+/* tone read-out: the tone's display name, with its raw key under it.
+   It lights up at a tone switch and settles back. */
 #hudToneRow{opacity:.55;transition:opacity 1.6s}
 #hudToneRow.flash{opacity:1;transition:opacity .12s}
 #hud .v.tone{text-transform:none;white-space:normal;font-size:clamp(12px,2.4vh,26px);margin-bottom:.08em}
@@ -106,8 +146,14 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
   border-radius:4px 0 0 4px;pointer-events:none}
 /* tone switches: a small pale-yellow flag on the top edge of the seek bar */
 #tltone{position:absolute;inset:0;pointer-events:none}
-#tltone .tn{position:absolute;top:-1px;width:0;height:0;margin-left:-4px;border:4px solid transparent;
-  border-top:7px solid #ffe9a8;filter:drop-shadow(0 0 1.5px #000)}
+/* The dark rim is a bigger triangle behind the flag, not a CSS filter. A filter
+   is redrawn every time the playhead next to it moves - every frame - and with
+   the 74 tone switches of Through the Fire and Flames that alone pulled the
+   page from 60 down to about 40 frames a second. */
+#tltone .tn{position:absolute;top:-2px;width:0;height:0;margin-left:-5px;border:5px solid transparent;
+  border-top:9px solid rgba(0,0,0,.75)}
+#tltone .tn::after{content:"";position:absolute;left:-4px;top:-8px;width:0;height:0;
+  border:4px solid transparent;border-top:7px solid #ffe9a8}
 #tlhead{position:absolute;top:-3px;bottom:-3px;left:-1px;width:2px;background:#fff;border-radius:1px;
   box-shadow:0 0 6px #fffa;will-change:transform;pointer-events:none}
 #tlhint{position:fixed;transform:translate(-50%,-100%);background:#0b0d10;border:1px solid var(--line);
@@ -128,10 +174,13 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 #album{color:var(--dim)}
 #tuning{font-size:11.5px;color:#8fa6ba;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
 #tuning b{color:#c8d2dc;font-weight:600}
-#spd{margin-left:16px}
-#spd .k{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#7f8d9c}
-#spd input[type=range]{width:96px;background:#b0782a}
-#spd .val{min-width:38px}
+/* two sliders to a stack, one above the other, each with its button and value */
+.stack{flex:none;display:flex;flex-direction:column;gap:2px}
+.stack .vol{height:27px}
+.stack .ib{width:27px;height:27px;border-radius:5px}
+.stack .ib svg{width:16px;height:16px}
+.stack .val{min-width:36px}
+#spd input[type=range]{background:#b0782a}
 #album:not(:empty)::before{content:"·";margin:0 6px}
 
 #btns{display:flex;align-items:center;gap:4px;flex:none}
@@ -153,6 +202,15 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 #stem select{background:transparent;border:0;color:#dfe7ef;font:12.5px "Segoe UI",system-ui,sans-serif;
   outline:none;cursor:pointer;max-width:118px}
 #stem select option{background:#14181d;color:#e6edf3}
+/* the arrangement picker, left of Restart */
+#path{flex:none;display:flex;align-items:center;gap:5px;background:#0e1114;border:1px solid #1e242b;
+  border-radius:6px;padding:0 4px 0 8px;height:32px;margin-right:6px;color:#9fb0c0}
+#path svg{width:15px;height:15px;flex:none}
+#path select{background:transparent;border:0;color:#dfe7ef;font:600 12.5px "Segoe UI",system-ui,sans-serif;
+  outline:none;cursor:pointer;max-width:120px}
+#path select option{background:#14181d;color:#e6edf3;font-weight:400}
+#path.one{opacity:.75}
+#path.one select{cursor:default}
 .vol{flex:none;display:flex;align-items:center;gap:6px}
 .vol input[type=range]{-webkit-appearance:none;appearance:none;width:84px;height:4px;border-radius:2px;
   background:#2a64c8;outline:none;cursor:pointer}
@@ -194,16 +252,16 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 
 /* narrow windows: drop the least important controls instead of clipping them */
 @media (max-width:1180px){ #stats{display:none} }
-@media (max-width:1040px){ #lClick,#lMaster,#lSynth{display:none} .vol input[type=range]{width:64px} #bCfg span,#bOpen span{display:none} }
-@media (max-width:1320px){ #spd .k{display:none} #spd input[type=range]{width:70px} }
-@media (max-width:900px){ #spd{display:none} #stem{display:none} #vClick,#vSynth{display:none} }
-@media (max-width:720px){ #album{display:none} #vMaster{display:none} #bRestart{display:none} #ctl{gap:8px} }
+@media (max-width:1040px){ .vol input[type=range]{width:64px} #bCfg span,#bOpen span,#bTab span{display:none} }
+@media (max-width:900px){ #stem{display:none} .stack .val{display:none} .vol input[type=range]{width:56px} }
+@media (max-width:720px){ #path svg{display:none} #path{padding:0 2px 0 6px;margin-right:2px} #path select{max-width:76px} #album{display:none} #vMaster,#vClick,#vSynth{display:none} #bRestart{display:none} #ctl{gap:8px} }
 </style>
 </head>
 <body>
 
 <div id="stage">
   <canvas id="hw"></canvas>
+  <div id="tabview" tabindex="-1"><div id="tabpage"></div></div>
   <div id="lyr"><div class="ln" id="lyrA"></div><div class="ln" id="lyrB"></div></div>
   <div id="lyrErr"><b>[Lyric load error!]</b><span id="lyrErrWhy"></span></div>
   <div id="hud">
@@ -216,12 +274,18 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
   <div id="hint" class="hide">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
          stroke-linejoin="round"><path d="M12 15V4"/><path d="M8 8l4-4 4 4"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
-    <h2>Drop a Rocksmith song here</h2>
-    <p>Drag a <b>.psarc</b> or <b>.feedpak</b> file onto this window to see and hear its chart<br>on a Rocksmith-style note highway.</p>
+    <h2>Drop a song here</h2>
+    <p>Drag a custom song (<b>.psarc</b>) or a <b>.feedpak</b> file onto this window to see and hear its chart<br>on a 3-D note highway or as tablature.</p>
+    <p class="sub">Charting a song? Drop its <b>arrangement .xml</b> files together with the audio (and cover art),
+      or the whole project folder.</p>
     <button id="hintPick" type="button">Choose a file…</button>
-    <small id="hintNote">The file is sent to this server to be converted, and deleted again after you leave.</small>
+    <small id="hintNote">The file is opened on this page - it is never uploaded, and nothing is changed in your file.</small>
+    <div id="hintLegal"><b>Please use only songs you have obtained legally.</b> Play Song is an independent,
+      non-commercial project; it does not provide any songs, does not open official songs from the game's store,
+      and is not affiliated with any game publisher or rights holder.</div>
   </div>
-  <input id="filePick" type="file" accept=".psarc,.feedpak" style="display:none">
+  <input id="filePick" type="file" multiple style="display:none"
+         accept=".psarc,.feedpak,.xml,.ogg,.mp3,.wav,.flac,.m4a,.opus,.wem,.png,.jpg,.jpeg,.webp,.dds">
   <div id="msg"><span class="spin"></span><span id="msgTxt">Starting…</span></div>
 </div>
 
@@ -246,14 +310,20 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
         <div id="tuning"></div>
       </div>
       <span id="syncoff" title="note sync offset applied"></span>
-      <div class="vol" id="spd" title="Song speed: slows the song down without changing its pitch">
-        <span class="k">Speed</span>
-        <input id="vSpeed" type="range" min="20" max="100" step="5" value="100">
-        <span class="val" id="lSpeed">100%</span>
-      </div>
+      <button class="ib" id="bTab" title="Tab view: the chart as guitar tablature (T)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <path d="M3 6h18M3 10h18M3 14h18M3 18h18"/><path d="M8 4v16" stroke-width="1.2"/></svg>
+        <span>Tab</span>
+      </button>
     </div>
 
     <div id="btns">
+      <div id="path" title="Arrangement - the part to play (keys 1-6)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+             stroke-linejoin="round"><path d="M5 20V9a4 4 0 0 1 4-4h0"/><path d="M19 20v-6a4 4 0 0 0-4-4H9"/>
+          <path d="M7 3 9 5 7 7"/><path d="M11 8l-2 2 2 2"/></svg>
+        <select id="fArr"></select>
+      </div>
       <button class="ib" id="bRestart" title="Restart (R)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
              stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.6-5.9"/><path d="M4 4v4.5h4.5"/></svg>
@@ -280,37 +350,50 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
         <select id="stemSel"><option value="">Full mix</option></select>
       </div>
 
-      <div class="vol" title="Song volume">
-        <button class="ib" id="bMute" title="Mute (M)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-               stroke-linejoin="round"><path d="M4 9.2h3.2L11.6 6v12L7.2 14.8H4z"/>
-            <path d="M15 9.4a3.6 3.6 0 0 1 0 5.2"/><path d="M18.2 7a7 7 0 0 1 0 10"/></svg>
-        </button>
-        <input id="vMaster" type="range" min="0" max="100" value="100">
-        <span class="val" id="lMaster">100</span>
+      <!-- the sliders, two to a stack: the song itself, then what plays along with it -->
+      <div class="stack">
+        <div class="vol" title="Song volume">
+          <button class="ib" id="bMute" title="Mute (M)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                 stroke-linejoin="round"><path d="M4 9.2h3.2L11.6 6v12L7.2 14.8H4z"/>
+              <path d="M15 9.4a3.6 3.6 0 0 1 0 5.2"/><path d="M18.2 7a7 7 0 0 1 0 10"/></svg>
+          </button>
+          <input id="vMaster" type="range" min="0" max="100" value="100">
+          <span class="val" id="lMaster">100</span>
+        </div>
+        <div class="vol" id="spd" title="Song speed: slows the song down without changing its pitch">
+          <button class="ib" id="bSpeed" title="Song speed - click to go back to 100%">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                 stroke-linejoin="round"><path d="M4.5 17a8.5 8.5 0 1 1 15 0"/><path d="M12 14l4-5"/>
+              <circle cx="12" cy="14.5" r="1.2" fill="currentColor"/></svg>
+          </button>
+          <input id="vSpeed" type="range" min="20" max="100" step="5" value="100">
+          <span class="val" id="lSpeed">100%</span>
+        </div>
       </div>
 
-      <div class="vol" title="Metronome">
-        <button class="ib" id="bClick" title="Metronome on/off (C)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-               stroke-linejoin="round"><path d="M9 3h6l4 18H5z"/><path d="M12 16 18 5"/><path d="M7.4 13h9.2"/></svg>
-        </button>
-        <input id="vClick" type="range" min="0" max="100" value="40">
-        <span class="val" id="lClick">40</span>
-      </div>
-
-      <div class="vol" title="Note synth: plays the notes of the chart">
-        <button class="ib" id="bSynth" title="Note synth on/off (N)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-               stroke-linejoin="round"><path d="M3 12h2.5l2-6 3.5 12 3-9 2 5 1.5-2H21"/></svg>
-        </button>
-        <input id="vSynth" type="range" min="0" max="100" value="60">
-        <span class="val" id="lSynth">60</span>
+      <div class="stack">
+        <div class="vol" title="Metronome">
+          <button class="ib" id="bClick" title="Metronome on/off (C)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                 stroke-linejoin="round"><path d="M9 3h6l4 18H5z"/><path d="M12 16 18 5"/><path d="M7.4 13h9.2"/></svg>
+          </button>
+          <input id="vClick" type="range" min="0" max="100" value="40">
+          <span class="val" id="lClick">40</span>
+        </div>
+        <div class="vol" title="Note synth: plays the notes of the chart">
+          <button class="ib" id="bSynth" title="Note synth on/off (N)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                 stroke-linejoin="round"><path d="M3 12h2.5l2-6 3.5 12 3-9 2 5 1.5-2H21"/></svg>
+          </button>
+          <input id="vSynth" type="range" min="0" max="100" value="60">
+          <span class="val" id="lSynth">60</span>
+        </div>
       </div>
 
       <div id="stats"><div id="bpm">—</div><div id="fps">0 FPS</div></div>
 
-      <button class="ib" id="bOpen" title="Open another song (.psarc or .feedpak)">
+      <button class="ib" id="bOpen" title="Open another song (.psarc, .feedpak, or arrangement .xml files with their audio)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
              stroke-linejoin="round"><path d="M12 15V5"/><path d="M8 9l4-4 4 4"/><path d="M5 15v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3"/></svg>
         <span>Open</span>
@@ -324,11 +407,10 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
   </div>
 </div>
 <div id="tlhint"></div>
-<div id="drop"><div>Drop to play this song<small>.psarc or .feedpak</small></div></div>
+<div id="drop"><div>Drop to play this song<small>.psarc, .feedpak, or arrangement .xml with its audio - only songs you have obtained legally</small></div></div>
 
 <div id="cfg">
   <h4>Highway</h4>
-  <div class="row"><label for="fArr">Arrangement</label><select id="fArr"></select></div>
   <div class="row"><label for="fSpeed">Note speed<span class="rv" id="rvSpeed">100%</span></label><input id="fSpeed" type="range" min="60" max="200" value="200"></div>
   <div class="row"><label for="fCam">Camera speed<span class="rv" id="rvCam">50%</span></label><input id="fCam" type="range" min="30" max="250" step="5" value="50"></div>
   <div class="row"><label for="fCells">Beat lines</label><input id="fCells" type="checkbox" checked></div>
@@ -336,6 +418,8 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
   <div class="row"><label for="fLabels">Technique marks</label><input id="fLabels" type="checkbox" checked></div>
   <div class="row"><label for="fLyrics">Lyrics</label><input id="fLyrics" type="checkbox" checked></div>
   <div class="row"><label for="fPan">Dynamic camera</label><input id="fPan" type="checkbox" checked></div>
+  <div class="row"><label for="fInvert" title="Low E (red) at the bottom, high E (purple) on top">Invert strings</label><input id="fInvert" type="checkbox"></div>
+  <div class="row"><label for="fLefty" title="Mirror the highway for a left-handed guitar: the nut on the right, higher frets to the left">Left-handed</label><input id="fLefty" type="checkbox"></div>
   <div class="row"><label for="fFingers">Finger positions</label><input id="fFingers" type="checkbox" checked></div>
   <div class="row"><label for="fChord">Chord names</label><input id="fChord" type="checkbox" checked></div>
   <div class="row"><label for="fDiag">Chord diagram</label><input id="fDiag" type="checkbox" checked></div>
@@ -359,7 +443,7 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
     </span>
   </div>
   <div class="hint" id="offMsg">Positive offset = chart later than the audio.</div>
-  <div class="hint">Space play/pause · ←/→ 1 s · [ ] section · L loop · R restart · M mute · C metronome · N note synth · O options · <b>,</b> <b>.</b> nudge ±1 ms</div>
+  <div class="hint">Space play/pause · ←/→ 1 s · [ ] section · L loop · R restart · M mute · C metronome · N note synth · T tab view · O options · <b>,</b> <b>.</b> nudge ±1 ms</div>
 </div>
 
 <script>
@@ -373,7 +457,7 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 
    Opened as a plain file - or from any static host - there is nothing to ask.
    A dropped .psarc is then converted in this tab by the scripts in web/:
-   the archive is decrypted and inflated, the chart is parsed, the game audio is
+   the archive is decrypted and inflated, the chart is parsed, the song's audio is
    repackaged as Ogg and decoded by the browser. Nothing is uploaded, and the
    visitor's file never leaves their machine. */
 const LOCAL = { payload: null, cover: "", audio: null, stems: null };
@@ -451,8 +535,167 @@ function convertWem(bytes){
     }
   }
 }
+/* ── the converter in a Web Worker ────────────────────────────────────────────
+   Converting a song is seconds of pure computation (decrypt, inflate, parse the
+   chart, repackage the song's audio). In a Worker it runs beside the page, so the
+   highway keeps drawing and the progress messages keep showing.
+
+   The worker's code arrives as a string (web/converter.worker.js sets
+   window.CDLC_WORKER_SOURCE) and is started from a Blob: a Worker cannot be
+   loaded from a file:// URL, and the page must keep working when opened from
+   disk. If a Worker cannot be started at all, or fails on a song, the song is
+   converted in the page instead, as in V1. */
+let convWorkerReady = null, convSeq = 0;
+const convPending = new Map();
+function startWorker(){
+  if (!convWorkerReady){
+    convWorkerReady = (async () => {
+      if (typeof Worker === "undefined" || typeof Blob === "undefined") return null;
+      await loadScript("web/converter.worker.js");
+      const src = window.CDLC_WORKER_SOURCE;
+      delete window.CDLC_WORKER_SOURCE;
+      if (!src) return null;
+      const url = URL.createObjectURL(new Blob([src], { type: "text/javascript" }));
+      let w;
+      try { w = new Worker(url); } catch (e) { URL.revokeObjectURL(url); return null; }
+      const up = await new Promise((res) => {                 // does it really run here?
+        const timer = setTimeout(() => res(false), 4000);
+        w.onmessage = (ev) => { if (ev.data && ev.data.pong){ clearTimeout(timer); res(true); } };
+        w.onerror = (ev) => { if (ev && ev.preventDefault) ev.preventDefault(); clearTimeout(timer); res(false); };
+        w.postMessage({ ping: true });
+      });
+      URL.revokeObjectURL(url);
+      if (!up){ w.terminate(); return null; }
+      w.onmessage = (ev) => {
+        const m = ev.data || {}, job = convPending.get(m.id);
+        if (!job) return;
+        if (m.stage !== undefined){ job.onStage(m.stage); return; }
+        convPending.delete(m.id);
+        if (m.ok) job.resolve(m.result); else job.reject(new Error(m.error));
+      };
+      w.onerror = (ev) => {                                   // the worker itself died
+        if (ev && ev.preventDefault) ev.preventDefault();
+        const err = new Error((ev && ev.message) || "the converter stopped");
+        for (const job of convPending.values()) job.reject(err);
+        convPending.clear();
+        convWorkerReady = null;                               // a fresh one next time
+        try { w.terminate(); } catch (e) {}
+      };
+      return w;
+    })().catch(() => null);
+  }
+  return convWorkerReady;
+}
+async function openInWorker(w, file, onStage){
+  const bytes = await file.arrayBuffer();
+  const r = await new Promise((resolve, reject) => {
+    const id = ++convSeq;
+    convPending.set(id, { resolve, reject, onStage });
+    w.postMessage({ id, name: file.name, bytes }, [bytes]);  // handed over, not copied
+  });
+  let cover = "";
+  if (r.cover && r.cover.blob) cover = URL.createObjectURL(r.cover.blob);
+  else if (r.cover && r.cover.rgba){
+    const { width, height, rgba } = r.cover;
+    const canvas = document.createElement("canvas");
+    canvas.width = width; canvas.height = height;
+    canvas.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(rgba), width, height), 0, 0);
+    cover = canvas.toDataURL("image/jpeg", 0.9);
+  }
+  return {
+    payload: r.payloadJson ? JSON.parse(r.payloadJson) : r.payload, cover,
+    audio: r.ogg ? new Blob([r.ogg], { type: "audio/ogg" }) : null,
+    stems: r.stems ? new Map(r.stems.map((s) => [s.id, s.blob])) : null,
+  };
+}
 async function openLocal(file, onStage){
+  const w = await startWorker();
+  if (w){
+    try { return await openInWorker(w, file, onStage); }
+    catch (e){
+      if (/official song/i.test(e.message)) throw e;           // a refusal, not a failure: the page would refuse it too
+      console.warn("converter worker failed, converting in the page instead:", e);
+    }
+  }
+  await loadStatics();
+  if (!window.CDLC || !window.WW2OGG) throw new Error("the in-page converter did not load (web/converter.js)");
   return /\.feedpak$/i.test(file.name) ? openLocalFeedpak(file, onStage) : openLocalPsarc(file, onStage);
+}
+
+/* ── raw arrangement XML ───────────────────────────────────────────────────────
+   A song still in its project folder: an XML per arrangement, a vocals XML,
+   the audio, the cover art. Dropped as files or as the folder. The chart is
+   converted like a pack's; the audio and the picture are used as they are
+   (a .wem is converted, a .dds is drawn). */
+const AUDIO_RX = /\.(ogg|mp3|wav|flac|m4a|aac|opus|webm|wem)$/i, IMAGE_RX = /\.(jpe?g|png|webp|gif|bmp|dds)$/i;
+const baseName = (f) => (f.relPath || f.name).split("/").pop();
+function pickBest(list, rx, good){
+  const c = list.filter((f) => rx.test(f.name) && !/preview/i.test(f.name));
+  const score = (f) => {
+    const b = baseName(f).replace(/\.[^.]+$/, "").toLowerCase();
+    return (good.test(b) ? 2 : 0) - (b.startsWith("_") ? 2 : 0) + f.size/1e12;
+  };
+  c.sort((a, b) => score(b) - score(a));
+  return c[0] || null;
+}
+function xmlSetName(list){
+  const withDir = list.find((f) => f.relPath && f.relPath.split("/").filter(Boolean).length > 1);
+  if (withDir) return withDir.relPath.split("/").filter(Boolean)[0];
+  const x = list.find((f) => /\.xml$/i.test(f.name) && !/vocal/i.test(f.name)) || list.find((f) => /\.xml$/i.test(f.name));
+  return x ? x.name : "song.xml";
+}
+async function openLocalXml(list, onStage){
+  const name = xmlSetName(list);
+  const xmls = list.filter((f) => /\.xml$/i.test(f.name));
+  const audioF = pickBest(list, AUDIO_RX, /^(audio|song|guitar|original|mix|full|track)\b/);
+  const imageF = pickBest(list, IMAGE_RX, /^(cover|album|art|folder|front)\b/);
+  const send = xmls.slice();
+  if (audioF && /\.wem$/i.test(audioF.name)) send.push(audioF);
+  if (imageF && /\.dds$/i.test(imageF.name)) send.push(imageF);
+  onStage("Reading " + name + "…");
+  const entries = [];
+  for (const f of send) entries.push({ name: f.relPath || f.name, bytes: await f.arrayBuffer() });
+
+  let r = null;
+  const w = await startWorker();
+  if (w){
+    try {
+      r = await new Promise((resolve, reject) => {
+        const id = ++convSeq;
+        convPending.set(id, { resolve, reject, onStage });
+        w.postMessage({ id, name, entries: entries.map((e) => ({ name: e.name, bytes: e.bytes.slice(0) })) });
+      });
+      r.payload = JSON.parse(r.payloadJson); delete r.payloadJson;
+    } catch (e){
+      if (/no arrangement|no \.xml/i.test(e.message)) throw e;
+      console.warn("converter worker failed, converting in the page instead:", e);
+      r = null;
+    }
+  }
+  if (!r){
+    await loadStatics();
+    if (!window.CDLC || !window.CDLC.convertXmlSet) throw new Error("the in-page converter did not load (web/converter.js)");
+    const { payload } = await window.CDLC.convertXmlSet(entries.map((e) => ({ name: e.name, bytes: new Uint8Array(e.bytes) })), { name, onProgress: onStage });
+    r = { payload, cover: null, ogg: null };
+    const dds = entries.find((e) => /\.dds$/i.test(e.name)), wem = entries.find((e) => /\.wem$/i.test(e.name));
+    if (dds){ try { r.cover = window.CDLC.decodeDds(new Uint8Array(dds.bytes)); } catch (e) {} }
+    if (wem){ onStage("Converting the audio…"); await new Promise((res) => setTimeout(res, 20)); r.ogg = convertWem(new Uint8Array(wem.bytes)); }
+  }
+
+  let cover = "";
+  if (r.cover && r.cover.blob) cover = URL.createObjectURL(r.cover.blob);
+  else if (r.cover && r.cover.rgba){
+    const { width, height, rgba } = r.cover;
+    const canvas = document.createElement("canvas");
+    canvas.width = width; canvas.height = height;
+    canvas.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(rgba), width, height), 0, 0);
+    cover = canvas.toDataURL("image/jpeg", 0.9);
+  } else if (imageF && !/\.dds$/i.test(imageF.name)) cover = URL.createObjectURL(imageF);
+  r.payload.meta.cover = !!cover;
+  let audio = null;
+  if (r.ogg) audio = new Blob([r.ogg], { type: "audio/ogg" });
+  else if (audioF && !/\.wem$/i.test(audioF.name)) audio = audioF;      // a File is a Blob: decoded as it is
+  return { payload: r.payload, cover, audio, stems: null };
 }
 
 /* a .feedpak is already converted: unzip, read the manifest, take its stems */
@@ -505,7 +748,7 @@ async function openLocalPsarc(file, onStage){
       const data = await psarc.read(n);
       if (!best || data.length > best.data.length) best = { n, data };
     }
-    onStage("Decoding the game audio…");
+    onStage("Converting the audio…");
     await new Promise((r) => setTimeout(r, 20));       // let the message paint before the heavy loop
     audio = new Blob([convertWem(best.data)], { type: "audio/ogg" });
   }
@@ -513,14 +756,14 @@ async function openLocalPsarc(file, onStage){
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Play Song - a Rocksmith 2014 style note highway, drawn with Canvas2D.
+   Play Song - a 3-D note highway, drawn with Canvas2D.
 
-   The scene is laid out the way the game lays it out (measured off the
-   captures in Rocksmith_reference/):
+   The scene is laid out like this:
 
      X = fret axis    every fret is the same width, FW
      Y = height       the floor of the highway is y = 0; the strings are stacked
-                      above it at the hit plane, low E on top
+                      above it at the hit plane, low E on top (at the bottom
+                      with the Invert strings option)
      Z = time axis    0 at the hit plane (the fretboard), negative into the screen
 
      - the fretboard stands at z = 0: coloured strings, copper frets, inlay
@@ -534,7 +777,7 @@ async function openLocalPsarc(file, onStage){
      - the camera sits above and slightly to the right of the neck, follows
        the anchors and pulls back when the upcoming anchors spread out
 
-   Noteheads and tails follow Rocksmith_reference/NotesReference.pdf.
+   Each playing technique has its own notehead and tail shape.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* string colours, low E first - red, yellow, blue, orange, green, purple */
@@ -591,7 +834,7 @@ const S = {
   duration:0, time:0, playing:false, loop:false, muted:false, offMs:0,
   master:1.0, clickLevel:0.4, clickOn:false, rate:1, vis:1, visTo:1, resting:false, synthOn:false, synthLevel:0.6, syn:[],
   speed:2.0, zoom:1.0, showCells:true, showNums:true, showLabels:true, autoPan:true,
-  showFingers:true, showChord:true, showDiagram:true, showHit:true, camRate:0.5, holds:[], hits:[],
+  showFingers:true, invert:false, lefty:false, tabView:false, showChord:true, showDiagram:true, showHit:true, camRate:0.5, holds:[], hits:[],
   lyrics:[], lyrPairs:[], showLyrics:true,
   camC:null, camS:4, camCv:0, camSv:0,
   fx:true, rscale:1, autoScale:false, dynScale:1, tones:{base:"", changes:[], names:{}},
@@ -600,7 +843,7 @@ const S = {
 
 /* live geometry: "note speed" stretches the time axis. The far end of the
    highway stays where it is, so a faster highway shows less time ahead -
-   exactly what the game's speed setting does. */
+   which is what a note-speed setting is for. */
 const G = { sc: SCROLL_BASE, hor: ZFAR/SCROLL_BASE };
 function updGeom(){
   G.sc = SCROLL_BASE * S.speed;
@@ -613,7 +856,7 @@ function updGeom(){
 /* ── settings ──────────────────────────────────────────────────────────────── */
 const PREFS = { speed:[0.6, 2], zoom:[0.55, 3], camRate:[0.3, 2.5], master:[0, 1], clickLevel:[0, 1], synthLevel:[0, 1],
                 rscale:[0.2, 1], autoScale:0, showCells:0, showNums:0, showLabels:0, showLyrics:0, autoPan:0,
-                showFingers:0, showChord:0, showDiagram:0, showHit:0, clickOn:0, synthOn:0, muted:0, fx:0 };
+                showFingers:0, invert:0, lefty:0, tabView:0, showChord:0, showDiagram:0, showHit:0, clickOn:0, synthOn:0, muted:0, fx:0 };
 /* Kept in this browser (localStorage): the page has one address here, so the
    browser's own storage is the right place, and nothing about a visitor is
    stored on the server. */
@@ -643,7 +886,8 @@ function syncControls(){
   $("fCam").value = Math.round(S.camRate*100); $("rvCam").textContent = Math.round(S.camRate*100) + "%";
   $("fCells").checked = S.showCells; $("fNums").checked = S.showNums; $("fLabels").checked = S.showLabels;
   $("fLyrics").checked = S.showLyrics; $("fPan").checked = S.autoPan;
-  $("fFingers").checked = S.showFingers; $("fAuto").checked = S.autoScale; $("fChord").checked = S.showChord; $("fDiag").checked = S.showDiagram; $("fHit").checked = S.showHit;
+  $("fFingers").checked = S.showFingers; $("fInvert").checked = S.invert; $("fLefty").checked = S.lefty;
+  if (typeof TAB !== "undefined" && S.tabView !== TAB.on) setTabView(S.tabView); $("fAuto").checked = S.autoScale; $("fChord").checked = S.showChord; $("fDiag").checked = S.showDiagram; $("fHit").checked = S.showHit;
   $("fFx").checked = S.fx;
   { const sc = $("fScale"); let best = sc.options[0].value;
     for (const o of sc.options) if (Math.abs(+o.value - S.rscale) < Math.abs(+best - S.rscale)) best = o.value;
@@ -707,31 +951,33 @@ async function loadStemAudio(stem){
     const raw = await LOCAL.stems.get(stem).arrayBuffer();
     return A.ctx.decodeAudioData(raw);
   }
+  /* The full mix: every stem decoded in turn and added into one buffer. The
+     adding is done a slice at a time with a pause between slices, so the page
+     keeps drawing while six stems of a long song are summed. Only the mix and
+     the stem being added are in memory at once. */
   const blobs = [...LOCAL.stems.values()];
-  let rate = A.ctx.sampleRate, length = 0;
-  let left = null, right = null;
+  const SLICE = 1 << 20;                                       // samples per slice: a few ms of work
+  const breathe = () => new Promise((r) => setTimeout(r, 0));
+  let out = null;
   for (let i = 0; i < blobs.length; i++){
     busy(`Mixing the stems… ${i + 1}/${blobs.length}`);
     const buf = await A.ctx.decodeAudioData(await blobs[i].arrayBuffer());
-    const n0 = buf.length;
-    if (left && n0 > length){          // a later stem is longer: grow the mix
-      const nl = new Float32Array(n0), nr = new Float32Array(n0);
-      nl.set(left); nr.set(right); left = nl; right = nr; length = n0;
+    if (!out || buf.length > out.length){                      // first stem, or a longer one: (re)size the mix
+      const bigger = A.ctx.createBuffer(2, buf.length, buf.sampleRate);
+      if (out){
+        for (let c = 0; c < 2; c++){ bigger.getChannelData(c).set(out.getChannelData(c)); await breathe(); }
+      }
+      out = bigger;
     }
-    if (!left){
-      rate = buf.sampleRate;
-      length = n0;
-      left = new Float32Array(length);
-      right = new Float32Array(length);
+    const L = out.getChannelData(0), R = out.getChannelData(1);
+    const l = buf.getChannelData(0), r = buf.numberOfChannels > 1 ? buf.getChannelData(1) : l;
+    const n = Math.min(out.length, buf.length);
+    for (let k0 = 0; k0 < n; k0 += SLICE){
+      const k1 = Math.min(n, k0 + SLICE);
+      for (let k = k0; k < k1; k++){ L[k] += l[k]; R[k] += r[k]; }
+      await breathe();
     }
-    const n = Math.min(length, buf.length);
-    const l = buf.getChannelData(0);
-    const r = buf.numberOfChannels > 1 ? buf.getChannelData(1) : l;
-    for (let k = 0; k < n; k++){ left[k] += l[k]; right[k] += r[k]; }
   }
-  const out = A.ctx.createBuffer(2, length, rate);
-  out.copyToChannel(left, 0);
-  out.copyToChannel(right, 1);
   return out;
 }
 
@@ -742,6 +988,23 @@ async function loadAudio(stem){
     A.buf = await loadStemAudio(stem);
   } else {
     let raw;
+    A.silent = false;
+    if (LOCAL.payload && !LOCAL.audio){
+      /* a chart without audio (arrangement XML dropped on its own): a silent
+         track as long as the chart, so the clock, the metronome and the synth run */
+      const last = Math.max(S.duration || 0, ...S.arrs.map((a) => {
+        const n = a.notes || [], c = a.chords || [];
+        return Math.max(n.length ? n[n.length - 1].t || n[n.length - 1].time || 0 : 0, c.length ? c[c.length - 1].t || c[c.length - 1].time || 0 : 0);
+      }));
+      const sr = 8000;
+      A.buf = A.ctx.createBuffer(1, Math.ceil((Math.max(10, last) + 3)*sr), sr);
+      A.silent = true;
+      slowForget();
+      S.duration = Math.max(S.duration, A.buf.duration);
+      A.offset = keep; A.playing = false;
+      renderTimeline(); paintClock();
+      return;
+    }
     if (LOCAL.audio){
       raw = await LOCAL.audio.arrayBuffer();      // a fresh copy: decodeAudioData detaches its input
     } else {
@@ -1112,7 +1375,10 @@ function project(cam, x, y, z){
   const zc = dx*cam.fx + dy*cam.fy + dz*cam.fz;
   if (zc < 0.03) return null;
   const s = cam.k / zc;
-  return { x: cam.cx + (dx*cam.rx + dy*cam.ry + dz*cam.rz)*s,
+  /* left-handed: the scene is mirrored left to right, here and nowhere else -
+     every line, head and frame follows. Writing must not be mirrored: see
+     neckAxes and chordName. */
+  return { x: cam.cx + (S.lefty ? -1 : 1)*(dx*cam.rx + dy*cam.ry + dz*cam.rz)*s,
            y: cam.cy - (dx*cam.ux + dy*cam.uy + dz*cam.uz)*s, s };
 }
 
@@ -1146,9 +1412,10 @@ function glowSprite(color){
   glowCache.set(color, c);
   return c;
 }
-function glow(color, x, y, rw, rh, a){
+function glow(color, x, y, rw, rh, a, plain){
   if (!S.fx || a <= 0.004 || rw < 1 || rh < 1) return;
-  ctx.globalCompositeOperation = "lighter";
+  /* added light whitens where it overlaps; "plain" keeps the note's own colour */
+  ctx.globalCompositeOperation = plain ? "source-over" : "lighter";
   ctx.globalAlpha = Math.min(1, a);
   ctx.drawImage(glowSprite(color), 0, 0, 64, 64, x - rw, y - rh, rw*2, rh*2);
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
@@ -1259,10 +1526,13 @@ function headFrame(x, y, ang){
 }
 
 /* ── noteheads ───────────────────────────────────────────────────────────────
-   Shapes from the Rocksmith 2014 notehead and tail guide. Drawn in the head's
+   One shape per technique. Drawn in the head's
    own frame: origin at its centre, hw/hh = half width / half height.        */
 const HEAD_SIZES = [3, 4, 5.5, 7.5, 10, 13, 17, 22, 28, 36, 46, 60, 80, 110];   // half-widths a head sprite is drawn at
-function drawHead(x, y, ang, hw, hh, col, n, a){
+/* gk: how close the note is, 0 far away .. 1 at the fretboard. A far note is
+   drawn in its plain colour; its rim lightens and its inner frame shows as it
+   approaches, so the glow does not distract while the note is still far off. */
+function drawHead(x, y, ang, hw, hh, col, n, a, gk){
   if (a <= 0.004) return;
   const c0 = Math.cos(ang), s0 = Math.sin(ang);
   const ex = SK.on ? SK.x : -s0, ey = SK.on ? SK.y : c0;           // the head's own frame, see setSkew
@@ -1277,8 +1547,9 @@ function drawHead(x, y, ang, hw, hh, col, n, a){
   let q = hw;
   for (const v of HEAD_SIZES) if (v >= hw){ q = v; break; }
   const bend = n.bn > 0 ? (n.bn < 1.5 ? 1 : n.bn < 2.5 ? 2 : 3) : 0;
+  const gl = Math.round(clamp(gk === undefined ? 1 : gk, 0, 1)*4);    // five steps: a sprite for each
   const key = col + "|" + q + "|" + (n.tp ? 1 : 0) + (n.ac ? 1 : 0) + (n.pm ? 1 : 0) + (n.mt ? 1 : 0) + (n.hm ? 1 : 0)
-            + (n.hp ? 1 : 0) + (n.ho ? 1 : 0) + (n.po ? 1 : 0) + bend + (marks ? 1 : 0) + "|" + dpr;
+            + (n.hp ? 1 : 0) + (n.ho ? 1 : 0) + (n.po ? 1 : 0) + bend + (marks ? 1 : 0) + "|" + gl + "|" + dpr;
   let sp = SPR.head.get(key);
   if (!sp){
     if (SPR.head.size > 900) SPR.head.clear();
@@ -1287,7 +1558,7 @@ function drawHead(x, y, ang, hw, hh, col, n, a){
     const w = (q + mx)*2, h = qh*2 + top + bot;
     const [c, g] = sprCanvas(w, h);
     g.translate(q + mx, qh + top);
-    headShape(g, q, qh, col, n, marks);
+    headShape(g, q, qh, col, n, marks, gl/4);
     sp = { c, w, h, cx:q + mx, cy:qh + top, q };
     SPR.head.set(key, sp);
   }
@@ -1298,7 +1569,7 @@ function drawHead(x, y, ang, hw, hh, col, n, a){
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.globalAlpha = 1;
 }
 /* the picture of one notehead, drawn around the origin of `g` - used to make its sprite */
-function headShape(g, hw, hh, col, n, marks){
+function headShape(g, hw, hh, col, n, marks, gk){
   g.lineJoin = "round"; g.lineCap = "round";
   const lw = Math.max(1.2, hh*0.30);
   const fhm = n.mt, isPM = n.pm && !fhm, harm = n.hm || n.hp;
@@ -1315,7 +1586,7 @@ function headShape(g, hw, hh, col, n, marks){
   } else {
     if (n.ac){                                     // accent: a second, glowing frame
       rr(-hw - lw*1.5, -hh - lw*1.5, hw*2 + lw*3, hh*2 + lw*3, hh*0.6, g);
-      g.strokeStyle = rgba(col, 0.55); g.lineWidth = lw*1.5; g.stroke();
+      g.strokeStyle = rgba(col, 0.25 + 0.30*gk); g.lineWidth = lw*1.5; g.stroke();
     }
     rr(-hw, -hh, hw*2, hh*2, hh*0.32, g);
     g.fillStyle = (isPM || fhm) ? shade(col, 0.22) : n.hp ? shade(col, 0.95) : shade(col, 0.80);
@@ -1329,11 +1600,11 @@ function headShape(g, hw, hh, col, n, marks){
       g.restore();
       rr(-hw, -hh, hw*2, hh*2, hh*0.32, g);
     }
-    g.strokeStyle = n.ac ? tint(col, 0.75) : tint(col, 0.42); g.lineWidth = lw; g.stroke();
+    g.strokeStyle = n.ac ? tint(col, 0.30 + 0.40*gk) : tint(col, 0.06 + 0.26*gk); g.lineWidth = lw; g.stroke();
     if (!isPM && !fhm && !harm && !n.ho && !n.po && hw > 6){
       /* the lighter inner frame every plain head has */
       rr(-hw + lw*1.25, -hh + lw*1.15, hw*2 - lw*2.5, hh*2 - lw*2.3, hh*0.15, g);
-      g.strokeStyle = "rgba(255,255,255,0.50)"; g.lineWidth = Math.max(1, lw*0.42); g.stroke();
+      g.strokeStyle = "rgba(255,255,255," + (0.10 + 0.32*gk).toFixed(2) + ")"; g.lineWidth = Math.max(1, lw*0.42); g.stroke();
     }
   }
 
@@ -1531,6 +1802,7 @@ function selectArrangement(i){
   showTuning(a);
   document.getElementById("bpm").textContent = S.bpm ? S.bpm.toFixed(1) : "—";
   applyOffset(S.offMs);
+  tabInvalidate();
 }
 
 /* The tuning of the arrangement on screen, for the song info: its usual name,
@@ -1555,7 +1827,7 @@ function showTuning(a){
   el.title = "Tuning of the " + (a.name || "") + " arrangement, lowest string first";
 }
 
-/* chord names the way the game prints them: A♭ sus 4, F♯5 */
+/* chord names with proper accidentals: A♭ sus 4, F♯5 */
 function chordLabel(s){
   return String(s || "").trim().replace(/(^|\/)([A-G])b/g, "$1$2♭").replace(/#/g, "♯");
 }
@@ -1713,7 +1985,7 @@ function applyOffset(ms){
   }
 }
 
-/* Lyric lines are shown two at a time, like the game does: the pair stays up
+/* Lyric lines are shown two at a time: the pair stays up
    while both are sung, then the next pair replaces it. When nothing is sung
    for more than LYR_GAP seconds the lyrics go away as soon as the line is
    over, and the next pair comes up LYR_LEAD seconds before its first word. */
@@ -1815,6 +2087,7 @@ function restChart(){
   document.getElementById("tuning").textContent = "";
   document.getElementById("stem").style.display = "none";          // no song, no stems to pick
   renderTimeline(); paintClock();
+  tabInvalidate();
 }
 function startFrames(){
   if (!framesRunning){ framesRunning = true; requestAnimationFrame(frame); }
@@ -1832,12 +2105,9 @@ async function boot(){
      load the in-page converter and wait for a dropped file. */
   SERVER = await serverAvailable();
   if (!SERVER){
-    try {
-      await loadStatics();
-    } catch (e) {
-      busy("The page could not load its converter: " + e.message);
-      return;
-    }
+    /* get the converter ready while the visitor looks for a song; if no Worker
+       can run here, the in-page converter is loaded when a song is dropped */
+    startWorker().then((w) => { if (!w) return loadStatics(); }).catch(() => {});
     idle();
     document.getElementById("title").textContent = "Play Song";
     document.getElementById("artist").textContent = "no song open";
@@ -1923,7 +2193,8 @@ async function showSong(noPlay){
     const o = document.createElement("option"); o.value = i; o.textContent = a.name || ("arr " + i);
     fArr.appendChild(o);
   });
-  fArr.onchange = () => { selectArrangement(+fArr.value); };
+  fArr.onchange = () => { selectArrangement(+fArr.value); fArr.blur(); };
+  document.getElementById("path").classList.toggle("one", S.arrs.length < 2);
 
   // stems: only worth a picker when the pack really was separated
   const stemSel = document.getElementById("stemSel");
@@ -1991,11 +2262,15 @@ async function showSong(noPlay){
     return;
   }
   idle();
+  if (A.silent){
+    notice("No audio came with this chart - it plays silently. Drop the XML together with the song's audio to hear it.");
+    setTimeout(idle, 7000);
+  }
   if (noPlay || q.has("paused")) return;
   play(); setPlayIcon(true);
   if (A.ctx.state === "suspended"){   // the browser wants a click before it lets the page make sound
     waitingForGesture = true;
-    notice("Ready - click anywhere or press Space to start");
+    notice("Ready - click anywhere or press Space to start" + (A.silent ? " (no audio came with this chart: it plays silently)" : ""));
   }
 }
 
@@ -2022,13 +2297,19 @@ function upload(file, onProgress){
     x.send(file);
   });
 }
-async function openDropped(file){
+async function openDropped(input){
   if (opening) return;
-  if (!/\.(psarc|feedpak)$/i.test(file.name)){
-    notice("Only .psarc and .feedpak files can be played - not " + file.name);
+  const list = Array.isArray(input) ? input : [input];
+  /* arrangement XML among the files: a chart still in its project folder (a
+     .psarc next to it is that chart packed - the XML is what is being worked on) */
+  const xmlSet = list.some((f) => /\.xml$/i.test(f.name));
+  const file = xmlSet ? null : list.find((f) => /\.(psarc|feedpak)$/i.test(f.name));
+  if (!xmlSet && !file){
+    notice("Only .psarc, .feedpak and arrangement .xml files can be played - not " + (list.length ? list[0].name : "that"));
     setTimeout(idle, 5000);
     return;
   }
+  const label = xmlSet ? xmlSetName(list) : file.name;
   opening = true;
   let cleared = Promise.resolve();
   try {
@@ -2037,28 +2318,29 @@ async function openDropped(file){
     try { audioInit(); A.ctx.resume(); } catch (e) {}     // while the click or drop still counts as the user's
     SERVER = await serverAvailable();                     // a drop can beat boot()'s probe
 
-    if (!SERVER){
-      /* no server: convert here, in this tab (the scripts may still be loading) */
-      await loadStatics();
-      if (!window.CDLC || !window.WW2OGG){
-        throw new Error("the in-page converter did not load (web/converter.js)");
-      }
+    if (!SERVER || xmlSet){
+      /* no server: convert here, in a worker beside the page (or in the page itself) */
       cleared = fadeTo(0).then(() => {
         restChart(); S.visTo = 1;
-        document.getElementById("title").textContent = file.name;
+        document.getElementById("title").textContent = label;
         document.getElementById("artist").textContent = "opening…";
         document.getElementById("album").textContent = "";
       });
-      const song = await openLocal(file, (m) => busy(m));
+      busy("Reading " + label + "…");
+      const song = xmlSet ? await openLocalXml(list, (m) => busy(m)) : await openLocal(file, (m) => busy(m));
       await cleared;
+      const oldCover = LOCAL.cover;
       LOCAL.payload = song.payload;
       LOCAL.cover = song.cover;
       LOCAL.audio = song.audio;
       LOCAL.stems = song.stems;
+      if (oldCover && oldCover.startsWith("blob:") && oldCover !== LOCAL.cover)
+        setTimeout(() => URL.revokeObjectURL(oldCover), 2000);   // the new picture has replaced it
       await showSong();
       return;
     }
 
+    LOCAL.payload = null; LOCAL.audio = null; LOCAL.stems = null;   // the server's song from now on, not one opened here
     busy("Uploading " + file.name + "…");
     /* what is on screen fades away and the highway goes to rest while the new song is opened */
     cleared = fadeTo(0).then(() => {
@@ -2093,11 +2375,35 @@ async function openDropped(file){
   window.addEventListener("dragenter", (e) => { if (!hasFiles(e)) return; e.preventDefault(); depth++; veil.classList.add("show"); });
   window.addEventListener("dragover",  (e) => { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = "copy"; });
   window.addEventListener("dragleave", (e) => { if (!hasFiles(e)) return; if (--depth <= 0){ depth = 0; veil.classList.remove("show"); } });
+  /* a dropped folder is read through (a project folder: XML, audio, art) */
+  const KEEP = /\.(psarc|feedpak|xml|ogg|mp3|wav|flac|m4a|aac|opus|webm|wem|jpe?g|png|webp|gif|bmp|dds)$/i;
+  async function readTree(entries){
+    const out = [];
+    const walk = async (en, depth) => {
+      if (out.length >= 400) return;
+      if (en.isFile){
+        if (!KEEP.test(en.name)) return;
+        const f = await new Promise((res) => en.file(res, () => res(null)));
+        if (f){ f.relPath = en.fullPath.replace(/^\//, ""); out.push(f); }
+      } else if (en.isDirectory && depth < 4){
+        const rd = en.createReader();
+        for (;;){
+          const batch = await new Promise((res) => rd.readEntries(res, () => res([])));
+          if (!batch.length) break;
+          for (const c of batch) await walk(c, depth + 1);
+        }
+      }
+    };
+    for (const en of entries) await walk(en, 0);
+    return out;
+  }
   window.addEventListener("drop", (e) => {
     if (!hasFiles(e)) return;
     e.preventDefault(); depth = 0; veil.classList.remove("show");
-    const f = e.dataTransfer.files && e.dataTransfer.files[0];
-    if (f) openDropped(f);
+    const ents = [...(e.dataTransfer.items || [])].map((it) => it.webkitGetAsEntry ? it.webkitGetAsEntry() : null).filter(Boolean);
+    if (ents.some((en) => en.isDirectory)){ readTree(ents).then((l) => { if (l.length) openDropped(l); }); return; }
+    const files = [...(e.dataTransfer.files || [])];
+    if (files.length) openDropped(files);
   });
 }
 
@@ -2106,7 +2412,7 @@ async function openDropped(file){
   const choose = () => { pick.value = ""; pick.click(); };
   document.getElementById("hintPick").onclick = choose;
   document.getElementById("bOpen").onclick = choose;
-  pick.onchange = () => { if (pick.files && pick.files[0]) openDropped(pick.files[0]); };
+  pick.onchange = () => { if (pick.files && pick.files.length) openDropped([...pick.files]); };
 }
 
 /* ── formatting ──────────────────────────────────────────────────────────── */
@@ -2370,6 +2676,13 @@ function chordName(name, tl, sc, a, ax){
   const fs = clamp(sc*FW*0.62, 0, 54);
   if (fs < 9 || a <= 0.01) return;
   const sp = textSprite(name, fs, "#eef1f3", null), k = fs/sp.q, tw = sp.tw*k;
+  if (S.lefty){
+    /* mirrored, the frame's low-fret edge is on its right: the name stands right
+       of it, left-aligned, kept on screen at the right edge */
+    const left = Math.min(W - tw - 10, tl.x + fs*0.45) - tl.x;
+    sprStamp(sp, tl.x, tl.y, k, a, ax, left + tw/2, -fs*0.36);
+    return;
+  }
   /* right-aligned to the frame, sitting on the line; kept on screen at the left edge */
   const right = Math.max(tw + 10, tl.x - fs*0.45) - tl.x;
   sprStamp(sp, tl.x, tl.y, k, a, ax, right - tw/2, -fs*0.36);
@@ -2382,7 +2695,8 @@ function neckAxes(cam, x, y, z){
   if (!p || !q || !u) return null;
   const lx = Math.hypot(q.x - p.x, q.y - p.y), ly = Math.hypot(p.x - u.x, p.y - u.y);
   if (lx < 0.5 || ly < 0.5) return null;
-  return { ex:[(q.x - p.x)/lx, (q.y - p.y)/lx], ey:[(p.x - u.x)/ly, (p.y - u.y)/ly] };
+  const k = S.lefty ? -1 : 1;                      // mirrored, the strings run right to left: text still reads left to right
+  return { ex:[k*(q.x - p.x)/lx, k*(q.y - p.y)/lx], ey:[(p.x - u.x)/ly, (p.y - u.y)/ly] };
 }
 
 /* difficulty bars across the top */
@@ -2471,8 +2785,10 @@ function fingerPills(t, yOf){
   const Hd = S.holds, k = lowerBound(Hd, "in0", t + 1e-6) - 1;
   if (k < 0) return [];
   const h = Hd[k], nx = Hd[k+1], e = PITCH*0.20;
-  const geo = (m, kk) => ({ g:m.g, x:fretMid(m.f), ya:yOf(m.s0) + e, yb:yOf(m.s1) - e,
-                            yt: m.s1 > m.s0 ? yOf(m.s0) : (yOf(m.s0) + yOf(m.s1))/2, k:kk });
+  const geo = (m, kk) => {
+    const y0 = yOf(m.s0), y1 = yOf(m.s1), hi = Math.max(y0, y1), lo = Math.min(y0, y1);
+    return { g:m.g, x:fretMid(m.f), ya:hi + e, yb:lo - e, yt: m.s1 > m.s0 ? hi : (y0 + y1)/2, k:kk };
+  };
   const u = clamp((t - h.in0)/Math.max(0.01, h.t - h.in0), 0, 1);
   if (u < 1 && h.link){
     /* sliding over from the previous hold: a finger in both moves in a straight line */
@@ -2513,7 +2829,7 @@ function drawPill(pa, pb, pt, r, txt, a, axes){
 
 /* ── chord diagram ───────────────────────────────────────────────────────────
    Under the lyrics, a flat picture of the chord the hand is holding: the same
-   strings in the same colours and order as the neck (low E on top), frets left
+   strings in the same colours and order as the neck, frets left
    to right, a numbered dot per finger, a capsule for a barre, a ring for an
    open string and a cross for a string that is not played. It holds still
    where the highway shows the chord only in passing and in perspective.
@@ -2538,6 +2854,10 @@ function drawChordDiagram(t, cam, curA){
   const x0 = W*0.08, yName = Math.max(H*0.335, BARS.top + BARS.h + cw*2.2);
   const gx = x0 + cw*0.75, gy = yName + cw*0.62;               // top-left of the grid
   const gw = nF*cw, gh = (nS - 1)*sp;
+  /* left-handed: the grid is mirrored about its middle, so the nut and the
+     open-string marks are on the right; the writing is not mirrored */
+  const MX = S.lefty ? (x) => 2*gx + gw - x : (x) => x;
+  const padR = S.lefty ? cw*0.85 : cw*0.45;
 
   /* dim it while the highway is behind it */
   {
@@ -2545,7 +2865,7 @@ function drawChordDiagram(t, cam, curA){
     for (let i = 0; i <= 8 && a > 0.3; i++){
       for (const xx of [xl, xr]){
         const p = project(cam, xx, 0, -ZFAR*i/8);
-        if (p && p.x > x0 - cw && p.x < gx + gw + cw && p.y > yName - cw && p.y < gy + gh + cw*1.3){ a = Math.min(a, 0.28); break; }
+        if (p && p.x > x0 - cw && p.x < gx + gw + padR + cw*0.55 && p.y > yName - cw && p.y < gy + gh + cw*1.3){ a = Math.min(a, 0.28); break; }
       }
     }
   }
@@ -2553,7 +2873,7 @@ function drawChordDiagram(t, cam, curA){
   ctx.save();
   ctx.globalAlpha = a; ctx.lineCap = "round"; ctx.lineJoin = "round";
   ctx.fillStyle = "rgba(0,0,0,0.45)";
-  rr(x0 - cw*0.35, yName - cw*0.62, gx + gw + cw*0.45 - (x0 - cw*0.35), gy + gh + cw*1.05 - (yName - cw*0.62), cw*0.22);
+  rr(x0 - cw*0.35, yName - cw*0.62, gx + gw + padR - (x0 - cw*0.35), gy + gh + cw*1.05 - (yName - cw*0.62), cw*0.22);
   ctx.fill();
 
   if (h.name){
@@ -2563,17 +2883,17 @@ function drawChordDiagram(t, cam, curA){
   }
   /* frets, with the nut as a thick bar when the diagram starts at fret 1 */
   for (let i = 0; i <= nF; i++){
-    const x = gx + i*cw, nut = base === 1 && i === 0;
+    const x = MX(gx + i*cw), nut = base === 1 && i === 0;
     ctx.strokeStyle = nut ? "#e9e2cf" : "#58626e"; ctx.lineWidth = nut ? Math.max(3, cw*0.12) : 1.5;
     ctx.beginPath(); ctx.moveTo(x, gy - sp*0.25); ctx.lineTo(x, gy + gh + sp*0.25); ctx.stroke();
   }
   /* strings, and what each one does when it is not fretted */
-  const yS = (s) => gy + s*sp;
+  const yS = (s) => gy + (S.invert ? nS - 1 - s : s)*sp;       // same order as the neck
   for (let s = 0; s < nS; s++){
     const used = fr[s] >= 0, col = LANE[s] || "#9aa7b2", y = yS(s);
     ctx.strokeStyle = used ? col : rgba(col, 0.28); ctx.lineWidth = used ? Math.max(1.6, cw*0.055) : 1.2;
     ctx.beginPath(); ctx.moveTo(gx, y); ctx.lineTo(gx + gw, y); ctx.stroke();
-    const mx = gx - cw*0.42, r = sp*0.30;
+    const mx = MX(gx - cw*0.42), r = sp*0.30;
     if (fr[s] === 0){                                           // open string
       ctx.strokeStyle = col; ctx.lineWidth = Math.max(1.5, r*0.36);
       ctx.beginPath(); ctx.arc(mx, y, r, 0, Math.PI*2); ctx.stroke();
@@ -2585,7 +2905,7 @@ function drawChordDiagram(t, cam, curA){
   }
   /* fingers: a barre first, so the single dots sit on top of it */
   const R = sp*0.44;
-  const cellX = (f) => gx + (f - base + 0.5)*cw;
+  const cellX = (f) => MX(gx + (f - base + 0.5)*cw);
   const num = (txt, x, y) => {
     ctx.font = "700 " + (R*1.45).toFixed(1) + "px " + FONT;
     ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#fff";
@@ -2599,7 +2919,7 @@ function drawChordDiagram(t, cam, curA){
     ctx.beginPath(); ctx.moveTo(x, yS(m.s0)); ctx.lineTo(x, yS(m.s1)); ctx.stroke();
     ctx.strokeStyle = "#2a323c"; ctx.lineWidth = R*2 - Math.max(3, R*0.42);
     ctx.beginPath(); ctx.moveTo(x, yS(m.s0)); ctx.lineTo(x, yS(m.s1)); ctx.stroke();
-    num(m.g, x, yS(m.s0));
+    num(m.g, x, Math.min(yS(m.s0), yS(m.s1)));                 // the number at the top of the barre
   }
   /* a string under a barre that another finger frets higher belongs to that finger */
   for (let s = 0; s < nS; s++){
@@ -2618,7 +2938,7 @@ function drawChordDiagram(t, cam, curA){
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
   for (let i = 0; i < nF; i++){
     ctx.fillStyle = i === 0 || INLAY.has(base + i) ? "#ffb01f" : "#7d6a3c";
-    ctx.fillText(String(base + i), gx + (i + 0.5)*cw, gy + gh + cw*0.60);
+    ctx.fillText(String(base + i), MX(gx + (i + 0.5)*cw), gy + gh + cw*0.60);
   }
   ctx.restore();
 }
@@ -2638,8 +2958,11 @@ function draw(dt){
   }
 
   const nStr = S.nStr;
-  const yOf = (s) => YLO + (nStr - 1 - clamp(s, 0, nStr - 1))*PITCH;
-  const yTop = yOf(0), yBot = yOf(nStr - 1);
+  /* the height of string s at the neck: low E on top, or at the bottom when
+     the strings are inverted. yTop / yBot are the highest and lowest string
+     either way. */
+  const yOf = (s) => { const k = clamp(s, 0, nStr - 1); return YLO + (S.invert ? k : nStr - 1 - k)*PITCH; };
+  const yTop = YLO + (nStr - 1)*PITCH, yBot = YLO;
   const HOR = G.hor, tEnd = t + HOR;
   const zOf = (tau) => -(tau - t)*G.sc;
   /* S.vis fades the whole chart out and in (see restChart): lanes, notes,
@@ -2967,7 +3290,8 @@ function draw(dt){
       const x0 = fretX(an.fret - 1), x1 = fretX(Math.min(24, an.fret + an.width - 1));
       const a = d < 0 ? clamp(1 + d/0.15, 0, 1) : fog(ev.t);
       if (a <= 0.01) continue;
-      const top = ev.rep ? YLO + PITCH*1.25 : yOf(ev.top) + PITCH*0.95;
+      let top = YLO + PITCH*1.25;
+      if (!ev.rep){ let hi = -Infinity; for (const cn of ev.notes) hi = Math.max(hi, yOf(cn.s)); top = hi + PITCH*0.95; }
       ev.landed = d < 0;
       drawChordBox(cam, ev, x0, x1, top, d < 0 ? 0 : zOf(ev.t), a, clamp(1 - d/1.2, 0, 1));
       continue;
@@ -3026,8 +3350,9 @@ function draw(dt){
 
     const slope = Math.atan2(pr.y - pl.y, pr.x - pl.x);
     setSkew(P(xc, y + PITCH*0.4, z), P(xc, y - PITCH*0.4, z));
-    if (d < 0.7 && !grey) glow(col, cx, cy2, hw*2.3, hh*3.6, (0.16 + 0.34*(1 - d))*al);
-    drawHead(cx, cy2, slope, hw, hh, col, n, al);
+    const gk = sstep(1 - d/1.4);                                // 0 far away .. 1 at the fretboard
+    if (gk > 0.01 && !grey) glow(col, cx, cy2, hw*2.3, hh*3.6, 0.40*gk*gk*al, true);
+    drawHead(cx, cy2, slope, hw, hh, col, n, al, grey ? 0 : gk);
 
     /* fret number on the floor in front of the note */
     if (S.showNums && n.lab){
@@ -3119,7 +3444,7 @@ function draw(dt){
 }
 
 /* ── looping a stretch of bars ───────────────────────────────────────────────
-   The difficulty bars are the loop selector, as in the game:
+   The difficulty bars are the loop selector:
      press and hold on the bars, drag across the ones you want, let go
          -> those bars light up and loop, starting two seconds before them
      a plain click on the bars while a selection is up
@@ -3292,6 +3617,474 @@ function updateHud(){
   }
 }
 
+/* ── tab view ────────────────────────────────────────────────────────────────
+   The arrangement on screen as standard guitar tablature, in place of the
+   highway: one line per string (high e on top), bars wrapped into rows, a fret
+   number per note, the playing techniques above the staff, the rhythm under
+   it and the lyrics under that, one syllable at a time. A box follows the
+   notes being played, and the view scrolls with it.
+
+   It is drawn once per song (and per window width) as one SVG per row; only
+   the box moves while the song plays. Click anywhere in a row to play from
+   there.
+
+   Rhythm: the chart only says when each note starts. A note's length is taken
+   as the time to the next note (or the end of the bar), measured in beats on
+   the song's own beat grid, and rounded to the nearest common note value -
+   good for reading, not a transcription. */
+const TAB = { on:false, dirty:true, rows:[], evs:[], width:0, curEv:-1, curRow:-1, holdUntil:0, nStr:6 };
+const TABK = {
+  MARGIN: 26, PADL: 16, PADR: 8, STR: 13,       // page margin, space inside a bar, string spacing
+  TOP: 74, RHY: 30, LYR: 22, GAP: 30,           // annotation band above the staff, rhythm band, lyric band, gap to the next row
+  W0: 20, W1: 30,                               // a note's slot: W0 + W1*sqrt(beats)
+};
+const tabEsc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
+
+/* position in beats on the song's beat grid (fractional), so lengths can be read as note values */
+function tabBeatPos(t){
+  const B = S.beats;
+  if (B.length < 2) return t*2;
+  let i = lowerBound(B, "time", t + 1e-9) - 1;
+  if (i < 0) i = 0;
+  if (i > B.length - 2) i = B.length - 2;
+  return i + (t - B[i].time)/Math.max(1e-3, B[i+1].time - B[i].time);
+}
+/* a length in beats rounded to a note value: [value, beams, triplet, dotted] */
+const TAB_VALUES = [
+  [4, 0, false, false], [3, 0, false, true], [2, 0, false, false], [1.5, 0, false, true], [1, 0, false, false],
+  [0.75, 1, false, true], [0.5, 1, false, false], [2/3, 1, true, false], [1/3, 1, true, false],
+  [0.375, 2, false, true], [0.25, 2, false, false], [1/6, 2, true, false], [0.125, 3, false, false], [1/12, 3, true, false],
+];
+function tabValue(beats){
+  let best = TAB_VALUES[0], err = 1e9;
+  for (const v of TAB_VALUES){
+    const e = Math.abs(Math.log(Math.max(beats, 0.04)/v[0]));
+    if (e < err){ err = e; best = v; }
+  }
+  return best;
+}
+
+/* the bars of the song: from one downbeat to the next */
+function tabMeasures(lastT){
+  const downs = S.beats.filter((b) => b.measure >= 0);
+  const out = [];
+  if (!downs.length){                                   // no beat grid: bars of two seconds
+    for (let t = 0, n = 1; t < lastT; t += 2, n++) out.push({ t0:t, t1:t + 2, num:n });
+    return out;
+  }
+  for (let i = 0; i < downs.length; i++){
+    const t0 = downs[i].time;
+    let t1 = i + 1 < downs.length ? downs[i+1].time : 0;
+    if (i + 1 >= downs.length){
+      const prev = i > 0 ? t0 - downs[i-1].time : 2;
+      t1 = Math.max(t0 + prev, lastT + 0.05);
+    }
+    out.push({ t0, t1, num: downs[i].measure });
+  }
+  if (out.length && lastT > 0 && out[0].t0 > 0.05){     // notes before the first bar: a pick-up bar
+    const firstNote = TAB.evs.length ? TAB.evs[0].t : out[0].t0;
+    if (firstNote < out[0].t0 - 0.02) out.unshift({ t0: Math.min(firstNote - 0.05, out[0].t0 - 0.5), t1: out[0].t0, num: out[0].num - 1 });
+  }
+  return out;
+}
+
+/* the events of the arrangement: every moment something is struck, with its notes */
+function tabEvents(){
+  const byT = new Map();
+  const add = (t, n) => {
+    const k = Math.round(t*1000);
+    let e = byT.get(k);
+    if (!e){ e = { t, notes:[], name:"" }; byT.set(k, e); }
+    if (!e.notes.some((m) => m.s === n.s)) e.notes.push(n);
+  };
+  for (const n of S.all) add(n.t, n);
+  let prev = null;
+  for (const c of S.chords){
+    if (c.notes.length){ prev = c; }
+    else if (prev){                                      // "the same chord again", written without its notes
+      for (const n of prev.notes) add(c.t, Object.assign({}, n, { t:c.t, sus:0, sl:-1, slu:-1, bn:0, vb:false, ho:false, po:false,
+                                                                  linked:false, pm:c.pm || n.pm, mt:c.mute || n.mt }));
+    }
+    if (c.name && !c.rep){ const e = byT.get(Math.round(c.t*1000)); if (e) e.name = c.name; }
+  }
+  const evs = [...byT.values()].sort((a, b) => a.t - b.t);
+  for (const e of evs) e.notes.sort((a, b) => a.s - b.s);
+  return evs;
+}
+
+function tabBuild(){
+  const view = document.getElementById("tabview");
+  const page = document.getElementById("tabpage");
+  TAB.dirty = false; TAB.rows = []; TAB.curEv = -1; TAB.curRow = -1;
+  const width = Math.max(320, view.clientWidth);
+  TAB.width = width;
+  const nStr = S.nStr; TAB.nStr = nStr;
+  TAB.evs = (S.all && S.all.length) ? tabEvents() : [];
+  if (!TAB.evs.length){
+    page.innerHTML = '<div class="tabempty">Open a song to see its tab.</div>';
+    page.style.height = ""; return;
+  }
+  const evs = TAB.evs;
+  let lastT = 0;
+  for (const e of evs) for (const n of e.notes) lastT = Math.max(lastT, n.t + n.sus);
+  let bars = tabMeasures(lastT);
+  /* bars before the first note are left out, as a tab book would */
+  while (bars.length > 1 && bars[1].t0 <= evs[0].t + 1e-4) bars.shift();
+  bars = bars.filter((b) => b.t1 > evs[0].t - 1e-4 || b.t0 > evs[0].t);
+
+  /* lengths, note values and slot widths */
+  let bi = 0;
+  for (let i = 0; i < evs.length; i++){
+    const e = evs[i];
+    while (bi < bars.length - 1 && e.t >= bars[bi].t1 - 1e-4) bi++;
+    e.bar = bi;
+    const nextT = Math.min(i + 1 < evs.length ? evs[i+1].t : Infinity, bars[bi].t1);
+    e.beat = tabBeatPos(e.t);
+    e.beats = Math.max(0.05, tabBeatPos(nextT) - e.beat);
+    e.val = tabValue(e.beats);
+    const wide = e.notes.some((n) => n.hm || n.f >= 10) ? 6 : 0;
+    e.w = TABK.W0 + TABK.W1*Math.sqrt(clamp(e.beats, 0.125, 4)) + wide;
+    /* marked while it sounds: a held note for its length, a short one for a
+       moment - but not past the next note, or the marks would run together */
+    e.idx = i;
+    const held = Math.max(...e.notes.map((n) => n.t + n.sus));
+    e.end = Math.max(held, e.t + Math.min(0.2, Math.max(0.06, (i + 1 < evs.length ? evs[i+1].t : e.t + 1) - e.t - 0.02)));
+  }
+  for (const b of bars){ b.evs = []; b.lead = 0; }
+  for (const e of evs) bars[e.bar].evs.push(e);
+  for (const b of bars){
+    const first = b.evs.length ? b.evs[0].t : b.t1;
+    const rest = tabBeatPos(first) - tabBeatPos(b.t0);
+    b.lead = rest > 0.06 ? TABK.W1*Math.sqrt(Math.min(rest, 4)) : 0;
+    b.nat = TABK.PADL + b.lead + b.evs.reduce((s, e) => s + e.w, 0) + TABK.PADR;
+    if (!b.evs.length) b.nat = Math.max(b.nat, 70);
+  }
+  /* a bar is at least as wide as the lyrics sung in it, so the words do not pile up */
+  for (const ln of S.lyrics) for (const sy of ln.syl){
+    const b = bars.find((q) => sy[0] >= q.t0 - 1e-3 && sy[0] < q.t1);
+    if (b) b.lyr = (b.lyr || 0) + String(sy[2]).trim().length*6.6 + 6;
+  }
+  for (const b of bars) if (b.lyr) b.nat = Math.max(b.nat, b.lyr + TABK.PADL + 6);
+
+  /* rows: as many bars as fit, then stretched to the full width */
+  const avail = width - 2*TABK.MARGIN;
+  const rows = [];
+  let cur = [], sum = 0;
+  for (const b of bars){
+    if (cur.length && sum + b.nat > avail){ rows.push({ bars:cur, nat:sum }); cur = []; sum = 0; }
+    cur.push(b); sum += Math.min(b.nat, avail);
+  }
+  if (cur.length) rows.push({ bars:cur, nat:sum, last:true });
+
+  const staffH = (nStr - 1)*TABK.STR;
+  const rowH = TABK.TOP + staffH + TABK.RHY + TABK.LYR + TABK.GAP;
+  let html = "", top = 10;
+  rows.forEach((row, ri) => {
+    const k = (row.last && row.nat < avail*0.7) ? 1 : avail/row.nat;
+    let x = TABK.MARGIN;
+    for (const b of row.bars){
+      const w = Math.min(b.nat, avail)*k, kk = w/b.nat;
+      b.x0 = x; b.x1 = x + w; b.row = ri;
+      let ex = x + (TABK.PADL + b.lead)*kk;
+      b.knots = [[b.t0, x + 4]];
+      for (const e of b.evs){ e.x = ex + 7*kk; e.row = ri; b.knots.push([e.t, e.x]); ex += e.w*kk; }
+      b.knots.push([b.t1, x + w]);
+      x += w;
+    }
+    row.top = top; row.h = rowH; row.idx = ri;
+    row.staffTop = TABK.TOP; row.staffBot = TABK.TOP + staffH;
+    top += rowH;
+  });
+  /* drawn once every bar has its place: a mark may reach into a later bar */
+  TAB.rows = rows; TAB.bars = bars;
+  for (const row of rows) html += tabRowSvg(row, width, nStr);
+  page.innerHTML = html + '<div id="tabcur"></div>';
+  TAB.groups = [];
+  for (const g of page.querySelectorAll("g.te")) TAB.groups[+g.dataset.e] = g;
+  TAB.lit = new Set();
+  TAB.maxLen = evs.reduce((m, e) => Math.max(m, e.end - e.t), 0);
+  page.style.height = (top + 40) + "px";
+}
+
+/* time -> x inside a bar (straight lines between the notes) */
+function tabXAt(b, t){
+  const K = b.knots;
+  if (t <= K[0][0]) return K[0][1];
+  for (let i = 1; i < K.length; i++){
+    if (t <= K[i][0]){ const [t0, x0] = K[i-1], [t1, x1] = K[i]; return t1 > t0 ? x0 + (x1 - x0)*(t - t0)/(t1 - t0) : x1; }
+  }
+  return K[K.length - 1][1];
+}
+function tabBarAt(t){
+  const B = TAB.bars;
+  if (!B || !B.length) return null;
+  let lo = 0, hi = B.length - 1;
+  while (lo < hi){ const m = (lo + hi + 1) >> 1; if (B[m].t0 <= t) lo = m; else hi = m - 1; }
+  return B[lo];
+}
+
+function tabRowSvg(row, width, nStr){
+  const ST = TABK.STR, sTop = row.staffTop, sBot = row.staffBot;
+  const yS = (s) => sTop + (nStr - 1 - s)*ST;                        // high string on top, as tab is written
+  const L = [];                                                       // svg pieces
+  const x0 = row.bars[0].x0, x1 = row.bars[row.bars.length - 1].x1;
+  /* staff */
+  for (let s = 0; s < nStr; s++) L.push(`<line x1="${x0}" x2="${x1}" y1="${yS(s)}" y2="${yS(s)}" class="tl"/>`);
+  for (const b of row.bars){
+    L.push(`<line x1="${b.x0}" x2="${b.x0}" y1="${sTop}" y2="${sBot}" class="tb"/>`);
+    L.push(`<text x="${b.x0 + 2}" y="${sTop - 6}" class="tn">${b.num}</text>`);
+  }
+  L.push(`<line x1="${x1}" x2="${x1}" y1="${sTop}" y2="${sBot}" class="tb"/>`);
+
+  /* section names, where a section starts */
+  const rt0 = row.bars[0].t0, rt1 = row.bars[row.bars.length - 1].t1;
+  let lastSecX = -1e9;
+  for (const sec of S.sections){
+    if (sec.time < rt0 - 1e-3 || sec.time >= rt1) continue;
+    const b = tabBarAt(sec.time); if (!b || b.row !== row.idx) continue;
+    const x = Math.max(tabXAt(b, sec.time) - 6, lastSecX + 70);
+    lastSecX = x;
+    L.push(`<text x="${x}" y="14" class="tsec">${tabEsc(secLabel(sec.name))}</text>`);
+  }
+
+  const evs = row.bars.flatMap((b) => b.evs);
+  const yPM = 42, yVib = 53, yBendLbl = 63;
+  /* palm-mute runs: "P.M." and a dashed line to the end of the run */
+  let run = null;
+  const flushRun = () => {
+    if (!run) return;
+    L.push(`<text x="${run.x0 - 9}" y="${yPM}" class="tpml">P.M.</text>`);
+    if (run.x1 - run.x0 > 22){
+      L.push(`<line x1="${run.x0 + 18}" x2="${run.x1 + 8}" y1="${yPM - 4}" y2="${yPM - 4}" class="tdash"/>`);
+      L.push(`<line x1="${run.x1 + 8}" x2="${run.x1 + 8}" y1="${yPM - 8}" y2="${yPM}" class="tthin"/>`);
+    }
+    run = null;
+  };
+  for (const e of evs){
+    const pm = e.notes.every((n) => n.pm && !n.mt) || (e.notes.some((n) => n.pm) && e.notes.every((n) => n.pm || n.mt));
+    if (pm){ if (run && e.x - run.x1 < 70) run.x1 = e.x; else { flushRun(); run = { x0:e.x, x1:e.x }; } }
+    else flushRun();
+  }
+  flushRun();
+
+  /* the notes */
+  const lastOn = new Array(8).fill(null);                             // the previous note drawn on each string, in this row
+  for (const e of evs){
+    const x = e.x;
+    if (e.name) L.push(`<text x="${x}" y="28" class="tch">${tabEsc(e.name)}</text>`);
+    {
+      let ya = Infinity, yb = -Infinity, wmax = 1;
+      for (const n of e.notes){
+        const y = yS(clamp(n.s, 0, nStr - 1)); ya = Math.min(ya, y); yb = Math.max(yb, y);
+        wmax = Math.max(wmax, (n.hm ? String(n.f).length + 2 : n.linked ? String(n.f).length + 2 : String(n.f).length));
+      }
+      const hw = 3.8*wmax + 5;
+      L.push(`<g class="te" data-e="${e.idx}"><rect class="thl" x="${x - hw}" y="${ya - 8}" width="${hw*2}" height="${yb - ya + 16}" rx="4"/>`);
+    }
+    let marks = [];
+    for (const n of e.notes){
+      const s = clamp(n.s, 0, nStr - 1), y = yS(s);
+      const prev = lastOn[s];
+      let txt = n.mt ? "X" : String(n.f);
+      if (n.hm && !n.mt) txt = "<" + n.f + ">";
+      if (n.linked && prev && prev.n.f === n.f && !n.mt) txt = "(" + n.f + ")";
+      L.push(`<text x="${x}" y="${y + 4.5}" class="tf">${tabEsc(txt)}</text>`);
+      const hw = 3.6*txt.length + 1;
+      /* hammer-on / pull-off: an arc from the note before on this string */
+      if ((n.ho || n.po) && prev && x - prev.x < 160){
+        const xa = prev.x + 3, xb = x - 3, mid = (xa + xb)/2;
+        L.push(`<path d="M${xa},${y - 7} Q${mid},${y - 16} ${xb},${y - 7}" class="tarc"/>`);
+      }
+      /* slide: a line to the note it slides to, or a short slant out */
+      const tgt = n.sl > 0 ? n.sl : n.slu > 0 ? n.slu : 0;
+      if (tgt && n.f > 0){
+        const up = tgt > n.f, dy = up ? -3.5 : 3.5;
+        const nx = tabNextOn(e, s, n.t + n.sus, n.sl);
+        if (n.sl > 0 && nx && nx.row === row.idx && nx.x - x < 220){
+          L.push(`<line x1="${x + hw + 1}" y1="${y - dy}" x2="${nx.x - hw - 1}" y2="${y + dy}" class="tslide"/>`);
+        } else {
+          L.push(`<line x1="${x + hw + 1}" y1="${y - dy}" x2="${x + hw + 10}" y2="${y + dy}" class="tslide"/>`);
+        }
+      }
+      /* bend: an arrow up to above the staff, with how far */
+      if (n.bn > 0){
+        const lbl = n.bn === 2 ? "full" : n.bn === 1 ? "½" : n.bn === 0.5 ? "¼" : n.bn === 3 ? "1½" : n.bn === 4 ? "2" : String(n.bn/2);
+        const xa = x + hw, ya = y - 3, xt = x + hw + 8;
+        L.push(`<path d="M${xa},${ya} Q${xt},${ya} ${xt},${sTop - 9}" class="tbend"/>`);
+        L.push(`<path d="M${xt - 3},${sTop - 5} L${xt},${sTop - 11} L${xt + 3},${sTop - 5} Z" class="tarrow"/>`);
+        L.push(`<text x="${xt}" y="${yBendLbl - 1}" class="tbl">${lbl}</text>`);
+      }
+      /* vibrato: a wavy line over its length */
+      if (n.vb){
+        const b = TAB.bars[e.bar];
+        let xe = x + 26;
+        const be = tabBarAt(n.t + Math.max(n.sus, 0.2));
+        if (be && be.row === row.idx) xe = Math.max(x + 18, tabXAt(be, n.t + Math.max(n.sus, 0.2)));
+        else xe = Math.max(x + 18, b.x1 - 4);
+        marks.push(tabWave(x - 4, xe, yVib));
+      }
+      if (n.tr) marks.push(`<path d="M${x - 5},${yVib + 4} l4,-6 M${x - 1},${yVib + 4} l4,-6 M${x + 3},${yVib + 4} l4,-6" class="tthin"/>`);
+      if (n.tp) marks.push(`<text x="${x}" y="${yPM}" class="tpm">T</text>`);
+      if (n.hp) marks.push(`<text x="${x}" y="${yPM}" class="tpm">P.H.</text>`);
+      if (n.ac) marks.push(`<text x="${x}" y="${yVib + 3}" class="tacc">&gt;</text>`);
+      lastOn[s] = { x, n };
+    }
+    L.push(`</g>`);
+    for (const m of [...new Set(marks)]) L.push(m);
+  }
+
+  /* rhythm: a stem per moment, beamed within each beat */
+  const rTop = sBot + 9, rBot = rTop + 19;
+  for (const e of evs){
+    L.push(`<line x1="${e.x}" x2="${e.x}" y1="${rTop}" y2="${rBot}" class="tstem"/>`);
+    if (e.val[3]) L.push(`<circle cx="${e.x + 4}" cy="${rBot - 2}" r="1.3" class="tdot"/>`);
+  }
+  for (let i = 0; i < evs.length; ){
+    const e = evs[i];
+    if (!e.val[1]){ i++; continue; }
+    const beat = Math.floor(e.beat + 1e-3);
+    let j = i;
+    while (j + 1 < evs.length && evs[j+1].val[1] && Math.floor(evs[j+1].beat + 1e-3) === beat && evs[j+1].bar === e.bar) j++;
+    const grp = evs.slice(i, j + 1);
+    for (let lv = 1; lv <= 3; lv++){
+      const y = rBot - (lv - 1)*4;
+      for (let g = 0; g < grp.length; g++){
+        if (grp[g].val[1] < lv) continue;
+        if (g + 1 < grp.length && grp[g+1].val[1] >= lv){
+          L.push(`<line x1="${grp[g].x}" x2="${grp[g+1].x}" y1="${y}" y2="${y}" class="tbeam"/>`);
+        } else if (!(g > 0 && grp[g-1].val[1] >= lv)){             // alone at this level: a stub
+          const dir = g + 1 < grp.length ? 1 : -1;
+          L.push(`<line x1="${grp[g].x}" x2="${grp[g].x + 7*dir}" y1="${y}" y2="${y}" class="tbeam"/>`);
+        }
+      }
+    }
+    if (grp.length > 1 && grp.every((q) => q.val[2])){
+      const xa = grp[0].x, xb = grp[grp.length - 1].x;
+      L.push(`<path d="M${xa},${rBot + 4} v3 H${xb} v-3" class="tthin"/><text x="${(xa + xb)/2}" y="${rBot + 14}" class="ttri">3</text>`);
+    }
+    i = j + 1;
+  }
+
+  /* lyrics, one syllable at a time, under the rhythm */
+  const yL = rBot + TABK.LYR + 4;
+  let lastEnd = -1e9;
+  for (const ln of S.lyrics){
+    if (ln.end < rt0 || ln.t >= rt1) continue;
+    for (const sy of ln.syl){
+      const [t, , text] = sy;
+      if (t < rt0 - 1e-3 || t >= rt1) continue;
+      const b = tabBarAt(t); if (!b || b.row !== row.idx) continue;
+      const w = String(text).trim();
+      if (!w) continue;
+      let x = tabXAt(b, t);
+      const cont = !/^\s/.test(text) && sy !== ln.syl[0];         // continues the word before it
+      if (x < lastEnd + 4) x = lastEnd + 4;
+      L.push(`<text x="${x}" y="${yL}" class="tly">${cont ? "-" : ""}${tabEsc(w)}</text>`);
+      lastEnd = x + (w.length + (cont ? 1 : 0))*6.4;
+    }
+  }
+
+  return `<svg class="tabrow" data-row="${row.idx}" style="top:${row.top}px" width="${width}" height="${row.h}" viewBox="0 0 ${width} ${row.h}">${L.join("")}</svg>`;
+}
+function tabWave(xa, xb, y){
+  let d = `M${xa},${y}`;
+  for (let x = xa, k = 0; x < xb; x += 4, k++) d += ` L${x + 2},${y + (k & 1 ? 2 : -2)} L${x + 4},${y}`;
+  return `<path d="${d}" class="tthin"/>`;
+}
+/* the next note on string s after event e, if it comes when this one's slide ends */
+function tabNextOn(e, s, tEnd, fret){
+  const evs = TAB.evs;
+  for (let i = evs.indexOf(e) + 1; i < evs.length && evs[i].t <= tEnd + 0.25; i++){
+    const m = evs[i].notes.find((n) => n.s === s);
+    if (m) return m.f === fret ? evs[i] : null;              // the next note on the string, if it is the slide's target
+  }
+  return null;
+}
+
+/* the box over the notes being played, and the view following it */
+function tabFollow(){
+  if (!TAB.on || !TAB.evs.length) return;
+  const cur = document.getElementById("tabcur");
+  if (!cur) return;
+  const t = chartTime(), evs = TAB.evs;
+
+  /* the line: where this moment falls in its bar, sliding between the notes */
+  const b = tabBarAt(t);
+  if (!b || t < TAB.bars[0].t0 || b.row === undefined){ cur.style.display = "none"; }
+  else {
+    const row = TAB.rows[b.row], x = tabXAt(b, Math.min(t, b.t1));
+    cur.style.display = "block";
+    cur.style.height = (row.staffBot - row.staffTop + 20) + "px";
+    cur.style.transform = `translate(${x.toFixed(1)}px, ${Math.round(row.top + row.staffTop - 10)}px)`;
+    if (b.row !== TAB.curRow){
+      TAB.curRow = b.row;
+      if (performance.now() > TAB.holdUntil){
+        const view = document.getElementById("tabview");
+        const want = row.top - view.clientHeight*0.22;
+        view.scrollTo({ top: Math.max(0, want), behavior: Math.abs(view.scrollTop - want) > view.clientHeight*2 ? "auto" : "smooth" });
+      }
+    }
+  }
+
+  /* the marks: every moment that is sounding now */
+  const now = new Set();
+  for (let k = lowerBound(evs, "t", t + 0.005) - 1; k >= 0 && evs[k].t > t - TAB.maxLen - 0.01; k--){
+    if (evs[k].end > t) now.add(k);
+  }
+  for (const k of TAB.lit) if (!now.has(k) && TAB.groups[k]) TAB.groups[k].classList.remove("on");
+  for (const k of now) if (!TAB.lit.has(k) && TAB.groups[k]) TAB.groups[k].classList.add("on");
+  TAB.lit = now;
+}
+
+function setTabView(on){
+  TAB.on = !!on;
+  S.tabView = TAB.on;
+  document.getElementById("stage").classList.toggle("tabmode", TAB.on);
+  document.getElementById("bTab").classList.toggle("on", TAB.on);
+  if (TAB.on){
+    if (TAB.dirty || Math.abs(document.getElementById("tabview").clientWidth - TAB.width) > 2) tabBuild();
+    TAB.curEv = -1; TAB.curRow = -1; TAB.holdUntil = 0;
+    tabFollow();
+  } else {
+    resize();
+  }
+}
+function tabInvalidate(){
+  TAB.dirty = true;
+  if (TAB.on) setTabView(true);
+}
+
+(function(){
+  const view = document.getElementById("tabview");
+  /* reading ahead: the view stops following for a few seconds after a manual scroll */
+  const hold = () => { TAB.holdUntil = performance.now() + 5000; };
+  view.addEventListener("wheel", hold, { passive: true });
+  view.addEventListener("touchmove", hold, { passive: true });
+  view.addEventListener("keydown", (e) => { if (/Page|Arrow|Home|End/.test(e.key)) hold(); });
+  /* click: play from there */
+  view.addEventListener("click", (e) => {
+    const svg = e.target.closest && e.target.closest("svg.tabrow");
+    if (!svg) return;
+    const row = TAB.rows[+svg.dataset.row];
+    const r = svg.getBoundingClientRect(), x = e.clientX - r.left;
+    const b = row.bars.find((q) => x >= q.x0 && x < q.x1) || (x < row.bars[0].x0 ? row.bars[0] : row.bars[row.bars.length - 1]);
+    let t = b.t0;
+    const K = b.knots;
+    for (let k = 1; k < K.length; k++){
+      if (x <= K[k][1]){ const [t0, x0] = K[k-1], [t1, x1] = K[k]; t = x1 > x0 ? t0 + (t1 - t0)*(x - x0)/(x1 - x0) : t1; break; }
+      t = K[k][0];
+    }
+    /* land on the note clicked, not just before it */
+    const i = lowerBound(TAB.evs, "t", t - 0.15);
+    if (i < TAB.evs.length && Math.abs(TAB.evs[i].x - x) < 10 && TAB.evs[i].row === row.idx) t = TAB.evs[i].t;
+    TAB.holdUntil = 0;
+    seek(Math.max(0, t - 0.05 + S.offMs/1000));
+  });
+  let tm = 0;
+  window.addEventListener("resize", () => { clearTimeout(tm); tm = setTimeout(() => { if (TAB.on) setTabView(true); else TAB.dirty = true; }, 150); });
+  document.getElementById("bTab").onclick = () => { setTabView(!TAB.on); savePrefs(); };
+})();
+
 /* ── automatic resolution ────────────────────────────────────────────────────
    A busy passage is hard on the graphics card, not on this code: glows, lit
    strings and translucent frames all add up to pixels filled many times over,
@@ -3332,7 +4125,14 @@ function autoResolution(span){
 let last = performance.now(), fpsAcc = 0, fpsN = 0, fpsT = 0;
 const LOOP_LEAD = 2.0;              // seconds of run-up before a looped section
 
+/* While a song is being opened the highway is drawn at half rate. The only
+   motion then is a slow fade and a camera glide, which 30 frames a second
+   carry smoothly, and every frame not drawn leaves CPU to the converter and
+   the audio decoder - on a two-core machine that is the difference between a
+   ~5 s and a ~9 s load. */
+let loadSkip = 0;
 function frame(now){
+  if (opening && !S.playing && (++loadSkip & 1)){ requestAnimationFrame(frame); return; }
   const dt = Math.min(0.1, (now - last)/1000);
   last = now;
 
@@ -3354,7 +4154,7 @@ function frame(now){
     if (S.loopB && S.time >= S.loopB - 0.02) seek(Math.max(0, S.loopA - LOOP_LEAD));
   }
 
-  draw(dt);
+  if (TAB.on) tabFollow(); else draw(dt);
   paintClock();
   updateHeadPct();
   updateLyrics();
@@ -3425,6 +4225,11 @@ document.getElementById("vClick").oninput = (e) => {
 /* song speed: the label follows the thumb, the speed changes when it is let go */
 document.getElementById("vSpeed").oninput = (e) => { document.getElementById("lSpeed").textContent = e.target.value + "%"; };
 document.getElementById("vSpeed").onchange = (e) => { setSongSpeed((+e.target.value)/100); };
+document.getElementById("bSpeed").onclick = () => {
+  document.getElementById("vSpeed").value = 100;
+  document.getElementById("lSpeed").textContent = "100%";
+  setSongSpeed(1);
+};
 document.getElementById("vSynth").oninput = (e) => {
   S.synthLevel = (+e.target.value)/100;
   document.getElementById("lSynth").textContent = e.target.value;
@@ -3448,7 +4253,7 @@ document.getElementById("bClick").onclick = () => {
 {
   const bind = (id, key) => { document.getElementById(id).onchange = (e) => { S[key] = e.target.checked; savePrefs(); }; };
   bind("fCells", "showCells"); bind("fNums", "showNums"); bind("fLabels", "showLabels");
-  bind("fLyrics", "showLyrics"); bind("fPan", "autoPan"); bind("fFingers", "showFingers");
+  bind("fLyrics", "showLyrics"); bind("fPan", "autoPan"); bind("fFingers", "showFingers"); bind("fInvert", "invert"); bind("fLefty", "lefty");
   bind("fChord", "showChord"); bind("fDiag", "showDiagram"); bind("fHit", "showHit"); bind("fFx", "fx");
   document.getElementById("fAuto").onchange = (e) => {
     S.autoScale = e.target.checked; S.dynScale = 1; AR.ceil = 1; resize(); autoLabel(); savePrefs();
@@ -3487,6 +4292,7 @@ window.addEventListener("keydown", (e) => {
   else if (k === "m" || k === "M"){ document.getElementById("bMute").click(); }
   else if (k === "c" || k === "C"){ document.getElementById("bClick").click(); }
   else if (k === "n" || k === "N"){ document.getElementById("bSynth").click(); }
+  else if (k === "t" || k === "T"){ document.getElementById("bTab").click(); }
   else if (k === "ArrowLeft"){ seek(S.time - (e.shiftKey ? 5 : 1)); }
   else if (k === "ArrowRight"){ seek(S.time + (e.shiftKey ? 5 : 1)); }
   else if (k === "["){ const s = sectionAt(S.time - 0.25); seek(s ? (s.start > S.time - 0.6 ? (sectionAt(s.start - 0.1) || s).start : s.start) : 0); }
