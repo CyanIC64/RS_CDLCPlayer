@@ -98,7 +98,7 @@ web/converter.js            the same converter for the page itself (used when a 
 web/ww2ogg.bundle.js        audio converter (.wem to Ogg Vorbis) for the in-page converter
 ```
 
-The scripts in `web/` are built from the converter sources (`src_v1.1/` in the development tree)
+The scripts in `web/` are built from the converter sources (`src/` in the development tree)
 with esbuild:
 
 ```bash
