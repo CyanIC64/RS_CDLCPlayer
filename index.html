@@ -190,6 +190,15 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 .ib:active{background:#232930}
 .ib svg{width:18px;height:18px;display:block}
 .ib.on{background:#1b2533;border-color:#35507a}
+/* the guitar cable: grey when plugged in, green while listening (glowing with the
+   signal), red for a moment when unplugged, "?" until the browser names its inputs */
+#bCable{position:relative;color:#7d8996}
+#bCable[hidden]{display:none}
+#bCable.live{color:#3fbf6f;border-color:#2a5a3c;background:#13201a}
+#bCable.lost{color:#e0453f;border-color:#6a2a28}
+#bCable .cq{display:none;position:absolute;right:3px;top:2px;font:700 9px "Segoe UI",system-ui,sans-serif;
+  font-style:normal;color:#c3cdd7}
+#bCable.unk .cq{display:block}
 #bPlay{width:44px;height:44px;border-radius:50%;background:#e9eef4;margin:0 6px}
 #bPlay:hover{background:#fff;border-color:transparent}
 #bPlay svg{width:20px;height:20px}
@@ -397,6 +406,12 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 
       <div id="stats"><div id="bpm">—</div><div id="fps">0 FPS</div></div>
 
+      <button class="ib" id="bCable" hidden title="Guitar input (G)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+             stroke-linejoin="round"><path d="M17 7l3-3"/><path d="M15.5 5.5l3 3"/><path d="M12.5 6.5l5 5-4 4-5-5z"/>
+          <path d="M10.5 13.5L6 18c-1 1-2 1.2-3 1"/></svg>
+        <i class="cq">?</i>
+      </button>
       <button class="ib" id="bOpen" title="Open another song (.psarc, .feedpak, or arrangement .xml files with their audio)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
              stroke-linejoin="round"><path d="M12 15V5"/><path d="M8 9l4-4 4 4"/><path d="M5 15v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3"/></svg>
@@ -2125,6 +2140,7 @@ async function boot(){
   busy("Starting…");
   await loadPrefs();
   inputRestore();
+  cableScan();
   restChart(); resize(); startFrames();           // the empty highway is up straight away
 
   /* Is a Play Song server behind this page? If not, the page is on its own:
@@ -4331,6 +4347,7 @@ async function inputStart(){
       : "Could not open the input: " + ((e && e.message) || e));
   } finally {
     IN.busy = false; inputSync();
+    cableScan();                                           // the inputs have names now
   }
 }
 
@@ -4347,6 +4364,8 @@ function inputStop(){
 function inputLost(){
   if (!IN.link) return;
   IN.link.close(); IN.link = null; IN.last = null; IN.peak = 0;
+  CABLE.lostUntil = performance.now() + 4000;
+  setTimeout(cableIcon, 4100);
   inputSync();
   inputMsg("The input was unplugged. It comes back when it is plugged in again.");
 }
@@ -4382,13 +4401,65 @@ function inputSync(){
   inEl("fInOn").checked = !!IN.link || IN.busy;
   inEl("fInDev").disabled = IN.busy;
   if (!IN.link){ inEl("inLevel").style.width = "0"; inEl("inNote").textContent = "—"; IN.note = ""; }
+  cableIcon();
 }
+
+/* ── the cable icon in the control bar ─────────────────────────────────────
+   Shown while the Rocksmith cable is plugged in (or any input is being
+   listened to). Until the page has been allowed the microphone once, the
+   browser lists its inputs without names, so the cable cannot be told apart:
+   the icon then shows a "?" and a click asks for the permission. */
+const CABLE_RE = /rocksmith|real\s*tone/i;
+const CABLE = { present:false, unknown:false, label:"", lostUntil:0, glow:-1 };
+
+async function cableScan(){
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+  let ins = [];
+  try { ins = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "audioinput"); } catch (e) {}
+  const cab = ins.find(d => CABLE_RE.test(d.label));
+  CABLE.present = !!cab;
+  CABLE.label = cab ? cab.label : "";
+  CABLE.unknown = ins.length > 0 && ins.every(d => !d.label);
+  cableIcon();
+}
+
+function cableIcon(){
+  const b = inEl("bCable");
+  const live = !!IN.link, lost = !live && performance.now() < CABLE.lostUntil;
+  const unk = !live && !lost && !CABLE.present && CABLE.unknown;
+  b.hidden = !(live || lost || CABLE.present || unk);
+  b.classList.toggle("live", live);
+  b.classList.toggle("lost", lost);
+  b.classList.toggle("unk", unk);
+  if (!live){ b.style.filter = ""; CABLE.glow = -1; }
+  const dev = IN.devices.find(d => d.deviceId === S.inDevice);
+  const name = (live && dev && dev.label) || CABLE.label || "the guitar input";
+  b.title = live ? "Listening to " + name + " - click to stop (G)"
+          : lost ? "The cable was unplugged"
+          : unk  ? "Guitar input - click to look for the Rocksmith cable (G)"
+          :        name + " is plugged in - click to listen (G)";
+}
+
+/* a green glow that follows the input level while listening */
+function cableGlow(peak){
+  const db = 20*Math.log10(peak + 1e-9);
+  const g = Math.round(clamp((db + 50)/40, 0, 1)*20)/20;    // -50 dBFS .. -10, in 5 % steps
+  if (g === CABLE.glow) return;
+  CABLE.glow = g;
+  inEl("bCable").style.filter = g > 0 ? "drop-shadow(0 0 " + (1 + g*5).toFixed(1) + "px rgba(63,191,111," + (0.35 + 0.65*g).toFixed(2) + "))" : "";
+}
+
+inEl("bCable").onclick = () => {
+  if (IN.busy) return;
+  if (IN.link) inputStop(); else inputStart();
+};
 
 /* the level meter and the note heard, painted from frame() while the options are open */
 function inputPaint(dt){
   if (!IN.link) return;
   IN.peak = Math.max(IN.level, IN.peak * Math.exp(-dt/0.3));
   IN.level = 0;
+  cableGlow(IN.peak);
   if (!inEl("cfg").classList.contains("show")) return;
   const db = 20*Math.log10(IN.peak + 1e-9);
   const bar = inEl("inLevel");
@@ -4429,7 +4500,8 @@ inEl("fInDev").onchange = async (e) => {
 };
 if (navigator.mediaDevices && navigator.mediaDevices.addEventListener){
   navigator.mediaDevices.addEventListener("devicechange", async () => {
-    if (!IN.kit) return;                                   // never switched on: nothing to update
+    cableScan();
+    if (!IN.kit) return;                                  // never switched on: nothing to update
     IN.devices = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "audioinput");
     inputFillDevices();
     const here = IN.devices.some(d => d.deviceId === S.inDevice) || !!IN.kit.findCable(IN.devices);

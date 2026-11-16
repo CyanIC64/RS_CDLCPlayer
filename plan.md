@@ -104,6 +104,25 @@ function detChartTime(ctxTime){
   - Ouvir `devicechange` para quando o cabo é ligado ou desligado.
   - **Testar `getUserMedia` a partir de `file://`** em Chrome, Edge e Firefox. A permissão em `file://` pode não ficar memorizada.
   - (Opcional) Monitorização: cabo → ganho → `destination`, com aviso de latência.
+- [x] **Fase 1b — Ícone do cabo na barra de controlo** (feita e testada com dispositivos simulados; falta testar com o cabo real)
+  - Um ícone (ficha de jack ou cabo, em SVG inline, como os outros botões da barra) ao lado do botão Options.
+  - Estados:
+
+    | Estado | Aspeto | Quando |
+    |---|---|---|
+    | Sem cabo | escondido | nenhuma entrada com "Rocksmith" ou "Real Tone" no nome |
+    | Cabo ligado, entrada desligada | cinzento | o cabo aparece no `enumerateDevices()` |
+    | A ouvir | verde | `IN.link` ativo |
+    | A ouvir com sinal | verde, com brilho que segue o nível (RMS) | o nível passa a noise gate |
+    | Cabo desligado a meio | vermelho, durante alguns segundos | `inputLost()` |
+
+  - Um clique liga ou desliga a entrada (o mesmo que a tecla G). O tooltip mostra o nome do dispositivo e o estado.
+  - Deteção: `enumerateDevices()` no arranque e em cada `devicechange`. Ao ligar o cabo com a página aberta, o ícone aparece sem recarregar.
+  - **Limitação do browser:** antes de a permissão de microfone ser dada uma vez, o `enumerateDevices()` devolve as entradas sem nome, por isso não se consegue saber qual é o cabo.
+    - Nesse caso, o ícone aparece cinzento com um "?" e o tooltip "Click to look for the Rocksmith cable". O clique pede a permissão e depois identifica o cabo.
+    - Em `http(s)` o Chrome memoriza a permissão e, nas visitas seguintes, o cabo é reconhecido logo. Em `file://` pode ser preciso pedir de novo; confirmar no teste com o cabo.
+  - WebUSB e WebHID não servem como alternativa: o Chrome bloqueia o acesso a dispositivos de áudio USB por essas APIs.
+  - Sem prefs novas: o estado vem do `IN` e da lista de dispositivos.
 - [ ] **Fase 2 — Afinador** (tecla `U`)
   - Overlay com nota, cents e ponteiro.
   - Os alvos são as cordas soltas do arranjo atual (`OPEN_* + tuning`, com `centOffset`), destacando a corda mais próxima.
