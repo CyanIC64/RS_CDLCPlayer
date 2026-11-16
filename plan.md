@@ -126,6 +126,8 @@ function detChartTime(ctxTime){
 - [x] **Fase 2 — Afinador** (tecla `U`; feita e testada com uma entrada simulada; falta testar com o cabo real)
   - Overlay com nota, cents e ponteiro.
   - Os alvos são as cordas soltas do arranjo atual (`OPEN_* + tuning`, com `centOffset`), destacando a corda mais próxima.
+  - Escolha da corda (depois do primeiro teste com o cabo real: um G3 muito desafinado para baixo aparecia como D3): a corda atual só muda quando outra fica 150 cents mais perto, e mantém-se até 3 s de silêncio; um clique numa corda fixa-a (outro clique volta ao automático).
+  - Botão *Record 5 s*: grava a entrada crua num WAV, com as notas ouvidas no nome, para diagnosticar leituras erradas. A primeira gravação (`src/test-data/g3-open-cable.wav`, E2 A2 D3 G3 soltas) é um teste em `cable.test.js`: o MPM acerta as quatro cordas.
 - [x] **Fase 3 — Verificação de notas simples** (feita e testada com a "guitarra falsa"; falta testar com o cabo real)
   - `Verifier` com os alvos construídos a partir de `S.syn` (`inputConfigure`, também ao mudar de arranjo); cada nota fica com `n.hit = true/false`, que as fases 4 e 5 vão desenhar.
   - Tempo: `detChartTime()` como na secção 4, com a latência multiplicada por `S.rate` (é tempo real). O `inputPump()` corre em `frame()`; as notas só fecham 0,1 s (baixo: 0,15 s) depois de a janela passar, o atraso com que as deteções chegam. Com a música em pausa ou durante a calibração, as deteções são ignoradas. Um `seek` reabre as notas seguintes e limpa o `n.hit` delas.
