@@ -132,8 +132,13 @@ function detChartTime(ctxTime){
     - assistente: tocar a corda solta em 8 cliques do metrónomo e usar a mediana do desvio;
     - auto-ajuste: durante o jogo, sugerir a mediana de (onset − `t` do alvo) dos acertos.
   - Prefs: `inLatMs`.
+  - **"Rescue" (ideia do RocksmithAudioBridge #29):** quando uma corda anterior ainda soa, o MPM pode prender-se a ela. Se a presença Goertzel da nota-alvo for forte, aceitar a nota mesmo sem pitch MPM certo. Guardas: não aceitar se essa presença for só a oitava ou a 12.ª de uma nota que já estava a soar.
+  - **Banco de testes "guitarra falsa":** o synth (`S.syn`) ligado a um `MediaStreamDestination` alimenta o worklet pelo mesmo caminho do cabo. Corre o gráfico com as notas certas, depois com versões desafinadas ±1 semitom e com notas em falta, e mede acertos e falsos acertos. Dá verdade conhecida sem o cabo e complementa os WAVs reais (7.10).
 - [ ] **Fase 4 — Acordes e técnicas**
   - Acordes: presença por Goertzel nas fundamentais e harmónicos esperados. Acerto se pelo menos 60 % das cordas estiverem presentes.
+  - **Veto do vizinho (RocksmithAudioBridge #29):** medir também a presença meio tom acima e abaixo (`hz·2^(±1/12)`) e recusar a nota quando um vizinho domina claramente a frequência esperada. Lá mediram razões de potência de 10× a 500× entre a nota certa e a vizinha (7,4× no Mi grave) e, numa sessão real, 493 notas um traste ao lado recusadas sem falsas recusas. O veto só atua quando a evidência é forte; silêncio ou ambiguidade caem na regra normal.
+    - Limitação: com 2048 amostras a resolução é ~23 Hz, e Mi2/Fá2 distam ~5 Hz. O veto precisa de uma janela Goertzel própria, mais longa (8192 amostras ≈ 170 ms, a meio do sustain), sobretudo nos harmónicos 2 e 3. Como a verificação só fecha depois de a janela passar, a latência extra não se nota.
+    - Aplica-se também às notas simples (complementa a tolerância de ±50 cents do MPM).
   - Técnicas:
 
     | Técnica | Verificação |
@@ -154,6 +159,16 @@ function detChartTime(ctxTime){
 - [ ] **Fase 6 — Wasm** (só se o benchmark da fase 3 o exigir)
   - Porte do núcleo DSP para Rust, com exports `extern "C"` simples.
   - O `.wasm` vai embutido em base64 no bundle.
+  - **Modelos, se o DSP não chegar para acordes** (levantamento do RocksmithAudioBridge #29):
+
+    | Modelo | Licença | Notas |
+    |---|---|---|
+    | Spotify Basic Pitch | Apache-2.0 | ONNX (onnxruntime-web), polifónico, onset e pitch-bend, 22,05 kHz mono. Não causal: 128–320 ms de latência. Serve para verificar depois de a nota passar, não para feedback imediato. |
+    | SwiftF0 | — | Monofónico e causal, ~96k parâmetros. Só se o MPM falhar em bends ou vibrato. |
+    | luciamarock/Polyphonic-Pitch-Detector-for-guitars | — | Ressoadores DSP específicos para guitarra, ~15 ms. Referência para acordes sem ML. |
+    | String Theory (AnthonySf) | GPL-3.0 | Não usar: licença incompatível e o detetor não está no repositório. |
+
+    O ML não baixa a latência (o mínimo físico é ~20–40 ms, para resolver o Mi grave); só melhora a polifonia.
 
 ---
 
@@ -848,4 +863,5 @@ describe("bass preset", () => {
 - **Acordes graves:** com uma janela de 2048 amostras, a resolução do Goertzel é de cerca de 23 Hz, por isso Mi2 e Fá2 não se distinguem pela fundamental. Medido: um Mi2 puro dá presença de 0,95 na frequência do Fá2, e um Lá2 dá 0,90 na do Si♭2. Os harmónicos 2 e 3 ajudam. A regra de 60 % torna o sistema tolerante, como o próprio jogo.
 - **Notas rápidas** (abaixo de 60 ms entre notas): o `ONSET_HOLD` de 50 ms e a janela de ±120 ms podem atribuir um onset ao alvo errado. Na fase 3, consumir cada onset uma só vez, ao alvo mais próximo.
 - **Tremolo (`tr`) e sustains longos:** na primeira versão contam só o ataque. A verificação do sustain (pitch mantido até `t + sus`) fica como extensão da fase 4.
+- **Referência externa:** o [RocksmithAudioBridge #29](https://github.com/Cheesewizard/RocksmithAudioBridge/issues/29) mediu que o detetor do próprio Rocksmith quantiza ao semitom com um erro de ±1, por isso não distingue uma nota um traste ao lado. A verificação em cents deste plano é a mesma abordagem do "Tier 0" deles, validada com guitarra real.
 - **Custo em main thread:** o `Verifier` faz trabalho O(frames na janela) por alvo, irrelevante ao lado do `draw()`.
