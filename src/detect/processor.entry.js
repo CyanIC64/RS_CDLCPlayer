@@ -24,6 +24,7 @@ class PitchProcessor extends AudioWorkletProcessor {
       const m = e.data;
       if (m.type === "config") this.configure(m);
       else if (m.type === "expect") this.freqs = Float64Array.from(m.freqs);
+      else if (m.type === "record"){ this.rec = new Float32Array(Math.round(m.seconds * sampleRate)); this.recPos = 0; }
     };
   }
 
@@ -52,6 +53,17 @@ class PitchProcessor extends AudioWorkletProcessor {
       this.pos = (this.pos + 1) & this.mask;
     }
     e /= x.length;
+
+    // gravação do sinal cru (diagnóstico: um WAV do cabo para os testes)
+    if (this.rec){
+      const k = Math.min(x.length, this.rec.length - this.recPos);
+      this.rec.set(k === x.length ? x : x.subarray(0, k), this.recPos);
+      this.recPos += k;
+      if (this.recPos >= this.rec.length){
+        this.port.postMessage({ type: "rec", data: this.rec, sampleRate }, [this.rec.buffer]);
+        this.rec = null;
+      }
+    }
 
     // onset: subida brusca de energia acima de um envelope de pico que decai
     if (e > ONSET_GATE && e > ONSET_RATIO * this.env && currentTime - this.lastOnset > ONSET_HOLD){

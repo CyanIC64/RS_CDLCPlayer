@@ -31,7 +31,11 @@ export async function connect(ctx, deviceId, onMessage){
     numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1],
     channelCount: 1, channelCountMode: "explicit",
   });
-  node.port.onmessage = (e) => onMessage(e.data);
+  let recDone = null;
+  node.port.onmessage = (e) => {
+    if (e.data.type === "rec"){ if (recDone) recDone(e.data); recDone = null; return; }
+    onMessage(e.data);
+  };
   // A saída do worklet fica em silêncio; ligar ao destination só garante que o grafo o processa.
   src.connect(node).connect(ctx.destination);
 
@@ -42,6 +46,10 @@ export async function connect(ctx, deviceId, onMessage){
     expect(freqs){
       const key = freqs.join(",");
       if (key !== lastKey){ lastKey = key; node.port.postMessage({ type: "expect", freqs }); }
+    },
+    /** Grava `seconds` de sinal cru; devolve {data: Float32Array, sampleRate}. */
+    record(seconds){
+      return new Promise((resolve) => { recDone = resolve; node.port.postMessage({ type: "record", seconds }); });
     },
     close(){
       node.port.onmessage = null;

@@ -234,6 +234,10 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 #tuner .tustrings span.done::after{content:" ✓"}
 #tuner .tuhz{margin-top:10px;color:#8b97a3;font:11px "Cascadia Mono",Consolas,monospace;min-height:1.4em}
 #tuner .tumsg{color:#6f7c89;font-size:11px;min-height:1.4em}
+#tuner .turec{margin-top:6px;text-align:right}
+#tuRec{background:#171b20;border:1px solid #2b3138;color:#8b97a3;border-radius:3px;padding:2px 8px;font:11px inherit;cursor:pointer}
+#tuRec:hover{border-color:#4a5560;color:var(--ink)}
+#tuRec.on{border-color:#e0453f;color:#e0453f}
 #bPlay{width:44px;height:44px;border-radius:50%;background:#e9eef4;margin:0 6px}
 #bPlay:hover{background:#fff;border-color:transparent}
 #bPlay svg{width:20px;height:20px}
@@ -473,6 +477,7 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
   <div class="tustrings" id="tuStrings"></div>
   <div class="tuhz" id="tuHz"></div>
   <div class="tumsg" id="tuMsg"></div>
+  <div class="turec"><button id="tuRec" title="Save 5 seconds of the input as a WAV file, to report a wrong reading">Record 5 s</button></div>
 </div>
 
 <div id="cfg">
@@ -4685,6 +4690,38 @@ function tunerPaint(dt){
   });
 }
 
+/* diagnosis: five seconds of the raw input, saved as a 16-bit WAV, with what
+   the tuner read meanwhile in the file name. Nothing leaves the computer. */
+async function tunerRecord(){
+  const b = inEl("tuRec");
+  if (!IN.link || b.classList.contains("on")) return;
+  b.classList.add("on"); b.textContent = "Recording…";
+  const seen = new Map();
+  const tick = setInterval(() => {
+    const f = IN.last && IN.last.freq;
+    if (f > 0){ const n = IN.kit.freqToNote(f, 0); const k = n.name.replace(/[♯#]/, "s").replace("♭", "b") + n.octave; seen.set(k, (seen.get(k) || 0) + 1); }
+  }, 50);
+  try {
+    const { data, sampleRate } = await IN.link.record(5);
+    const heard = [...seen].sort((p, q) => q[1] - p[1]).slice(0, 3).map(([k]) => k).join("-") || "silence";
+    const wav = new ArrayBuffer(44 + data.length*2), v = new DataView(wav);
+    const str = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    str(0, "RIFF"); v.setUint32(4, 36 + data.length*2, true); str(8, "WAVEfmt ");
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, sampleRate, true); v.setUint32(28, sampleRate*2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    str(36, "data"); v.setUint32(40, data.length*2, true);
+    for (let i = 0; i < data.length; i++) v.setInt16(44 + i*2, clamp(data[i], -1, 1)*32767, true);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([wav], { type: "audio/wav" }));
+    a.download = "playsong-input-" + heard + "-" + new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "") + ".wav";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } finally {
+    clearInterval(tick);
+    b.classList.remove("on"); b.textContent = "Record 5 s";
+  }
+}
+inEl("tuRec").onclick = () => tunerRecord();
 inEl("bTuner").onclick = () => tunerShow(!TU.open);
 inEl("tuClose").onclick = () => tunerShow(false);
 
