@@ -6,7 +6,7 @@ Play Song is a single static web page. Drop a custom song (`.psarc`), a `.feedpa
 arrangement `.xml` files onto it, and it plays the song with the notes flying toward a fretboard,
 like a rhythm game, or scrolls along a tab sheet. Everything runs on your own computer: there is no
 server, no upload and no account.
-A
+
 > **Please use only songs you have obtained legally.** Play Song is an independent, non-commercial
 > project. It does not provide any songs, does not open official songs from the game's store, and is
 > not affiliated with any game publisher or rights holder.
@@ -145,4 +145,4 @@ changed. The only data the page stores is your settings, in your browser's `loca
 - the left-handed view and the invert-strings option;
 - raw XML input and the arrangement picker in the control bar;
 - stacked sliders;
-- a gradual note glow;
+- a gradual note glow.

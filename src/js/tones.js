@@ -11,7 +11,8 @@ const stemOf = (n) => {
 };
 const decodeText = (b) => new TextDecoder("utf-8", { fatal: false }).decode(b);
 
-function manifestToneData(jsonNames, files, arrName) {
+/* the manifest entry's Attributes for an arrangement, and the manifest's file name */
+function manifestAttributes(jsonNames, files, arrName) {
   const target = (arrName || "").trim().toLowerCase();
   for (const name of jsonNames) {
     let data;
@@ -26,28 +27,49 @@ function manifestToneData(jsonNames, files, arrName) {
       const raw = attrs.ArrangementName;
       const name2 = typeof raw === "string" ? raw.trim() : "";
       if (!name2 || name2.toLowerCase() !== target) continue;
-
-      const definitions = [];
-      const seen = new Set();
-      const rawTones = Array.isArray(attrs.Tones) ? attrs.Tones : [];
-      for (const tone of rawTones) {
-        if (!tone || typeof tone !== "object") continue;
-        const key = tone.Key;
-        if (typeof key === "string" && key) {
-          if (seen.has(key)) continue;
-          seen.add(key);
-        }
-        definitions.push(tone);
-      }
-      const idName = new Map();
-      ["Tone_A", "Tone_B", "Tone_C", "Tone_D"].forEach((k, i) => {
-        const v = attrs[k];
-        if (typeof v === "string" && v) idName.set(i, v);
-      });
-      return { definitions, idName, jsonStem: stemOf(name) };
+      return { attrs, name };
     }
   }
-  return { definitions: [], idName: new Map(), jsonStem: null };
+  return null;
+}
+
+/* The tuning's offset from A440 in cents, per arrangement name, from the
+   manifest (Attributes.CentOffset). A .sng carries no such field, so a packed
+   song only has it here. */
+export function manifestCentOffsets(files, arrNames) {
+  const jsonNames = [...files.keys()].sort().filter((n) => n.toLowerCase().endsWith(".json"));
+  const out = new Map();
+  for (const arrName of arrNames) {
+    const hit = manifestAttributes(jsonNames, files, arrName);
+    const c = hit ? Number(hit.attrs.CentOffset) : NaN;
+    if (Number.isFinite(c)) out.set(arrName, c);
+  }
+  return out;
+}
+
+function manifestToneData(jsonNames, files, arrName) {
+  const hit = manifestAttributes(jsonNames, files, arrName);
+  if (!hit) return { definitions: [], idName: new Map(), jsonStem: null };
+  const { attrs, name } = hit;
+
+  const definitions = [];
+  const seen = new Set();
+  const rawTones = Array.isArray(attrs.Tones) ? attrs.Tones : [];
+  for (const tone of rawTones) {
+    if (!tone || typeof tone !== "object") continue;
+    const key = tone.Key;
+    if (typeof key === "string" && key) {
+      if (seen.has(key)) continue;
+      seen.add(key);
+    }
+    definitions.push(tone);
+  }
+  const idName = new Map();
+  ["Tone_A", "Tone_B", "Tone_C", "Tone_D"].forEach((k, i) => {
+    const v = attrs[k];
+    if (typeof v === "string" && v) idName.set(i, v);
+  });
+  return { definitions, idName, jsonStem: stemOf(name) };
 }
 
 function xmlToneChanges(files, name, idName) {

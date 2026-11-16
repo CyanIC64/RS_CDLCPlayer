@@ -918,7 +918,10 @@ const A = { ctx:null, buf:null, src:null, gain:null, gainClick:null, startAt:0, 
 
 function audioInit(){
   if (A.ctx) return;
-  A.ctx = new (window.AudioContext || window.webkitAudioContext)();
+  /* 48 kHz, the rate of the Rocksmith cable: the guitar input joins this same
+     context (one clock for the song and the detected notes), and some browsers
+     will not connect a microphone whose rate differs from the context's */
+  A.ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000, latencyHint: "interactive" });
   A.gain = A.ctx.createGain();
   A.gainClick = A.ctx.createGain();
   A.gain.connect(A.ctx.destination);
@@ -1240,6 +1243,16 @@ function synInit(){
   SY.noise = nb;
 }
 
+/* The pitch an event of S.syn really sounds at: a natural harmonic rings at its
+   node's interval above the open string, a pinch harmonic two octaves up. Shared
+   by the note synth and the note detection (web/pitch.js). */
+function eventMidi(e){
+  const n = e.n;
+  if (n.hm && n.f > 0) return e.m - n.f + (HARMONIC[n.f] || 12);
+  if (n.hp) return e.m + 24;
+  return e.m;
+}
+
 function synVoice(e, when){
   const c = A.ctx, n = e.n;
   const t0 = when + e.o*0.007;                        // a chord is strummed, low string first
@@ -1259,9 +1272,7 @@ function synVoice(e, when){
     return;
   }
 
-  let midi = e.m, pure = false;
-  if (n.hm && n.f > 0){ midi = e.m - n.f + (HARMONIC[n.f] || 12); pure = true; }
-  else if (n.hp){ midi = e.m + 24; pure = true; }
+  const midi = eventMidi(e), pure = !!((n.hm && n.f > 0) || n.hp);
   const f0 = 440*Math.pow(2, (midi - 69)/12);
   const dur = Math.max(0.08, n.ring || 0.3)/S.rate, tEnd = t0 + dur;   // longer when the song is slowed
 

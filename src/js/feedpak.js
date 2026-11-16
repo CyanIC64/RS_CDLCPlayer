@@ -43,6 +43,7 @@ export async function convertFeedpak(bytes, { name = "song.feedpak", onProgress 
     arrangements.push({
       id: a.id, name: a.name || a.id,
       tuning: a.tuning || [0, 0, 0, 0, 0, 0], capo: a.capo || 0,
+      centOffset: Number(a.cent_offset ?? a.centOffset) || 0,
       notes: wire.notes || [], chords: wire.chords || [],
       templates: wire.templates || [], anchors: wire.anchors || [],
       handshapes: wire.handshapes || [],

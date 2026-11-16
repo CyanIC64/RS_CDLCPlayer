@@ -1064,6 +1064,12 @@
       const c = parseInt(textOf(capoEl), 10);
       if (!Number.isNaN(c)) capo = c;
     }
+    let centOffset = null;
+    const centEl = find(root, "centOffset");
+    if (centEl && textOf(centEl)) {
+      const c = parseFloat(textOf(centEl));
+      if (Number.isFinite(c)) centOffset = c;
+    }
     const chordTemplates = [];
     const ctContainer = find(root, "chordTemplates");
     if (ctContainer) {
@@ -1261,6 +1267,7 @@
       name: arrName,
       tuning,
       capo,
+      cent_offset: centOffset,
       notes,
       chords,
       anchors,
@@ -1558,7 +1565,7 @@
     return (i < 0 ? b : b.slice(0, i)).toLowerCase();
   };
   var decodeText2 = (b) => new TextDecoder("utf-8", { fatal: false }).decode(b);
-  function manifestToneData(jsonNames, files, arrName) {
+  function manifestAttributes(jsonNames, files, arrName) {
     const target = (arrName || "").trim().toLowerCase();
     for (const name of jsonNames) {
       let data;
@@ -1577,27 +1584,43 @@
         const raw = attrs.ArrangementName;
         const name2 = typeof raw === "string" ? raw.trim() : "";
         if (!name2 || name2.toLowerCase() !== target) continue;
-        const definitions = [];
-        const seen = /* @__PURE__ */ new Set();
-        const rawTones = Array.isArray(attrs.Tones) ? attrs.Tones : [];
-        for (const tone2 of rawTones) {
-          if (!tone2 || typeof tone2 !== "object") continue;
-          const key = tone2.Key;
-          if (typeof key === "string" && key) {
-            if (seen.has(key)) continue;
-            seen.add(key);
-          }
-          definitions.push(tone2);
-        }
-        const idName = /* @__PURE__ */ new Map();
-        ["Tone_A", "Tone_B", "Tone_C", "Tone_D"].forEach((k, i) => {
-          const v = attrs[k];
-          if (typeof v === "string" && v) idName.set(i, v);
-        });
-        return { definitions, idName, jsonStem: stemOf(name) };
+        return { attrs, name };
       }
     }
-    return { definitions: [], idName: /* @__PURE__ */ new Map(), jsonStem: null };
+    return null;
+  }
+  function manifestCentOffsets(files, arrNames) {
+    const jsonNames = [...files.keys()].sort().filter((n) => n.toLowerCase().endsWith(".json"));
+    const out = /* @__PURE__ */ new Map();
+    for (const arrName of arrNames) {
+      const hit = manifestAttributes(jsonNames, files, arrName);
+      const c = hit ? Number(hit.attrs.CentOffset) : NaN;
+      if (Number.isFinite(c)) out.set(arrName, c);
+    }
+    return out;
+  }
+  function manifestToneData(jsonNames, files, arrName) {
+    const hit = manifestAttributes(jsonNames, files, arrName);
+    if (!hit) return { definitions: [], idName: /* @__PURE__ */ new Map(), jsonStem: null };
+    const { attrs, name } = hit;
+    const definitions = [];
+    const seen = /* @__PURE__ */ new Set();
+    const rawTones = Array.isArray(attrs.Tones) ? attrs.Tones : [];
+    for (const tone2 of rawTones) {
+      if (!tone2 || typeof tone2 !== "object") continue;
+      const key = tone2.Key;
+      if (typeof key === "string" && key) {
+        if (seen.has(key)) continue;
+        seen.add(key);
+      }
+      definitions.push(tone2);
+    }
+    const idName = /* @__PURE__ */ new Map();
+    ["Tone_A", "Tone_B", "Tone_C", "Tone_D"].forEach((k, i) => {
+      const v = attrs[k];
+      if (typeof v === "string" && v) idName.set(i, v);
+    });
+    return { definitions, idName, jsonStem: stemOf(name) };
   }
   function xmlToneChanges(files, name, idName) {
     let root;
@@ -1888,6 +1911,7 @@
     if (!song.arrangements.length) throw new Error("no playable arrangements found");
     onProgress("Reading tones and lyrics\u2026");
     const tonesByArr = extractTonesForSong(files, song.arrangements.map((a) => a.name));
+    const centsByArr = manifestCentOffsets(files, song.arrangements.map((a) => a.name));
     const { tokens: tokens2, source } = await parseLyrics(files);
     let lines = lyricsFromTokens(tokens2);
     let lyricError = "";
@@ -1920,6 +1944,8 @@
         name: arr.name,
         tuning: arr.tuning,
         capo: arr.capo,
+        // the arrangement XML's <centOffset> wins; a packed song (.sng) only has the manifest's
+        centOffset: Number.isFinite(arr.cent_offset) ? arr.cent_offset : centsByArr.get(arr.name) || 0,
         notes: wire.notes,
         chords: wire.chords,
         templates: wire.templates,
@@ -4718,6 +4744,7 @@
         name: a.name || a.id,
         tuning: a.tuning || [0, 0, 0, 0, 0, 0],
         capo: a.capo || 0,
+        centOffset: Number(a.cent_offset ?? a.centOffset) || 0,
         notes: wire.notes || [],
         chords: wire.chords || [],
         templates: wire.templates || [],

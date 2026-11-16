@@ -6,7 +6,7 @@ import { parseArchiveXml, clearXmlCache } from "./xml.js";
 import {
   arrangementToWire, hasArrangementXml, loadSong, loadSongFromExtract,
 } from "./song.js";
-import { extractTonesForSong } from "./tones.js";
+import { extractTonesForSong, manifestCentOffsets } from "./tones.js";
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -241,6 +241,7 @@ async function buildPayload(files, { name, hasCover, onProgress }) {
 
   onProgress("Reading tones and lyrics…");
   const tonesByArr = extractTonesForSong(files, song.arrangements.map((a) => a.name));
+  const centsByArr = manifestCentOffsets(files, song.arrangements.map((a) => a.name));
   const { tokens, source } = await parseLyrics(files);
   let lines = lyricsFromTokens(tokens);
   let lyricError = "";
@@ -271,6 +272,8 @@ async function buildPayload(files, { name, hasCover, onProgress }) {
       name: arr.name,
       tuning: arr.tuning,
       capo: arr.capo,
+      // the arrangement XML's <centOffset> wins; a packed song (.sng) only has the manifest's
+      centOffset: Number.isFinite(arr.cent_offset) ? arr.cent_offset : (centsByArr.get(arr.name) || 0),
       notes: wire.notes,
       chords: wire.chords,
       templates: wire.templates,
