@@ -61,9 +61,12 @@ var PitchKit = (() => {
     // fração das notas do acorde que têm de estar presentes
     presence: 0.06,
     // presença mínima (soma dos harmónicos) para contar uma nota do acorde
-    harmonics: 3
+    harmonics: 3,
     // fundamental + 2 harmónicos
+    rescue: 0.25
+    // presença (soma dos harmónicos) que aceita uma nota simples sem pitch MPM certo
   };
+  var near = (a, b) => Math.abs(1200 * Math.log2(a / b)) < 50;
   function buildTargets(syn, eventMidi, centOffset = 0) {
     const out = [];
     for (let i = 0; i < syn.length; ) {
@@ -94,6 +97,9 @@ var PitchKit = (() => {
     constructor(targets, opts = {}) {
       this.o = { ...DEFAULTS, ...opts };
       this.targets = targets;
+      targets.forEach((g, i) => {
+        g.i = i;
+      });
       this.next = 0;
       this.onsets = [];
       this.frames = [];
@@ -108,10 +114,15 @@ var PitchKit = (() => {
       let i = 0;
       while (i < this.targets.length && this.targets[i].t < t) i++;
       this.next = i;
-      for (let k = i; k < this.targets.length; k++) this.targets[k].result = null;
+      for (let k = i; k < this.targets.length; k++) {
+        const g = this.targets[k];
+        if (g.result === null) continue;
+        g.result = null;
+        for (const x of g.notes) x.n.hit = void 0;
+      }
     }
     onset(t, energy) {
-      this.onsets.push({ t, energy });
+      this.onsets.push({ t, energy, used: false });
     }
     frame(t, freq, clarity, freqs, presence) {
       let pres = null;
@@ -127,7 +138,7 @@ var PitchKit = (() => {
       for (let i = this.next; i < this.targets.length; i++) {
         const g = this.targets[i];
         if (g.t > now + ahead) break;
-        if (g.t < now - W || g.kind !== "chord") continue;
+        if (g.t < now - W || g.kind === "muted") continue;
         for (const x of g.notes) for (let h = 1; h <= H; h++) set.add(x.hz * h);
       }
       return [...set].sort((a, b) => a - b);
@@ -159,19 +170,37 @@ var PitchKit = (() => {
     }
     judge(g) {
       const { window: W, look } = this.o;
-      const onset = this.nearestOnset(g.t, W);
-      if (onset) this.stats.lag.push(onset.t - g.t);
-      if (g.kind === "muted") return !!onset;
+      const onset = this.nearestOnset(g, W);
+      if (g.kind === "muted") {
+        if (onset) this.lag(onset, g);
+        return !!onset;
+      }
       if (!onset && !g.legato) return false;
       const from = onset ? onset.t : g.t - W, to = from + look + (g.legato ? W : 0);
-      return g.kind === "chord" ? this.chordOk(g, from, to) : this.singleOk(g, from, to);
+      const ok = g.kind === "chord" ? this.chordOk(g, from, to) : this.singleOk(g, from, to) || !!onset && this.rescueOk(g, from, to);
+      if (ok && onset) this.lag(onset, g);
+      return ok;
     }
-    nearestOnset(t, W) {
+    lag(onset, g) {
+      const L = this.stats.lag;
+      L.push(onset.t - g.t);
+      if (L.length > 64) L.shift();
+    }
+    /**
+     * O onset por usar mais próximo de g.t, dentro de ±W. Cada onset serve um só
+     * alvo: se estiver mais perto do alvo seguinte, fica para esse.
+     */
+    nearestOnset(g, W) {
+      const nx = this.targets[g.i + 1];
       let best = null;
       for (const o of this.onsets) {
-        const d = Math.abs(o.t - t);
-        if (d <= W && (!best || d < Math.abs(best.t - t))) best = o;
+        if (o.used) continue;
+        const d = Math.abs(o.t - g.t);
+        if (d > W || best && d >= Math.abs(best.t - g.t)) continue;
+        if (nx && Math.abs(o.t - nx.t) < d) continue;
+        best = o;
       }
+      if (best) best.used = true;
       return best;
     }
     singleOk(g, from, to) {
@@ -183,6 +212,34 @@ var PitchKit = (() => {
         if (c >= lo && c <= hi && ++good >= this.o.minFrames) return true;
       }
       return false;
+    }
+    /**
+     * Uma corda anterior ainda a soar pode prender o MPM à nota antiga, ou deixá-lo
+     * sem pitch claro (duas notas juntas). Aceita-se então a nota se a presença
+     * dela for forte em `minFrames` frames. Guardas:
+     *  - se o MPM ouvir com clareza um pitch que nem a nota-alvo nem a anterior
+     *    explicam, é uma nota errada e não há rescue (com 2048 amostras o
+     *    Goertzel não separa Mi2 de Fá2, por isso a presença sozinha não chega);
+     *  - a nota-alvo não pode ser a oitava ou a 12.ª da anterior, porque essa
+     *    presença viria dos harmónicos da nota antiga.
+     */
+    rescueOk(g, from, to) {
+      const { harmonics: H, rescue, minFrames } = this.o, hz = g.notes[0].hz;
+      const prev = g.i > 0 ? this.targets[g.i - 1] : null;
+      if (!prev || g.t - prev.t > 2) return false;
+      const ringing = prev.notes.map((x) => x.hz);
+      if (ringing.some((r) => near(hz, r) || near(hz, r * 2) || near(hz, r * 3))) return false;
+      const explained = (f) => near(f, hz) || near(f, hz * 2) || near(f, hz / 2) || ringing.some((r) => near(f, r) || near(f, r * 2) || near(f, r / 2));
+      let good = 0;
+      for (const f of this.frames) {
+        if (f.t < from || f.t > to) continue;
+        if (f.freq && !explained(f.freq)) return false;
+        if (!f.pres) continue;
+        let sum = 0;
+        for (let h = 1; h <= H; h++) sum += f.pres.get(hz * h) || 0;
+        if (sum >= rescue) good++;
+      }
+      return good >= minFrames;
     }
     chordOk(g, from, to) {
       const { harmonics: H, presence: P, chordShare } = this.o;
@@ -209,7 +266,7 @@ var PitchKit = (() => {
   var findCable = (list) => list.find((d) => /rocksmith|real\s*tone/i.test(d.label));
   async function connect(ctx, deviceId, onMessage) {
     if (!loaded.has(ctx)) {
-      const url = URL.createObjectURL(new Blob(['(() => {\n  // detect/fft.js\n  var FFT = class {\n    constructor(n) {\n      if (n & n - 1) throw new Error("FFT size must be a power of 2");\n      this.n = n;\n      this.re = new Float64Array(n);\n      this.im = new Float64Array(n);\n      this.rev = new Uint32Array(n);\n      const bits = Math.log2(n);\n      for (let i = 0; i < n; i++) {\n        let r = 0;\n        for (let b = 0; b < bits; b++) r |= (i >> b & 1) << bits - 1 - b;\n        this.rev[i] = r;\n      }\n      this.cos = new Float64Array(n / 2);\n      this.sin = new Float64Array(n / 2);\n      for (let i = 0; i < n / 2; i++) {\n        this.cos[i] = Math.cos(2 * Math.PI * i / n);\n        this.sin[i] = -Math.sin(2 * Math.PI * i / n);\n      }\n    }\n    /** Transformada direta de this.re / this.im, no pr\xF3prio lugar. */\n    run() {\n      const { n, re, im, rev, cos, sin } = this;\n      for (let i = 0; i < n; i++) {\n        const j = rev[i];\n        if (j > i) {\n          let t = re[i];\n          re[i] = re[j];\n          re[j] = t;\n          t = im[i];\n          im[i] = im[j];\n          im[j] = t;\n        }\n      }\n      for (let size = 2; size <= n; size <<= 1) {\n        const half = size >> 1, step = n / size;\n        for (let start = 0; start < n; start += size) {\n          for (let k = 0; k < half; k++) {\n            const wr = cos[k * step], wi = sin[k * step];\n            const a = start + k, b = a + half;\n            const tr = re[b] * wr - im[b] * wi;\n            const ti = re[b] * wi + im[b] * wr;\n            re[b] = re[a] - tr;\n            im[b] = im[a] - ti;\n            re[a] += tr;\n            im[a] += ti;\n          }\n        }\n      }\n    }\n  };\n\n  // detect/mpm.js\n  var McLeodDetector = class {\n    constructor(size, sampleRate2, minFreq = 70, maxFreq = 1400, k = 0.93) {\n      this.size = size;\n      this.sampleRate = sampleRate2;\n      this.k = k;\n      this.fft = new FFT(size * 2);\n      this.maxTau = Math.min(Math.ceil(sampleRate2 / minFreq), size / 2 | 0);\n      this.minTau = Math.max(2, Math.floor(sampleRate2 / maxFreq));\n      this.nsdf = new Float64Array(this.maxTau + 2);\n      this.cand = new Int32Array(64);\n    }\n    /** x: Float32Array com `size` amostras. Preenche out {freq, clarity}; devolve true se houver pitch. */\n    detect(x, out) {\n      const { size: n, fft, nsdf, maxTau, minTau, cand } = this;\n      const { re, im } = fft, N2 = fft.n;\n      for (let i = 0; i < n; i++) {\n        re[i] = x[i];\n        im[i] = 0;\n      }\n      for (let i = n; i < N2; i++) {\n        re[i] = 0;\n        im[i] = 0;\n      }\n      fft.run();\n      for (let i = 0; i < N2; i++) {\n        re[i] = re[i] * re[i] + im[i] * im[i];\n        im[i] = 0;\n      }\n      fft.run();\n      let m = 0;\n      for (let j = 0; j < n; j++) m += x[j] * x[j];\n      m *= 2;\n      for (let tau2 = 0; tau2 <= maxTau + 1; tau2++) {\n        if (tau2 > 0) {\n          const a = x[tau2 - 1], b = x[n - tau2];\n          m -= a * a + b * b;\n        }\n        nsdf[tau2] = m > 1e-12 ? 2 * re[tau2] / N2 / m : 0;\n      }\n      let count = 0, tau = 1;\n      while (tau <= maxTau && nsdf[tau] > 0) tau++;\n      let best = -1, bestVal = -Infinity;\n      for (; tau <= maxTau; tau++) {\n        const v = nsdf[tau], prev = nsdf[tau - 1];\n        if (prev <= 0 && v > 0) {\n          best = -1;\n          bestVal = -Infinity;\n        }\n        if (v > 0 && v > bestVal) {\n          best = tau;\n          bestVal = v;\n        }\n        if (prev > 0 && v <= 0 && best >= 0) {\n          if (count < cand.length) cand[count++] = best;\n          best = -1;\n        }\n      }\n      if (best >= 0 && count < cand.length) cand[count++] = best;\n      if (!count) return false;\n      let highest = 0;\n      for (let i = 0; i < count; i++) highest = Math.max(highest, nsdf[cand[i]]);\n      const thr = this.k * highest;\n      for (let i = 0; i < count; i++) {\n        const t = cand[i];\n        if (t < minTau || nsdf[t] < thr) continue;\n        const a = nsdf[t - 1], b = nsdf[t], c = nsdf[t + 1];\n        const den = a - 2 * b + c;\n        const shift = den !== 0 ? 0.5 * (a - c) / den : 0;\n        out.freq = this.sampleRate / (t + shift);\n        out.clarity = b - 0.25 * (a - c) * shift;\n        return true;\n      }\n      return false;\n    }\n  };\n\n  // detect/processor.entry.js\n  var RMS_GATE = 0.01;\n  var MIN_CLARITY = 0.8;\n  var ONSET_GATE = 1e-5;\n  var ONSET_RATIO = 2;\n  var ONSET_DECAY = 0.985;\n  var ONSET_HOLD = 0.05;\n  var PitchProcessor = class extends AudioWorkletProcessor {\n    constructor() {\n      super();\n      this.configure({ window: 2048, hop: 512, minFreq: 70, maxFreq: 1400 });\n      this.freqs = new Float64Array(0);\n      this.env = 0;\n      this.lastOnset = -1;\n      this.port.onmessage = (e) => {\n        const m = e.data;\n        if (m.type === "config") this.configure(m);\n        else if (m.type === "expect") this.freqs = Float64Array.from(m.freqs);\n      };\n    }\n    configure({ window, hop, minFreq, maxFreq }) {\n      this.N = window;\n      this.mask = window - 1;\n      this.hop = hop;\n      this.ring = new Float32Array(window);\n      this.frame = new Float32Array(window);\n      this.win = new Float32Array(window);\n      this.hann = new Float32Array(window);\n      for (let i = 0; i < window; i++) this.hann[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (window - 1));\n      this.det = new McLeodDetector(window, sampleRate, minFreq, maxFreq);\n      this.res = { freq: 0, clarity: 0 };\n      this.pos = 0;\n      this.since = 0;\n    }\n    process(inputs) {\n      const x = inputs[0] && inputs[0][0];\n      if (!x) return true;\n      let e = 0;\n      for (let i = 0; i < x.length; i++) {\n        const s = x[i];\n        e += s * s;\n        this.ring[this.pos] = s;\n        this.pos = this.pos + 1 & this.mask;\n      }\n      e /= x.length;\n      if (e > ONSET_GATE && e > ONSET_RATIO * this.env && currentTime - this.lastOnset > ONSET_HOLD) {\n        this.lastOnset = currentTime;\n        this.port.postMessage({ type: "onset", time: currentTime, energy: e });\n      }\n      this.env = Math.max(e, this.env * ONSET_DECAY);\n      this.since += x.length;\n      if (this.since >= this.hop) {\n        this.since -= this.hop;\n        this.analyse(currentTime + x.length / sampleRate);\n      }\n      return true;\n    }\n    analyse(endTime) {\n      const { N, mask, ring, frame, win, hann } = this;\n      let sum = 0, sumW = 0;\n      for (let i = 0; i < N; i++) {\n        const s = ring[this.pos + i & mask];\n        frame[i] = s;\n        sum += s * s;\n        const w = s * hann[i];\n        win[i] = w;\n        sumW += w * w;\n      }\n      const rms = Math.sqrt(sum / N);\n      let freq = 0, clarity = 0;\n      if (rms > RMS_GATE && this.det.detect(frame, this.res) && this.res.clarity >= MIN_CLARITY) {\n        freq = this.res.freq;\n        clarity = this.res.clarity;\n      }\n      const F = this.freqs, presence = new Float32Array(F.length);\n      if (rms > RMS_GATE && sumW > 0) {\n        for (let k = 0; k < F.length; k++) {\n          const c = 2 * Math.cos(2 * Math.PI * F[k] / sampleRate);\n          let s1 = 0, s2 = 0;\n          for (let i = 0; i < N; i++) {\n            const s0 = win[i] + c * s1 - s2;\n            s2 = s1;\n            s1 = s0;\n          }\n          presence[k] = 3 * (s1 * s1 + s2 * s2 - c * s1 * s2) / (N * sumW);\n        }\n      }\n      this.port.postMessage({\n        type: "frame",\n        time: endTime - N / 2 / sampleRate,\n        // centro da janela\n        freq,\n        clarity,\n        rms,\n        freqs: F,\n        presence\n      });\n    }\n  };\n  registerProcessor("playsong-pitch", PitchProcessor);\n})();\n'], { type: "text/javascript" }));
+      const url = URL.createObjectURL(new Blob(['(() => {\n  // detect/fft.js\n  var FFT = class {\n    constructor(n) {\n      if (n & n - 1) throw new Error("FFT size must be a power of 2");\n      this.n = n;\n      this.re = new Float64Array(n);\n      this.im = new Float64Array(n);\n      this.rev = new Uint32Array(n);\n      const bits = Math.log2(n);\n      for (let i = 0; i < n; i++) {\n        let r = 0;\n        for (let b = 0; b < bits; b++) r |= (i >> b & 1) << bits - 1 - b;\n        this.rev[i] = r;\n      }\n      this.cos = new Float64Array(n / 2);\n      this.sin = new Float64Array(n / 2);\n      for (let i = 0; i < n / 2; i++) {\n        this.cos[i] = Math.cos(2 * Math.PI * i / n);\n        this.sin[i] = -Math.sin(2 * Math.PI * i / n);\n      }\n    }\n    /** Transformada direta de this.re / this.im, no pr\xF3prio lugar. */\n    run() {\n      const { n, re, im, rev, cos, sin } = this;\n      for (let i = 0; i < n; i++) {\n        const j = rev[i];\n        if (j > i) {\n          let t = re[i];\n          re[i] = re[j];\n          re[j] = t;\n          t = im[i];\n          im[i] = im[j];\n          im[j] = t;\n        }\n      }\n      for (let size = 2; size <= n; size <<= 1) {\n        const half = size >> 1, step = n / size;\n        for (let start = 0; start < n; start += size) {\n          for (let k = 0; k < half; k++) {\n            const wr = cos[k * step], wi = sin[k * step];\n            const a = start + k, b = a + half;\n            const tr = re[b] * wr - im[b] * wi;\n            const ti = re[b] * wi + im[b] * wr;\n            re[b] = re[a] - tr;\n            im[b] = im[a] - ti;\n            re[a] += tr;\n            im[a] += ti;\n          }\n        }\n      }\n    }\n  };\n\n  // detect/mpm.js\n  var McLeodDetector = class {\n    constructor(size, sampleRate2, minFreq = 70, maxFreq = 1400, k = 0.93) {\n      this.size = size;\n      this.sampleRate = sampleRate2;\n      this.k = k;\n      this.fft = new FFT(size * 2);\n      this.maxTau = Math.min(Math.ceil(sampleRate2 / minFreq), size / 2 | 0);\n      this.minTau = Math.max(2, Math.floor(sampleRate2 / maxFreq));\n      this.nsdf = new Float64Array(this.maxTau + 2);\n      this.cand = new Int32Array(64);\n    }\n    /** x: Float32Array com `size` amostras. Preenche out {freq, clarity}; devolve true se houver pitch. */\n    detect(x, out) {\n      const { size: n, fft, nsdf, maxTau, minTau, cand } = this;\n      const { re, im } = fft, N2 = fft.n;\n      for (let i = 0; i < n; i++) {\n        re[i] = x[i];\n        im[i] = 0;\n      }\n      for (let i = n; i < N2; i++) {\n        re[i] = 0;\n        im[i] = 0;\n      }\n      fft.run();\n      for (let i = 0; i < N2; i++) {\n        re[i] = re[i] * re[i] + im[i] * im[i];\n        im[i] = 0;\n      }\n      fft.run();\n      let m = 0;\n      for (let j = 0; j < n; j++) m += x[j] * x[j];\n      m *= 2;\n      for (let tau2 = 0; tau2 <= maxTau + 1; tau2++) {\n        if (tau2 > 0) {\n          const a = x[tau2 - 1], b = x[n - tau2];\n          m -= a * a + b * b;\n        }\n        nsdf[tau2] = m > 1e-12 ? 2 * re[tau2] / N2 / m : 0;\n      }\n      let count = 0, tau = 1;\n      while (tau <= maxTau && nsdf[tau] > 0) tau++;\n      let best = -1, bestVal = -Infinity;\n      for (; tau <= maxTau; tau++) {\n        const v = nsdf[tau], prev = nsdf[tau - 1];\n        if (prev <= 0 && v > 0) {\n          best = -1;\n          bestVal = -Infinity;\n        }\n        if (v > 0 && v > bestVal) {\n          best = tau;\n          bestVal = v;\n        }\n        if (prev > 0 && v <= 0 && best >= 0) {\n          if (count < cand.length) cand[count++] = best;\n          best = -1;\n        }\n      }\n      if (best >= 0 && count < cand.length) cand[count++] = best;\n      if (!count) return false;\n      let highest = 0;\n      for (let i = 0; i < count; i++) highest = Math.max(highest, nsdf[cand[i]]);\n      const thr = this.k * highest;\n      for (let i = 0; i < count; i++) {\n        const t = cand[i];\n        if (t < minTau || nsdf[t] < thr) continue;\n        const a = nsdf[t - 1], b = nsdf[t], c = nsdf[t + 1];\n        const den = a - 2 * b + c;\n        const shift = den !== 0 ? 0.5 * (a - c) / den : 0;\n        out.freq = this.sampleRate / (t + shift);\n        out.clarity = b - 0.25 * (a - c) * shift;\n        return true;\n      }\n      return false;\n    }\n  };\n\n  // detect/processor.entry.js\n  var RMS_GATE = 0.01;\n  var MIN_CLARITY = 0.8;\n  var ONSET_GATE = 1e-6;\n  var ONSET_RATIO = 2;\n  var ONSET_DECAY = 0.985;\n  var ONSET_HOLD = 0.05;\n  var PitchProcessor = class extends AudioWorkletProcessor {\n    constructor() {\n      super();\n      this.configure({ window: 2048, hop: 512, minFreq: 70, maxFreq: 1400 });\n      this.freqs = new Float64Array(0);\n      this.env = 0;\n      this.xp = 0;\n      this.lastOnset = -1;\n      this.port.onmessage = (e) => {\n        const m = e.data;\n        if (m.type === "config") this.configure(m);\n        else if (m.type === "expect") this.freqs = Float64Array.from(m.freqs);\n      };\n    }\n    configure({ window, hop, minFreq, maxFreq }) {\n      this.N = window;\n      this.mask = window - 1;\n      this.hop = hop;\n      this.ring = new Float32Array(window);\n      this.frame = new Float32Array(window);\n      this.win = new Float32Array(window);\n      this.hann = new Float32Array(window);\n      for (let i = 0; i < window; i++) this.hann[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (window - 1));\n      this.det = new McLeodDetector(window, sampleRate, minFreq, maxFreq);\n      this.res = { freq: 0, clarity: 0 };\n      this.pos = 0;\n      this.since = 0;\n    }\n    process(inputs) {\n      const x = inputs[0] && inputs[0][0];\n      if (!x) return true;\n      let e = 0;\n      for (let i = 0; i < x.length; i++) {\n        const s = x[i], d = s - this.xp;\n        this.xp = s;\n        e += d * d;\n        this.ring[this.pos] = s;\n        this.pos = this.pos + 1 & this.mask;\n      }\n      e /= x.length;\n      if (e > ONSET_GATE && e > ONSET_RATIO * this.env && currentTime - this.lastOnset > ONSET_HOLD) {\n        this.lastOnset = currentTime;\n        this.port.postMessage({ type: "onset", time: currentTime, energy: e });\n      }\n      this.env = Math.max(e, this.env * ONSET_DECAY);\n      this.since += x.length;\n      if (this.since >= this.hop) {\n        this.since -= this.hop;\n        this.analyse(currentTime + x.length / sampleRate);\n      }\n      return true;\n    }\n    analyse(endTime) {\n      const { N, mask, ring, frame, win, hann } = this;\n      let sum = 0, sumW = 0;\n      for (let i = 0; i < N; i++) {\n        const s = ring[this.pos + i & mask];\n        frame[i] = s;\n        sum += s * s;\n        const w = s * hann[i];\n        win[i] = w;\n        sumW += w * w;\n      }\n      const rms = Math.sqrt(sum / N);\n      let freq = 0, clarity = 0;\n      if (rms > RMS_GATE && this.det.detect(frame, this.res) && this.res.clarity >= MIN_CLARITY) {\n        freq = this.res.freq;\n        clarity = this.res.clarity;\n      }\n      const F = this.freqs, presence = new Float32Array(F.length);\n      if (rms > RMS_GATE && sumW > 0) {\n        for (let k = 0; k < F.length; k++) {\n          const c = 2 * Math.cos(2 * Math.PI * F[k] / sampleRate);\n          let s1 = 0, s2 = 0;\n          for (let i = 0; i < N; i++) {\n            const s0 = win[i] + c * s1 - s2;\n            s2 = s1;\n            s1 = s0;\n          }\n          presence[k] = 3 * (s1 * s1 + s2 * s2 - c * s1 * s2) / (N * sumW);\n        }\n      }\n      this.port.postMessage({\n        type: "frame",\n        time: endTime - N / 2 / sampleRate,\n        // centro da janela\n        freq,\n        clarity,\n        rms,\n        freqs: F,\n        presence\n      });\n    }\n  };\n  registerProcessor("playsong-pitch", PitchProcessor);\n})();\n'], { type: "text/javascript" }));
       try {
         await ctx.audioWorklet.addModule(url);
       } finally {

@@ -297,6 +297,8 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 #cfg .inmeter{display:block;width:120px;height:6px;background:#171b20;border:1px solid #2b3138;border-radius:3px;overflow:hidden}
 #cfg .inmeter i{display:block;height:100%;width:0;background:#3fbf6f;transition:width 60ms linear}
 #cfg .inmeter i.hot{background:#e0453f}
+#bInCal.on{border-color:#d8a24a;color:#d8a24a}
+#cfg .row[hidden]{display:none}
 
 /* narrow windows: drop the least important controls instead of clipping them */
 @media (max-width:1180px){ #stats{display:none} }
@@ -502,6 +504,11 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
   <div class="row"><label>Level</label><span class="inmeter"><i id="inLevel"></i></span></div>
   <div class="row"><label>Hearing</label><span class="rv" id="inNote">—</span></div>
   <div class="row"><label for="bTuner">Tuner (U)</label><button id="bTuner">Open</button></div>
+  <div class="row"><label for="fInScore" title="While the song plays, every note of the chart is marked as hit or missed">Check notes against the chart</label><input id="fInScore" type="checkbox" checked></div>
+  <div class="row"><label for="fInLat" title="Time from hearing a note to the sound of the guitar reaching the page. Calibrate measures it.">Input latency (ms)</label>
+    <span class="offwrap"><input id="fInLat" type="number" step="1" value="60"><button id="bInCal">Calibrate</button></span></div>
+  <div class="row"><label>Score</label><span class="rv" id="inScore">—</span></div>
+  <div class="row" id="inSugRow" hidden><label id="inSug">Suggested latency</label><button id="bInSug">Use it</button></div>
   <div class="hint" id="inMsg">Plug in the Real Tone Cable, then switch on. The browser asks once for the microphone; the sound stays on this computer.</div>
 
   <h4>Sync</h4>
@@ -909,6 +916,7 @@ const S = {
   showFingers:true, invert:false, lefty:false, tabView:false, showChord:true, showDiagram:true, showHit:true, camRate:0.5, holds:[], hits:[],
   lyrics:[], lyrPairs:[], showLyrics:true,
   inOn:false, inDevice:"",                        // guitar input: switched on last time, and which input
+  inScore:true, inLatMs:60,                       // check notes against the chart; input + output latency (ms)
   camC:null, camS:4, camCv:0, camSv:0,
   fx:true, rscale:1, autoScale:false, dynScale:1, tones:{base:"", changes:[], names:{}},
   fps:0, bpm:0, loopA:0, loopB:0,
@@ -930,7 +938,7 @@ function updGeom(){
 const PREFS = { speed:[0.6, 2], zoom:[0.55, 3], camRate:[0.3, 2.5], master:[0, 1], clickLevel:[0, 1], synthLevel:[0, 1],
                 rscale:[0.2, 1], autoScale:0, showCells:0, showNums:0, showLabels:0, showLyrics:0, autoPan:0,
                 showFingers:0, invert:0, lefty:0, tabView:0, showChord:0, showDiagram:0, showHit:0, clickOn:0, synthOn:0, muted:0, fx:0,
-                inOn:0, inDevice:0 };
+                inOn:0, inDevice:0, inScore:0, inLatMs:[-50, 400] };
 /* Kept in this browser (localStorage): the page has one address here, so the
    browser's own storage is the right place, and nothing about a visitor is
    stored on the server. */
@@ -962,6 +970,7 @@ function syncControls(){
   $("fLyrics").checked = S.showLyrics; $("fPan").checked = S.autoPan;
   $("fFingers").checked = S.showFingers; $("fInvert").checked = S.invert; $("fLefty").checked = S.lefty;
   if (typeof TAB !== "undefined" && S.tabView !== TAB.on) setTabView(S.tabView); $("fAuto").checked = S.autoScale; $("fChord").checked = S.showChord; $("fDiag").checked = S.showDiagram; $("fHit").checked = S.showHit;
+  $("fInScore").checked = S.inScore; $("fInLat").value = S.inLatMs;
   $("fFx").checked = S.fx;
   { const sc = $("fScale"); let best = sc.options[0].value;
     for (const o of sc.options) if (Math.abs(+o.value - S.rscale) < Math.abs(+best - S.rscale)) best = o.value;
@@ -1215,6 +1224,7 @@ function seek(t){
   A.offset = clamp(t, 0, S.duration || 0);
   S.time = A.offset;
   if (was) startAt(A.offset); else { beatIdx = 0; syncBeats(); }
+  inputSeek();
   paintClock();
 }
 
@@ -4249,6 +4259,7 @@ function frame(now){
   updateHud();
   pump();
   synPump();
+  inputPump();
 
   fpsAcc += dt; fpsN++;
   if (now - fpsT > 250){
@@ -4362,7 +4373,8 @@ document.getElementById("bClick").onclick = () => {
    input - is listened to by web/pitch.js: an AudioWorklet in the song's own
    AudioContext, so what it hears is timed on the same clock as the song. The
    script is only loaded when the input is first switched on. */
-const IN = { kit:null, link:null, busy:false, devices:[], level:0, peak:0, last:null, note:"" };
+const IN = { kit:null, link:null, busy:false, devices:[], level:0, peak:0, last:null, note:"",
+             ver:null, dirty:true, cal:null };
 const inEl = (id) => document.getElementById(id);
 function inputMsg(text){ inEl("inMsg").textContent = text; }
 
@@ -4399,6 +4411,7 @@ async function inputStart(){
 }
 
 function inputStop(){
+  if (IN.cal) calEnd("Calibration stopped.");
   if (IN.link) IN.link.close();
   IN.link = null; IN.last = null; IN.level = 0; IN.peak = 0;
   S.inOn = false; savePrefs();
@@ -4417,17 +4430,142 @@ function inputLost(){
   inputMsg("The input was unplugged. It comes back when it is plugged in again.");
 }
 
-/* the detector's settings follow the arrangement: a bass needs a longer window */
+/* the detector's settings follow the arrangement: a bass needs a longer window.
+   The notes to check are made again from the synth's list (S.syn), which
+   already holds every note and chord with its real pitch. */
 function inputConfigure(){
   if (!IN.link) return;
-  IN.link.config(S.nStr === 4 ? IN.kit.PRESETS.bass : IN.kit.PRESETS.guitar);
+  const bass = S.nStr === 4, a = currentArr();
+  IN.link.config(bass ? IN.kit.PRESETS.bass : IN.kit.PRESETS.guitar);
+  for (const e of S.syn) e.n.hit = undefined;
+  IN.ver = S.syn.length ? new IN.kit.Verifier(IN.kit.buildTargets(S.syn, eventMidi, (a && +a.centOffset) || 0),
+                                              { window: bass ? 0.15 : 0.12, onResult: () => { IN.dirty = true; } })
+                        : null;
+  if (IN.ver) IN.ver.seek(chartTime());
+  IN.link.expect([]);
+  IN.dirty = true;
+}
+
+/* chart time of a moment on the audio clock. A chart second lasts 1/S.rate
+   real seconds, and what the player plays answers what they heard
+   S.inLatMs earlier (output + input latency). */
+function detChartTime(ctxTime){
+  const ago = A.ctx.currentTime - ctxTime + S.inLatMs/1000;
+  return songTime() - ago * S.rate - S.offMs/1000;
 }
 
 function inputMessage(m){
-  if (m.type !== "frame") return;
-  IN.level = Math.max(IN.level, m.rms);
-  IN.last = m;
-  if (TU.open){ TU.hist.push(m.freq); if (TU.hist.length > 5) TU.hist.shift(); }
+  if (IN.cal) calMessage(m);
+  if (m.type === "frame"){
+    IN.level = Math.max(IN.level, m.rms);
+    IN.last = m;
+    if (TU.open){ TU.hist.push(m.freq); if (TU.hist.length > 5) TU.hist.shift(); }
+  }
+  if (!IN.ver || !S.inScore || !A.playing || IN.cal) return;
+  const t = detChartTime(m.time);
+  if (m.type === "onset") IN.ver.onset(t, m.energy);
+  else IN.ver.frame(t, m.freq, m.clarity, m.freqs, m.presence);
+}
+
+/* every frame while the song plays: tell the worklet which frequencies to
+   measure, and settle the notes whose window has passed. A detection reaches
+   the page up to ~0.1 s after the moment it describes (half the analysis
+   window plus a hop), so notes are only settled after that. */
+function inputPump(){
+  if (!IN.ver || !IN.link || !S.inScore || !A.playing || IN.cal) return;
+  const now = chartTime() - S.inLatMs/1000 * S.rate;
+  IN.link.expect(IN.ver.expected(now));
+  IN.ver.update(now - (S.nStr === 4 ? 0.15 : 0.1) * S.rate);
+}
+
+function inputSeek(){
+  if (IN.ver){ IN.ver.seek(S.time - S.offMs/1000); IN.dirty = true; }
+}
+
+/* the score line in the options, and the latency the hits suggest:
+   the median distance of their attacks from the chart, once there are enough */
+function inputScorePaint(){
+  if (!IN.dirty || !inEl("cfg").classList.contains("show")) return;
+  IN.dirty = false;
+  const st = IN.ver && IN.ver.stats, n = st ? st.hit + st.miss : 0;
+  inEl("inScore").textContent = !n ? "—"
+    : st.hit + "/" + n + " · " + Math.round(100*st.hit/n) + "% · streak " + st.streak;
+  const sug = inputSuggestedLatency();
+  inEl("inSugRow").hidden = sug === null;
+  if (sug !== null) inEl("inSug").textContent = "Suggested: " + sug + " ms";
+}
+function inputSuggestedLatency(){
+  const L = IN.ver && IN.ver.stats.lag;
+  if (!L || L.length < 8) return null;
+  const m = [...L].sort((a, b) => a - b)[L.length >> 1];
+  const ms = Math.round(clamp(S.inLatMs + m / S.rate * 1000, PREFS.inLatMs[0], PREFS.inLatMs[1]));
+  return Math.abs(ms - S.inLatMs) >= 10 ? ms : null;
+}
+function inputSetLatency(ms){
+  S.inLatMs = Math.round(clamp(ms, PREFS.inLatMs[0], PREFS.inLatMs[1]));
+  inEl("fInLat").value = S.inLatMs;
+  if (IN.ver) IN.ver.stats.lag.length = 0;               // measured with the old value
+  IN.dirty = true;
+  savePrefs();
+}
+
+/* ── latency calibration ─────────────────────────────────────────────────
+   Four count-in clicks, then eight more: the player strikes a string on each
+   of the eight. The page hears each attack some time after its click - the
+   click's way out to the ears plus the guitar's way in - and the median of
+   those delays is the input latency. */
+const CAL_N = 8, CAL_IN = 4, CAL_GAP = 0.6;
+function calClick(when, down){
+  const o = A.ctx.createOscillator(), g = A.ctx.createGain();
+  o.type = "square"; o.frequency.value = down ? 1568 : 1046;
+  g.gain.setValueAtTime(0, when);
+  g.gain.linearRampToValueAtTime(0.35, when + 0.002);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + 0.055);
+  o.connect(g); g.connect(A.ctx.destination);
+  o.start(when); o.stop(when + 0.07);
+}
+async function calStart(){
+  if (IN.cal){ calEnd("Calibration stopped."); return; }
+  if (!IN.link) await inputStart();
+  if (!IN.link) return;
+  if (A.playing){ pause(); setPlayIcon(false); }
+  const t0 = A.ctx.currentTime + 0.8, clicks = [];
+  for (let i = 0; i < CAL_IN + CAL_N; i++){
+    const when = t0 + i * CAL_GAP;
+    calClick(when, i === 0 || i === CAL_IN);
+    if (i >= CAL_IN) clicks.push(when);
+  }
+  IN.cal = { clicks, onsets: [], timer: 0 };
+  IN.cal.timer = setTimeout(calFinish, (t0 + (CAL_IN + CAL_N) * CAL_GAP + 0.5 - A.ctx.currentTime) * 1000);
+  inEl("bInCal").classList.add("on"); inEl("bInCal").textContent = "Stop";
+  inputMsg("Listen to four clicks, then strike an open string on each of the next eight.");
+}
+function calMessage(m){
+  if (m.type === "onset") IN.cal.onsets.push(m.time);
+}
+function calFinish(){
+  const c = IN.cal;
+  if (!c) return;
+  // each click takes the first attack from 50 ms before it to 100 ms before the next click
+  const lags = [];
+  for (const w of c.clicks){
+    const o = c.onsets.find((t) => t > w - 0.05 && t < w + CAL_GAP - 0.1);
+    if (o !== undefined) lags.push(o - w);
+  }
+  if (lags.length < 5){
+    calEnd("Heard " + lags.length + " of " + CAL_N + " strikes, which is not enough. Turn the guitar up a little and try again.");
+    return;
+  }
+  lags.sort((a, b) => a - b);
+  const q = lags.length >> 2, spread = Math.round((lags[lags.length - 1 - q] - lags[q]) * 1000);
+  inputSetLatency(lags[lags.length >> 1] * 1000);
+  calEnd("Input latency set to " + S.inLatMs + " ms (" + lags.length + " of " + CAL_N + " strikes heard, spread " + spread + " ms).");
+}
+function calEnd(text){
+  if (IN.cal) clearTimeout(IN.cal.timer);
+  IN.cal = null;
+  inEl("bInCal").classList.remove("on"); inEl("bInCal").textContent = "Calibrate";
+  inputMsg(text);
 }
 
 function inputFillDevices(){
@@ -4606,6 +4744,7 @@ function inputPaint(dt){
   IN.peak = Math.max(IN.level, IN.peak * Math.exp(-dt/0.3));
   IN.level = 0;
   cableGlow(IN.peak);
+  inputScorePaint();
   if (!inEl("cfg").classList.contains("show")) return;
   const db = 20*Math.log10(IN.peak + 1e-9);
   const bar = inEl("inLevel");
@@ -4640,6 +4779,13 @@ inEl("fInOn").onchange = (e) => {
   if (IN.busy){ inputSync(); return; }                    // still connecting: let it finish
   if (e.target.checked) inputStart(); else inputStop();
 };
+inEl("fInScore").onchange = (e) => {
+  S.inScore = e.target.checked; savePrefs();
+  if (S.inScore) inputSeek();
+};
+inEl("fInLat").onchange = (e) => inputSetLatency(+e.target.value || 0);
+inEl("bInCal").onclick = () => calStart();
+inEl("bInSug").onclick = () => { const v = inputSuggestedLatency(); if (v !== null) inputSetLatency(v); };
 inEl("fInDev").onchange = async (e) => {
   S.inDevice = e.target.value; savePrefs();
   if (IN.link){ IN.link.close(); IN.link = null; await inputStart(); }

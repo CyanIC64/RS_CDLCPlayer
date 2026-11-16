@@ -3,7 +3,11 @@
 import { McLeodDetector } from "./mpm.js";
 
 const RMS_GATE = 0.01, MIN_CLARITY = 0.8;
-const ONSET_GATE = 1e-5;        // energia média mínima por bloco de 128 amostras
+/* O onset mede a energia da diferença entre amostras (x[n] − x[n−1]), que pesa os
+   harmónicos agudos do ataque. Com a energia simples, uma nota tocada sobre outra
+   que ainda soa alto (ou um acorde mais pequeno depois de um maior) não chegava ao
+   dobro do envelope e o ataque perdia-se. */
+const ONSET_GATE = 1e-6;        // energia média mínima (da diferença) por bloco de 128 amostras
 const ONSET_RATIO = 2.0;        // o bloco tem de ter o dobro do envelope de pico
 const ONSET_DECAY = 0.985;      // decaimento do envelope por bloco (~50 % em 120 ms)
 const ONSET_HOLD = 0.05;        // s: um onset no máximo a cada 50 ms
@@ -14,6 +18,7 @@ class PitchProcessor extends AudioWorkletProcessor {
     this.configure({ window: 2048, hop: 512, minFreq: 70, maxFreq: 1400 });
     this.freqs = new Float64Array(0);      // frequências pedidas pela página (Goertzel)
     this.env = 0;
+    this.xp = 0;
     this.lastOnset = -1;
     this.port.onmessage = (e) => {
       const m = e.data;
@@ -40,8 +45,9 @@ class PitchProcessor extends AudioWorkletProcessor {
 
     let e = 0;
     for (let i = 0; i < x.length; i++){
-      const s = x[i];
-      e += s * s;
+      const s = x[i], d = s - this.xp;
+      this.xp = s;
+      e += d * d;
       this.ring[this.pos] = s;
       this.pos = (this.pos + 1) & this.mask;
     }

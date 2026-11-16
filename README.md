@@ -42,7 +42,9 @@ server, no upload and no account.
 - Guitar input (in progress): plug in the Rocksmith Real Tone Cable, or any audio input, and
   *Options → Guitar input* shows its level and the note it hears. A cable icon in the control bar shows
   when the cable is plugged in, and **U** opens a tuner set to the open strings of the arrangement
-  (its tuning and cent offset). Scoring against the chart is planned (see `plan.md`).
+  (its tuning and cent offset). While the song plays, every note of the chart is checked against
+  what you play, with the score in the options. *Calibrate* measures the input latency from a few
+  strikes on a click; showing hits and misses on the highway is planned (see `plan.md`).
 
 ### Opening songs
 | What you drop | What happens |

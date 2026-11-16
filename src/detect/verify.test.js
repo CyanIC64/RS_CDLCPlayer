@@ -110,4 +110,68 @@ describe("Verifier", () => {
     v.seek(1.5);
     expect(v.targets.map((g) => g.result)).toEqual([false, null]);
   });
+  it("gives each onset to one target only", () => {
+    // two notes 80 ms apart, one onset between them but closer to the second
+    const v = new Verifier(buildTargets([ev(1, 45), ev(1.08, 47)], eventMidi));
+    v.onset(1.05, 1);
+    feedPitch(v, 1.0, midiToHz(45), 0.05);
+    feedPitch(v, 1.05, midiToHz(47), 0.1);
+    v.update(2);
+    expect(v.targets.map((g) => g.result)).toEqual([false, true]);
+  });
+
+  it("keeps the onset lag of hits only", () => {
+    const v = new Verifier(buildTargets([ev(1, 45), ev(2, 45)], eventMidi));
+    v.onset(1.03, 1); feedPitch(v, 1.03, A2);
+    v.onset(2.02, 1); feedPitch(v, 2.02, midiToHz(50));          // wrong note
+    v.update(3);
+    expect(v.stats.lag.map((x) => +x.toFixed(3))).toEqual([0.03]);
+  });
+
+  it("clears n.hit on seek back", () => {
+    const v = new Verifier(buildTargets([ev(1, 45)], eventMidi));
+    v.update(2);
+    expect(v.targets[0].notes[0].n.hit).toBe(false);
+    v.seek(0);
+    expect(v.targets[0].notes[0].n.hit).toBe(undefined);
+  });
+});
+
+describe("rescue", () => {
+  const A2 = midiToHz(45), D3 = midiToHz(50), A3 = midiToHz(57);
+  /* frames where the MPM still hears `heard`, with presence `p` on the target's fundamental */
+  function feedRinging(v, t0, heard, target, p){
+    const freqs = Float64Array.from([target, target * 2, target * 3]);
+    const presence = Float32Array.from([p, 0, 0]);
+    for (let t = t0; t < t0 + 0.1; t += 0.01) v.frame(t, heard, 0.9, freqs, presence);
+  }
+
+  it("accepts a note heard under a still-ringing previous note", () => {
+    const v = new Verifier(buildTargets([ev(1, 45), ev(1.5, 50)], eventMidi));
+    v.onset(1, 1); feedPitch(v, 1, A2);
+    v.onset(1.5, 1); feedRinging(v, 1.5, A2, D3, 0.4);
+    v.update(3);
+    expect(v.targets.map((g) => g.result)).toEqual([true, true]);
+  });
+  it("does not when the MPM hears a pitch the previous note does not explain", () => {
+    const v = new Verifier(buildTargets([ev(1, 45), ev(1.5, 50)], eventMidi));
+    v.onset(1, 1); feedPitch(v, 1, A2);
+    v.onset(1.5, 1); feedRinging(v, 1.5, midiToHz(51), D3, 0.9);
+    v.update(3);
+    expect(v.targets[1].result).toBe(false);
+  });
+  it("does not when the target is the octave of the ringing note", () => {
+    const v = new Verifier(buildTargets([ev(1, 45), ev(1.5, 57)], eventMidi));
+    v.onset(1, 1); feedPitch(v, 1, A2);
+    v.onset(1.5, 1); feedRinging(v, 1.5, A2, A3, 0.9);
+    v.update(3);
+    expect(v.targets[1].result).toBe(false);
+  });
+  it("needs the onset and enough presence", () => {
+    const v = new Verifier(buildTargets([ev(1, 45), ev(1.5, 50)], eventMidi));
+    v.onset(1, 1); feedPitch(v, 1, A2);
+    v.onset(1.5, 1); feedRinging(v, 1.5, A2, D3, 0.1);
+    v.update(3);
+    expect(v.targets[1].result).toBe(false);
+  });
 });

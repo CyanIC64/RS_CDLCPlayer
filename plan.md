@@ -126,14 +126,21 @@ function detChartTime(ctxTime){
 - [x] **Fase 2 — Afinador** (tecla `U`; feita e testada com uma entrada simulada; falta testar com o cabo real)
   - Overlay com nota, cents e ponteiro.
   - Os alvos são as cordas soltas do arranjo atual (`OPEN_* + tuning`, com `centOffset`), destacando a corda mais próxima.
-- [ ] **Fase 3 — Verificação de notas simples**
-  - `Verifier` com os alvos construídos a partir de `S.syn`; cada nota fica com `n.hit = true/false`.
+- [x] **Fase 3 — Verificação de notas simples** (feita e testada com a "guitarra falsa"; falta testar com o cabo real)
+  - `Verifier` com os alvos construídos a partir de `S.syn` (`inputConfigure`, também ao mudar de arranjo); cada nota fica com `n.hit = true/false`, que as fases 4 e 5 vão desenhar.
+  - Tempo: `detChartTime()` como na secção 4, com a latência multiplicada por `S.rate` (é tempo real). O `inputPump()` corre em `frame()`; as notas só fecham 0,1 s (baixo: 0,15 s) depois de a janela passar, o atraso com que as deteções chegam. Com a música em pausa ou durante a calibração, as deteções são ignoradas. Um `seek` reabre as notas seguintes e limpa o `n.hit` delas.
+  - Cada onset serve um só alvo: o mais próximo, e fica para o seguinte se estiver mais perto dele.
+  - **Onset pela energia da diferença** (`x[n] − x[n−1]`): com a energia simples, uma nota tocada sobre outra que ainda soava alto, ou um acorde menor depois de um maior, não chegava ao dobro do envelope e o ataque perdia-se. A diferença pesa os harmónicos agudos do ataque. `ONSET_GATE` passou para 1e-6.
+  - **"Rescue"** (ideia do RocksmithAudioBridge #29): para notas simples, o `expected()` pede também as frequências delas ao worklet. Se o MPM ficar preso à nota anterior ou sem pitch claro, a nota passa com presença ≥ 0,25 (soma de 3 harmónicos) em 2 frames. Guardas: um pitch MPM claro que nem a nota-alvo nem a anterior explicam cancela o rescue (a presença sozinha não separa Mi2 de Fá2), e a nota-alvo não pode ser a oitava ou a 12.ª da anterior.
   - **Calibração de latência:**
-    - assistente: tocar a corda solta em 8 cliques do metrónomo e usar a mediana do desvio;
-    - auto-ajuste: durante o jogo, sugerir a mediana de (onset − `t` do alvo) dos acertos.
-  - Prefs: `inLatMs`.
-  - **"Rescue" (ideia do RocksmithAudioBridge #29):** quando uma corda anterior ainda soa, o MPM pode prender-se a ela. Se a presença Goertzel da nota-alvo for forte, aceitar a nota mesmo sem pitch MPM certo. Guardas: não aceitar se essa presença for só a oitava ou a 12.ª de uma nota que já estava a soar.
-  - **Banco de testes "guitarra falsa":** o synth (`S.syn`) ligado a um `MediaStreamDestination` alimenta o worklet pelo mesmo caminho do cabo. Corre o gráfico com as notas certas, depois com versões desafinadas ±1 semitom e com notas em falta, e mede acertos e falsos acertos. Dá verdade conhecida sem o cabo e complementa os WAVs reais (7.10).
+    - assistente (botão *Calibrate*): 4 cliques de entrada e 8 em que se toca uma corda; a latência é a mediana de (onset − clique), com pelo menos 5 de 8 ouvidos;
+    - sugestão: com 8 ou mais acertos, a mediana de (onset − `t` do alvo) dá "Suggested: N ms" e o botão *Use it*, quando difere 10 ms ou mais.
+  - Options: *Check notes against the chart*, *Input latency (ms)* com *Calibrate*, *Score* (acertos/total, %, streak) e a sugestão.
+  - Prefs: `inScore`, `inLatMs` (−50 a 400, por omissão 60).
+  - **Testes:**
+    - `src/detect/harness.test.js` — "guitarra falsa" em Node: o processor verdadeiro com um `AudioWorkletProcessor` de imitação, cordas sintéticas e o `Verifier`. Melodia certa 16/16 com o atraso medido; ±1 traste ≤ 1/16; notas em falta falham; notas sobre uma corda a soar passam; acordes certos passam.
+    - No browser: o synth ligado ao worklet por um `MediaStreamDestination`, em vez do cabo. 16/16 certas; 0/16 com o synth meio tom acima ou abaixo; 16/16 a 50 % de velocidade (modo `el`); o caminho tem ~23 ms, que a sugestão encontrou; a calibração com toques 40 ms depois dos cliques deu 64 ms (40 + 24).
+    - Ficam como `todo` da fase 4: uma nota sozinha (G2) ainda passa por um acorde de Sol, e um G5 passa por E5, porque a 23 Hz de resolução as fundamentais graves se misturam.
 - [ ] **Fase 4 — Acordes e técnicas**
   - Acordes: presença por Goertzel nas fundamentais e harmónicos esperados. Acerto se pelo menos 60 % das cordas estiverem presentes.
   - **Veto do vizinho (RocksmithAudioBridge #29):** medir também a presença meio tom acima e abaixo (`hz·2^(±1/12)`) e recusar a nota quando um vizinho domina claramente a frequência esperada. Lá mediram razões de potência de 10× a 500× entre a nota certa e a vizinha (7,4× no Mi grave) e, numa sessão real, 493 notas um traste ao lado recusadas sem falsas recusas. O veto só atua quando a evidência é forte; silêncio ou ambiguidade caem na regra normal.
@@ -861,7 +868,7 @@ describe("bass preset", () => {
 - **`getUserMedia` a partir de `file://`:** o Chrome trata `file://` como contexto seguro, mas pode pedir permissão sempre. Verificar nos três browsers na fase 1. Em último caso, documentar `npx serve` ou o GitHub Pages para o modo de prática.
 - **Erros de oitava** com captadores de humbucker: ajustar `k` do MPM (0,85–0,95). Em notas simples, o Verifier pode aceitar ±12 semitons como "acerto parcial".
 - **Acordes graves:** com uma janela de 2048 amostras, a resolução do Goertzel é de cerca de 23 Hz, por isso Mi2 e Fá2 não se distinguem pela fundamental. Medido: um Mi2 puro dá presença de 0,95 na frequência do Fá2, e um Lá2 dá 0,90 na do Si♭2. Os harmónicos 2 e 3 ajudam. A regra de 60 % torna o sistema tolerante, como o próprio jogo.
-- **Notas rápidas** (abaixo de 60 ms entre notas): o `ONSET_HOLD` de 50 ms e a janela de ±120 ms podem atribuir um onset ao alvo errado. Na fase 3, consumir cada onset uma só vez, ao alvo mais próximo.
+- **Notas rápidas** (abaixo de 60 ms entre notas): o `ONSET_HOLD` de 50 ms e a janela de ±120 ms podem atribuir um onset ao alvo errado. Na fase 3 cada onset passou a servir um só alvo, o mais próximo.
 - **Tremolo (`tr`) e sustains longos:** na primeira versão contam só o ataque. A verificação do sustain (pitch mantido até `t + sus`) fica como extensão da fase 4.
 - **Referência externa:** o [RocksmithAudioBridge #29](https://github.com/Cheesewizard/RocksmithAudioBridge/issues/29) mediu que o detetor do próprio Rocksmith quantiza ao semitom com um erro de ±1, por isso não distingue uma nota um traste ao lado. A verificação em cents deste plano é a mesma abordagem do "Tier 0" deles, validada com guitarra real.
 - **Custo em main thread:** o `Verifier` faz trabalho O(frames na janela) por alvo, irrelevante ao lado do `draw()`.

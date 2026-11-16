@@ -8,7 +8,10 @@ export const DEFAULTS = {
   chordShare: 0.6,     // fração das notas do acorde que têm de estar presentes
   presence: 0.06,      // presença mínima (soma dos harmónicos) para contar uma nota do acorde
   harmonics: 3,        // fundamental + 2 harmónicos
+  rescue: 0.25,        // presença (soma dos harmónicos) que aceita uma nota simples sem pitch MPM certo
 };
+
+const near = (a, b) => Math.abs(1200 * Math.log2(a / b)) < 50;
 
 /**
  * Alvos a partir de S.syn: o synth já junta as notas, os acordes e os acordes
@@ -45,6 +48,7 @@ export class Verifier {
   constructor(targets, opts = {}){
     this.o = { ...DEFAULTS, ...opts };
     this.targets = targets;
+    targets.forEach((g, i) => { g.i = i; });
     this.next = 0;
     this.onsets = [];                                  // [{t, energy}]
     this.frames = [];                                  // [{t, freq, clarity, pres: Map<hz, presence>}]
@@ -59,10 +63,15 @@ export class Verifier {
     let i = 0;
     while (i < this.targets.length && this.targets[i].t < t) i++;
     this.next = i;
-    for (let k = i; k < this.targets.length; k++) this.targets[k].result = null;
+    for (let k = i; k < this.targets.length; k++){
+      const g = this.targets[k];
+      if (g.result === null) continue;
+      g.result = null;
+      for (const x of g.notes) x.n.hit = undefined;
+    }
   }
 
-  onset(t, energy){ this.onsets.push({ t, energy }); }
+  onset(t, energy){ this.onsets.push({ t, energy, used: false }); }
 
   frame(t, freq, clarity, freqs, presence){
     let pres = null;
@@ -79,7 +88,7 @@ export class Verifier {
     for (let i = this.next; i < this.targets.length; i++){
       const g = this.targets[i];
       if (g.t > now + ahead) break;
-      if (g.t < now - W || g.kind !== "chord") continue;
+      if (g.t < now - W || g.kind === "muted") continue;
       for (const x of g.notes) for (let h = 1; h <= H; h++) set.add(x.hz * h);
     }
     return [...set].sort((a, b) => a - b);
@@ -108,21 +117,38 @@ export class Verifier {
 
   judge(g){
     const { window: W, look } = this.o;
-    const onset = this.nearestOnset(g.t, W);
-    if (onset) this.stats.lag.push(onset.t - g.t);    // para o auto-ajuste da latência
-    if (g.kind === "muted") return !!onset;
+    const onset = this.nearestOnset(g, W);
+    if (g.kind === "muted"){ if (onset) this.lag(onset, g); return !!onset; }
     if (!onset && !g.legato) return false;
 
     const from = onset ? onset.t : g.t - W, to = from + look + (g.legato ? W : 0);
-    return g.kind === "chord" ? this.chordOk(g, from, to) : this.singleOk(g, from, to);
+    const ok = g.kind === "chord" ? this.chordOk(g, from, to)
+             : this.singleOk(g, from, to) || (!!onset && this.rescueOk(g, from, to));
+    if (ok && onset) this.lag(onset, g);              // só os acertos: um onset de outra nota enviesaria a média
+    return ok;
   }
 
-  nearestOnset(t, W){
+  lag(onset, g){
+    const L = this.stats.lag;
+    L.push(onset.t - g.t);
+    if (L.length > 64) L.shift();
+  }
+
+  /**
+   * O onset por usar mais próximo de g.t, dentro de ±W. Cada onset serve um só
+   * alvo: se estiver mais perto do alvo seguinte, fica para esse.
+   */
+  nearestOnset(g, W){
+    const nx = this.targets[g.i + 1];
     let best = null;
     for (const o of this.onsets){
-      const d = Math.abs(o.t - t);
-      if (d <= W && (!best || d < Math.abs(best.t - t))) best = o;
+      if (o.used) continue;
+      const d = Math.abs(o.t - g.t);
+      if (d > W || (best && d >= Math.abs(best.t - g.t))) continue;
+      if (nx && Math.abs(o.t - nx.t) < d) continue;
+      best = o;
     }
+    if (best) best.used = true;
     return best;
   }
 
@@ -135,6 +161,36 @@ export class Verifier {
       if (c >= lo && c <= hi && ++good >= this.o.minFrames) return true;
     }
     return false;
+  }
+
+  /**
+   * Uma corda anterior ainda a soar pode prender o MPM à nota antiga, ou deixá-lo
+   * sem pitch claro (duas notas juntas). Aceita-se então a nota se a presença
+   * dela for forte em `minFrames` frames. Guardas:
+   *  - se o MPM ouvir com clareza um pitch que nem a nota-alvo nem a anterior
+   *    explicam, é uma nota errada e não há rescue (com 2048 amostras o
+   *    Goertzel não separa Mi2 de Fá2, por isso a presença sozinha não chega);
+   *  - a nota-alvo não pode ser a oitava ou a 12.ª da anterior, porque essa
+   *    presença viria dos harmónicos da nota antiga.
+   */
+  rescueOk(g, from, to){
+    const { harmonics: H, rescue, minFrames } = this.o, hz = g.notes[0].hz;
+    const prev = g.i > 0 ? this.targets[g.i - 1] : null;
+    if (!prev || g.t - prev.t > 2) return false;
+    const ringing = prev.notes.map((x) => x.hz);
+    if (ringing.some((r) => near(hz, r) || near(hz, r * 2) || near(hz, r * 3))) return false;
+    const explained = (f) => near(f, hz) || near(f, hz * 2) || near(f, hz / 2)
+      || ringing.some((r) => near(f, r) || near(f, r * 2) || near(f, r / 2));
+    let good = 0;
+    for (const f of this.frames){
+      if (f.t < from || f.t > to) continue;
+      if (f.freq && !explained(f.freq)) return false;
+      if (!f.pres) continue;
+      let sum = 0;
+      for (let h = 1; h <= H; h++) sum += f.pres.get(hz * h) || 0;
+      if (sum >= rescue) good++;
+    }
+    return good >= minFrames;
   }
 
   chordOk(g, from, to){
