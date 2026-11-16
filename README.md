@@ -39,6 +39,9 @@ server, no upload and no account.
 - Tone changes marked on the seek bar, with the current tone shown in the corner.
 - Stem picker for `.feedpak` files that carry separated stems.
 - Note-sync offset in 1 ms and 10 ms steps.
+- Guitar input (in progress): plug in the Rocksmith Real Tone Cable, or any audio input, and
+  *Options → Guitar input* shows its level and the note it hears. Scoring against the chart is planned
+  (see `plan.md`).
 
 ### Opening songs
 | What you drop | What happens |
@@ -83,6 +86,7 @@ branch and folder to publish.
 | `T` | Tab view |
 | `C` | Metronome on / off |
 | `N` | Note synth on / off |
+| `G` | Guitar input on / off |
 | `M` | Mute |
 | `O` | Options |
 | `,` / `.` | Note offset −1 / +1 ms |
@@ -96,6 +100,7 @@ index.html                  the whole player: highway, tab view, audio, controls
 web/converter.worker.js     the converter, started as a Web Worker
 web/converter.js            the same converter for the page itself (used when a Worker cannot start)
 web/ww2ogg.bundle.js        audio converter (.wem to Ogg Vorbis) for the in-page converter
+web/pitch.js                guitar input: pitch detection in an AudioWorklet (window.PitchKit)
 ```
 
 The scripts in `web/` are built from the converter sources (`src/` in the development tree)

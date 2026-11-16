@@ -97,7 +97,7 @@ function detChartTime(ctxTime){
   - **Ler o `centOffset`** do arranjo: em `song.js` a partir do XML e em `sng.js`/`convert.js` a partir do manifest. Passa a `arr.centOffset`, usado em `hzOf()`.
   - Confirmar a unidade de `bn` com um XML conhecido. O desenho trata-a como meios-tons ("one chevron per half step").
   - README: retirar o "A" solto na linha 7 e completar a lista "V1.1 adds", que termina em ";".
-- [ ] **Fase 1 — Captura**
+- [x] **Fase 1 — Captura** (feita e testada em localhost com uma entrada simulada; falta testar com o cabo real e a partir de `file://`)
   - Secção "Guitar input" nas Options: escolher o dispositivo (pré-seleciona "Rocksmith"), botão de ligar, medidor de nível.
   - Worklet carregado a partir do Blob.
   - Prefs: `inDevice`, `inOn`.

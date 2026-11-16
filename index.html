@@ -249,6 +249,10 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 #cfg button{background:#171b20;border:1px solid #2b3138;color:#dfe7ef;border-radius:3px;
   padding:3px 10px;font:inherit;cursor:pointer}
 #cfg button:hover{border-color:#4a5560}
+#fInDev{max-width:170px}
+#cfg .inmeter{display:block;width:120px;height:6px;background:#171b20;border:1px solid #2b3138;border-radius:3px;overflow:hidden}
+#cfg .inmeter i{display:block;height:100%;width:0;background:#3fbf6f;transition:width 60ms linear}
+#cfg .inmeter i.hot{background:#e0453f}
 
 /* narrow windows: drop the least important controls instead of clipping them */
 @media (max-width:1180px){ #stats{display:none} }
@@ -431,6 +435,13 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
       <option value="0.5">50%</option><option value="0.35">35% (fastest)</option></select></div>
   <div class="row"><label for="fFx">Visual effects (glow)</label><input id="fFx" type="checkbox" checked></div>
   <div class="row"><label for="fAuto" title="Lowers the picture's resolution while the frame rate is low, and restores it when there is room">Auto resolution<span class="rv" id="rvAuto"></span></label><input id="fAuto" type="checkbox"></div>
+
+  <h4>Guitar input</h4>
+  <div class="row"><label for="fInOn" title="Listen to the guitar through the Rocksmith Real Tone Cable or another audio input">Listen to the guitar (G)</label><input id="fInOn" type="checkbox"></div>
+  <div class="row"><label for="fInDev">Input</label><select id="fInDev"><option value="">switch on to list inputs</option></select></div>
+  <div class="row"><label>Level</label><span class="inmeter"><i id="inLevel"></i></span></div>
+  <div class="row"><label>Hearing</label><span class="rv" id="inNote">—</span></div>
+  <div class="hint" id="inMsg">Plug in the Real Tone Cable, then switch on. The browser asks once for the microphone; the sound stays on this computer.</div>
 
   <h4>Sync</h4>
   <div class="row"><label for="fOffset">Note offset</label>
@@ -836,6 +847,7 @@ const S = {
   speed:2.0, zoom:1.0, showCells:true, showNums:true, showLabels:true, autoPan:true,
   showFingers:true, invert:false, lefty:false, tabView:false, showChord:true, showDiagram:true, showHit:true, camRate:0.5, holds:[], hits:[],
   lyrics:[], lyrPairs:[], showLyrics:true,
+  inOn:false, inDevice:"",                        // guitar input: switched on last time, and which input
   camC:null, camS:4, camCv:0, camSv:0,
   fx:true, rscale:1, autoScale:false, dynScale:1, tones:{base:"", changes:[], names:{}},
   fps:0, bpm:0, loopA:0, loopB:0,
@@ -856,7 +868,8 @@ function updGeom(){
 /* ── settings ──────────────────────────────────────────────────────────────── */
 const PREFS = { speed:[0.6, 2], zoom:[0.55, 3], camRate:[0.3, 2.5], master:[0, 1], clickLevel:[0, 1], synthLevel:[0, 1],
                 rscale:[0.2, 1], autoScale:0, showCells:0, showNums:0, showLabels:0, showLyrics:0, autoPan:0,
-                showFingers:0, invert:0, lefty:0, tabView:0, showChord:0, showDiagram:0, showHit:0, clickOn:0, synthOn:0, muted:0, fx:0 };
+                showFingers:0, invert:0, lefty:0, tabView:0, showChord:0, showDiagram:0, showHit:0, clickOn:0, synthOn:0, muted:0, fx:0,
+                inOn:0, inDevice:0 };
 /* Kept in this browser (localStorage): the page has one address here, so the
    browser's own storage is the right place, and nothing about a visitor is
    stored on the server. */
@@ -1804,6 +1817,7 @@ function selectArrangement(i){
 
   buildHolds(tpl);
   buildSynth(a);
+  inputConfigure();
   clearLoopBars();
   buildPhrases();
   if (!S.keepCam) S.camC = null;                  // a new chart cuts the camera, unless it should glide over
@@ -2110,6 +2124,7 @@ function showHint(on){
 async function boot(){
   busy("Starting…");
   await loadPrefs();
+  inputRestore();
   restChart(); resize(); startFrames();           // the empty highway is up straight away
 
   /* Is a Play Song server behind this page? If not, the page is on its own:
@@ -4181,6 +4196,7 @@ function frame(now){
       + (S.autoScale && S.dynScale < 0.999 ? " · " + Math.round(S.dynScale*100) + "%" : "");
     fpsAcc = 0; fpsN = 0; fpsT = now;
   }
+  inputPaint(dt);
   requestAnimationFrame(frame);
 }
 
@@ -4278,6 +4294,150 @@ document.getElementById("bClick").onclick = () => {
   document.getElementById("fScale").onchange = (e) => { S.rscale = +e.target.value || 1; resize(); savePrefs(); };
 }
 
+/* ── guitar input ────────────────────────────────────────────────────────────
+   The guitar - through the Rocksmith Real Tone Cable, or any other audio
+   input - is listened to by web/pitch.js: an AudioWorklet in the song's own
+   AudioContext, so what it hears is timed on the same clock as the song. The
+   script is only loaded when the input is first switched on. */
+const IN = { kit:null, link:null, busy:false, devices:[], level:0, peak:0, last:null, note:"" };
+const inEl = (id) => document.getElementById(id);
+function inputMsg(text){ inEl("inMsg").textContent = text; }
+
+async function inputStart(){
+  if (IN.busy || IN.link) return;
+  IN.busy = true; inputSync();
+  inputMsg("Connecting…");
+  try {
+    audioInit();
+    if (A.ctx.state === "suspended") A.ctx.resume();
+    if (!window.PitchKit) await loadScript("web/pitch.js");
+    IN.kit = window.PitchKit;
+    IN.devices = await IN.kit.listInputs();
+    const dev = IN.devices.find(d => d.deviceId === S.inDevice) || IN.kit.findCable(IN.devices) || IN.devices[0];
+    if (!dev) throw new Error("no audio input was found");
+    S.inDevice = dev.deviceId;
+    inputFillDevices();
+    IN.link = await IN.kit.connect(A.ctx, S.inDevice, inputMessage);
+    const track = IN.link.stream.getAudioTracks()[0];
+    if (track) track.onended = () => inputLost();          // unplugged
+    inputConfigure();
+    S.inOn = true; savePrefs();
+    inputMsg("Listening to " + (dev.label || "the audio input") + ".");
+  } catch (e) {
+    if (IN.link){ IN.link.close(); IN.link = null; }
+    S.inOn = false; savePrefs();
+    inputMsg(e && e.name === "NotAllowedError"
+      ? "The browser did not allow the microphone. Allow it for this page, then switch on again."
+      : "Could not open the input: " + ((e && e.message) || e));
+  } finally {
+    IN.busy = false; inputSync();
+  }
+}
+
+function inputStop(){
+  if (IN.link) IN.link.close();
+  IN.link = null; IN.last = null; IN.level = 0; IN.peak = 0;
+  S.inOn = false; savePrefs();
+  inputSync();
+  inputMsg("Switched off.");
+}
+
+/* the input went away (cable unplugged): stop, but keep S.inOn so that it
+   comes back by itself when the cable is plugged in again */
+function inputLost(){
+  if (!IN.link) return;
+  IN.link.close(); IN.link = null; IN.last = null; IN.peak = 0;
+  inputSync();
+  inputMsg("The input was unplugged. It comes back when it is plugged in again.");
+}
+
+/* the detector's settings follow the arrangement: a bass needs a longer window */
+function inputConfigure(){
+  if (!IN.link) return;
+  IN.link.config(S.nStr === 4 ? IN.kit.PRESETS.bass : IN.kit.PRESETS.guitar);
+}
+
+function inputMessage(m){
+  if (m.type !== "frame") return;
+  IN.level = Math.max(IN.level, m.rms);
+  IN.last = m;
+}
+
+function inputFillDevices(){
+  const sel = inEl("fInDev");
+  sel.textContent = "";
+  for (const d of IN.devices){
+    const o = document.createElement("option");
+    o.value = d.deviceId;
+    o.textContent = d.label || ("Input " + (sel.options.length + 1));
+    sel.appendChild(o);
+  }
+  if (!IN.devices.length){
+    const o = document.createElement("option"); o.value = ""; o.textContent = "no input found"; sel.appendChild(o);
+  }
+  sel.value = S.inDevice;
+}
+
+function inputSync(){
+  inEl("fInOn").checked = !!IN.link || IN.busy;
+  inEl("fInDev").disabled = IN.busy;
+  if (!IN.link){ inEl("inLevel").style.width = "0"; inEl("inNote").textContent = "—"; IN.note = ""; }
+}
+
+/* the level meter and the note heard, painted from frame() while the options are open */
+function inputPaint(dt){
+  if (!IN.link) return;
+  IN.peak = Math.max(IN.level, IN.peak * Math.exp(-dt/0.3));
+  IN.level = 0;
+  if (!inEl("cfg").classList.contains("show")) return;
+  const db = 20*Math.log10(IN.peak + 1e-9);
+  const bar = inEl("inLevel");
+  bar.style.width = (clamp((db + 60)/60, 0, 1)*100).toFixed(1) + "%";       // -60 dBFS .. 0
+  bar.classList.toggle("hot", IN.peak > 0.7);
+  const m = IN.last, a = currentArr();
+  let txt = "—";
+  if (m && m.freq > 0){
+    const n = IN.kit.freqToNote(m.freq, (a && a.centOffset) || 0);
+    const c = Math.round(n.cents);
+    txt = n.name + n.octave + "  " + (c > 0 ? "+" : "") + c + "¢  ·  " + m.freq.toFixed(1) + " Hz";
+  }
+  if (txt !== IN.note){ IN.note = txt; inEl("inNote").textContent = txt; }
+}
+
+/* switched on last time: come back on at the first click or key press (the
+   browser will not run audio before one) - but not on G, which switches it itself */
+function inputRestore(){
+  if (!S.inOn) return;
+  inputMsg("The guitar input comes back on at the first click or key press.");
+  const once = (e) => {
+    if (e.type === "keydown" && (e.key === "g" || e.key === "G")) return;
+    window.removeEventListener("pointerdown", once, true);
+    window.removeEventListener("keydown", once, true);
+    inputStart();
+  };
+  window.addEventListener("pointerdown", once, true);
+  window.addEventListener("keydown", once, true);
+}
+
+inEl("fInOn").onchange = (e) => {
+  if (IN.busy){ inputSync(); return; }                    // still connecting: let it finish
+  if (e.target.checked) inputStart(); else inputStop();
+};
+inEl("fInDev").onchange = async (e) => {
+  S.inDevice = e.target.value; savePrefs();
+  if (IN.link){ IN.link.close(); IN.link = null; await inputStart(); }
+};
+if (navigator.mediaDevices && navigator.mediaDevices.addEventListener){
+  navigator.mediaDevices.addEventListener("devicechange", async () => {
+    if (!IN.kit) return;                                   // never switched on: nothing to update
+    IN.devices = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "audioinput");
+    inputFillDevices();
+    const here = IN.devices.some(d => d.deviceId === S.inDevice) || !!IN.kit.findCable(IN.devices);
+    if (IN.link && !IN.devices.some(d => d.deviceId === S.inDevice)) inputLost();
+    else if (!IN.link && S.inOn && !IN.busy && here) inputStart();      // plugged back in
+  });
+}
+
 /* ── sync offset ─────────────────────────────────────────────────────────── */
 document.getElementById("fOffset").onchange = (e) =>
   applyOffset(clamp(Math.round(+e.target.value || 0), -60000, 60000));
@@ -4304,6 +4464,7 @@ window.addEventListener("keydown", (e) => {
   else if (k === "c" || k === "C"){ document.getElementById("bClick").click(); }
   else if (k === "n" || k === "N"){ document.getElementById("bSynth").click(); }
   else if (k === "t" || k === "T"){ document.getElementById("bTab").click(); }
+  else if (k === "g" || k === "G"){ document.getElementById("fInOn").click(); }
   else if (k === "ArrowLeft"){ seek(S.time - (e.shiftKey ? 5 : 1)); }
   else if (k === "ArrowRight"){ seek(S.time + (e.shiftKey ? 5 : 1)); }
   else if (k === "["){ const s = sectionAt(S.time - 0.25); seek(s ? (s.start > S.time - 0.6 ? (sectionAt(s.start - 0.1) || s).start : s.start) : 0); }
