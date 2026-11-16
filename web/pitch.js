@@ -148,37 +148,51 @@ var PitchKit = (() => {
      * chegaram todas as deteções (chartTime() - inLat - atraso do detetor).
      */
     update(settled) {
-      const W = this.o.window;
-      while (this.next < this.targets.length && this.targets[this.next].t + W < settled) {
-        const g = this.targets[this.next++];
-        g.result = this.judge(g);
-        const s = this.stats;
-        if (g.result) {
-          s.hit++;
-          s.streak++;
-          s.best = Math.max(s.best, s.streak);
-        } else {
-          s.miss++;
-          s.streak = 0;
-        }
-        for (const x of g.notes) x.n.hit = g.result;
-        this.onResult(g);
+      const W = this.o.window, T = this.targets;
+      while (this.next < T.length && T[this.next].t + W < settled) this.resolve(T[this.next++], this.judge(T[this.next - 1]));
+      while (this.next < T.length && T[this.next].t - W <= settled) {
+        const g = T[this.next];
+        if (this.judge(g, true) !== true) break;
+        this.next++;
+        this.resolve(g, true);
       }
       const keep = settled - 2 * W - this.o.look;
       while (this.onsets.length && this.onsets[0].t < keep) this.onsets.shift();
       while (this.frames.length && this.frames[0].t < keep) this.frames.shift();
     }
-    judge(g) {
+    resolve(g, ok) {
+      g.result = ok;
+      const s = this.stats;
+      if (ok) {
+        s.hit++;
+        s.streak++;
+        s.best = Math.max(s.best, s.streak);
+      } else {
+        s.miss++;
+        s.streak = 0;
+      }
+      for (const x of g.notes) x.n.hit = ok;
+      this.onResult(g);
+    }
+    /**
+     * true/false. Com `early`, é uma tentativa antes do fim da janela: devolve null
+     * em vez de false e não gasta o onset, porque a prova ainda pode chegar.
+     */
+    judge(g, early = false) {
       const { window: W, look } = this.o;
       const onset = this.nearestOnset(g, W);
-      if (g.kind === "muted") {
-        if (onset) this.lag(onset, g);
-        return !!onset;
+      let ok;
+      if (g.kind === "muted") ok = !!onset;
+      else if (!onset && !g.legato) ok = false;
+      else {
+        const from = onset ? onset.t : g.t - W, to = from + look + (g.legato ? W : 0);
+        ok = g.kind === "chord" ? this.chordOk(g, from, to) : this.singleOk(g, from, to) || !!onset && this.rescueOk(g, from, to);
       }
-      if (!onset && !g.legato) return false;
-      const from = onset ? onset.t : g.t - W, to = from + look + (g.legato ? W : 0);
-      const ok = g.kind === "chord" ? this.chordOk(g, from, to) : this.singleOk(g, from, to) || !!onset && this.rescueOk(g, from, to);
-      if (ok && onset) this.lag(onset, g);
+      if (early && !ok) return null;
+      if (onset) {
+        onset.used = true;
+        if (ok) this.lag(onset, g);
+      }
       return ok;
     }
     lag(onset, g) {
@@ -200,7 +214,6 @@ var PitchKit = (() => {
         if (nx && Math.abs(o.t - nx.t) < d) continue;
         best = o;
       }
-      if (best) best.used = true;
       return best;
     }
     singleOk(g, from, to) {

@@ -97,6 +97,25 @@ describe("Verifier", () => {
     }
   });
 
+  it("counts a hit as soon as it is proven, before the window ends", () => {
+    const v = new Verifier(buildTargets([ev(1, 45)], eventMidi));
+    v.onset(1.01, 1); feedPitch(v, 1.01, A2, 0.03);
+    v.update(1.05);
+    expect(v.targets[0].result).toBe(true);
+    expect(v.stats.hit).toBe(1);
+  });
+
+  it("waits for the window to end before a miss, and keeps the onset meanwhile", () => {
+    const v = new Verifier(buildTargets([ev(1, 45)], eventMidi));
+    v.onset(1.01, 1);
+    v.update(1.05);
+    expect(v.targets[0].result).toBe(null);
+    expect(v.onsets[0].used).toBe(false);
+    feedPitch(v, 1.06, A2, 0.03);
+    v.update(1.1);
+    expect(v.targets[0].result).toBe(true);
+  });
+
   it("does not resolve a target before its window has passed", () => {
     const v = new Verifier(buildTargets([ev(1, 45)], eventMidi));
     v.update(1.1);

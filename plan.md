@@ -138,6 +138,10 @@ function detChartTime(ctxTime){
     - assistente (botão *Calibrate*): 4 cliques de entrada e 8 em que se toca uma corda; a latência é a mediana de (onset − clique), com pelo menos 5 de 8 ouvidos;
     - sugestão: com 8 ou mais acertos, a mediana de (onset − `t` do alvo) dá "Suggested: N ms" e o botão *Use it*, quando difere 10 ms ou mais.
   - Options: *Check notes against the chart*, *Input latency (ms)* com *Calibrate*, *Score* (acertos/total, %, streak) e a sugestão.
+  - **Feedback no ecrã (3b, pedido antes da fase 4):**
+    - HUD *NOTES HIT*: notas e acordes acertados / total do arranjo, e por baixo "% of N played" e o streak. Conta a passagem atual pela música (um salto para trás reabre as notas seguintes). Pisca verde num acerto e vermelho numa falha.
+    - Luz de *note hit* (debaixo das barras): anel verde num acerto, vermelho numa falha.
+    - Acerto antecipado: o `Verifier` tenta o alvo seguinte assim que a janela abre e conta o acerto logo que está provado (onset + 2 frames certos), sem esperar pelo fim da janela; a tentativa não gasta o onset se falhar. Com a guitarra falsa, o ✓ chega 60–80 ms depois do momento da nota; a falha, ~250 ms depois (fim da janela + margem).
   - Prefs: `inScore`, `inLatMs` (−50 a 400, por omissão 60).
   - **Testes:**
     - `src/detect/harness.test.js` — "guitarra falsa" em Node: o processor verdadeiro com um `AudioWorkletProcessor` de imitação, cordas sintéticas e o `Verifier`. Melodia certa 16/16 com o atraso medido; ±1 traste ≤ 1/16; notas em falta falham; notas sobre uma corda a soar passam; acordes certos passam.

@@ -117,6 +117,11 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 /* tone read-out: the tone's display name, with its raw key under it.
    It lights up at a tone switch and settles back. */
 #hudToneRow{opacity:.55;transition:opacity 1.6s}
+/* guitar input: notes hit out of the notes in the song; the number blinks
+   green on a hit and red on a miss */
+#hud #hudHit{transition:color .5s}
+#hud #hudHit.hit{color:#5dff9a;transition:none}
+#hud #hudHit.miss{color:#ff5a4f;transition:none}
 #hudToneRow.flash{opacity:1;transition:opacity .12s}
 #hud .v.tone{text-transform:none;white-space:normal;font-size:clamp(12px,2.4vh,26px);margin-bottom:.08em}
 #hud .raw{font:600 clamp(9px,1.45vh,14px)/1.2 "Cascadia Mono",Consolas,monospace;color:#8fa6ba;
@@ -325,6 +330,8 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
     <div id="hudSecRow"><div class="k">SECTION</div><div class="v" id="hudSec">—</div></div>
     <div id="hudToneRow" style="display:none"><div class="k" id="hudToneK">TONE</div>
       <div class="v tone" id="hudTone"></div><div class="raw" id="hudRaw"></div></div>
+    <div id="hudHitRow" style="display:none"><div class="k">NOTES HIT</div><div class="v" id="hudHit">0 / 0</div>
+      <div class="raw" id="hudHitSub"></div></div>
     <div class="k">NOTE SPEED</div><div class="v" id="hudSpd">100%</div>
   </div>
   <div id="hint" class="hide">
@@ -2872,6 +2879,14 @@ function drawHitLight(t){
   const cx = (BARS.x0 + BARS.x1)/2, cy = BARS.top + BARS.h + Math.max(2, Math.round(BARS.h*0.055))*2 + r*2.1;
   const k = hitFlash(t);
   if (k > 0) glow("#49e9ff", cx, cy, r*4.5, r*4.5, 0.95*k);
+  /* with the guitar input on: a green ring for a note hit, red for a miss */
+  const f = IN.flash, fk = f ? 1 - (performance.now() - f.at)/450 : 0;
+  if (fk > 0){
+    const col = f.ok ? "#4dff8f" : "#ff4d42";
+    glow(col, cx, cy, r*5.5, r*5.5, 0.9*fk);
+    ctx.beginPath(); ctx.arc(cx, cy, r*(1.9 - 0.5*fk), 0, Math.PI*2);
+    ctx.globalAlpha = fk; ctx.lineWidth = Math.max(2, r*0.35); ctx.strokeStyle = col; ctx.stroke(); ctx.globalAlpha = 1;
+  }
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
   ctx.fillStyle = "#0a0d11"; ctx.fill();
   if (k > 0){ ctx.globalAlpha = k; ctx.fillStyle = "#e6fdff"; ctx.fill(); ctx.globalAlpha = 1; }
@@ -4381,7 +4396,7 @@ document.getElementById("bClick").onclick = () => {
    AudioContext, so what it hears is timed on the same clock as the song. The
    script is only loaded when the input is first switched on. */
 const IN = { kit:null, link:null, busy:false, devices:[], level:0, peak:0, last:null, note:"",
-             ver:null, dirty:true, cal:null };
+             ver:null, dirty:true, cal:null, flash:null, flashTimer:0, hud:"" };
 const inEl = (id) => document.getElementById(id);
 function inputMsg(text){ inEl("inMsg").textContent = text; }
 
@@ -4446,7 +4461,7 @@ function inputConfigure(){
   IN.link.config(bass ? IN.kit.PRESETS.bass : IN.kit.PRESETS.guitar);
   for (const e of S.syn) e.n.hit = undefined;
   IN.ver = S.syn.length ? new IN.kit.Verifier(IN.kit.buildTargets(S.syn, eventMidi, (a && +a.centOffset) || 0),
-                                              { window: bass ? 0.15 : 0.12, onResult: () => { IN.dirty = true; } })
+                                              { window: bass ? 0.15 : 0.12, onResult: inputResult })
                         : null;
   if (IN.ver) IN.ver.seek(chartTime());
   IN.link.expect([]);
@@ -4485,6 +4500,18 @@ function inputPump(){
   IN.ver.update(now - (S.nStr === 4 ? 0.15 : 0.1) * S.rate);
 }
 
+/* a note or chord was just judged: blink the counter and the hit light */
+function inputResult(g){
+  IN.dirty = true;
+  IN.flash = { ok: g.result, at: performance.now() };
+  const el = inEl("hudHit");
+  el.classList.remove("hit", "miss");
+  void el.offsetWidth;                                     // restart the fade
+  el.classList.add(g.result ? "hit" : "miss");
+  clearTimeout(IN.flashTimer);
+  IN.flashTimer = setTimeout(() => el.classList.remove("hit", "miss"), 120);
+}
+
 function inputSeek(){
   if (IN.ver){ IN.ver.seek(S.time - S.offMs/1000); IN.dirty = true; }
 }
@@ -4492,6 +4519,7 @@ function inputSeek(){
 /* the score line in the options, and the latency the hits suggest:
    the median distance of their attacks from the chart, once there are enough */
 function inputScorePaint(){
+  inputHudPaint();
   if (!IN.dirty || !inEl("cfg").classList.contains("show")) return;
   IN.dirty = false;
   const st = IN.ver && IN.ver.stats, n = st ? st.hit + st.miss : 0;
@@ -4500,6 +4528,24 @@ function inputScorePaint(){
   const sug = inputSuggestedLatency();
   inEl("inSugRow").hidden = sug === null;
   if (sug !== null) inEl("inSug").textContent = "Suggested: " + sug + " ms";
+}
+/* the HUD: notes and chords hit, out of all in the arrangement, counted over the
+   current run through the song (a jump back clears the ones after it) */
+function inputHudPaint(){
+  const on = !!(IN.link && IN.ver && S.inScore);
+  let txt = "";
+  if (on){
+    let hit = 0, done = 0;
+    const T = IN.ver.targets;
+    for (const g of T) if (g.result !== null){ done++; if (g.result) hit++; }
+    const st = IN.ver.stats;
+    txt = hit + " / " + T.length + "|" + (done ? Math.round(100*hit/done) + "% of " + done + " played" : "")
+        + (st.streak > 1 ? " · streak " + st.streak : "");
+  }
+  if (txt === IN.hud) return;
+  IN.hud = txt;
+  inEl("hudHitRow").style.display = on ? "" : "none";
+  if (on){ const [a, b] = txt.split("|"); inEl("hudHit").textContent = a; inEl("hudHitSub").textContent = b; }
 }
 function inputSuggestedLatency(){
   const L = IN.ver && IN.ver.stats.lag;
@@ -4594,6 +4640,7 @@ function inputSync(){
   inEl("fInOn").checked = !!IN.link || IN.busy;
   inEl("fInDev").disabled = IN.busy;
   if (!IN.link){ inEl("inLevel").style.width = "0"; inEl("inNote").textContent = "—"; IN.note = ""; }
+  inputHudPaint();
   cableIcon();
 }
 

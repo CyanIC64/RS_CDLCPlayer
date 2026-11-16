@@ -99,15 +99,16 @@ export class Verifier {
    * chegaram todas as deteções (chartTime() - inLat - atraso do detetor).
    */
   update(settled){
-    const W = this.o.window;
-    while (this.next < this.targets.length && this.targets[this.next].t + W < settled){
-      const g = this.targets[this.next++];
-      g.result = this.judge(g);
-      const s = this.stats;
-      if (g.result){ s.hit++; s.streak++; s.best = Math.max(s.best, s.streak); }
-      else { s.miss++; s.streak = 0; }
-      for (const x of g.notes) x.n.hit = g.result;    // o draw() e a tab view leem n.hit
-      this.onResult(g);
+    const W = this.o.window, T = this.targets;
+    // alvos cuja janela já passou: acerto ou falha
+    while (this.next < T.length && T[this.next].t + W < settled) this.resolve(T[this.next++], this.judge(T[this.next - 1]));
+    // o alvo seguinte, com a janela já aberta: um acerto conta logo que está provado,
+    // sem esperar pelo fim da janela (é o que dá feedback no momento da nota)
+    while (this.next < T.length && T[this.next].t - W <= settled){
+      const g = T[this.next];
+      if (this.judge(g, true) !== true) break;
+      this.next++;
+      this.resolve(g, true);
     }
     // descartar deteções que já não podem servir a nenhum alvo
     const keep = settled - 2 * W - this.o.look;
@@ -115,16 +116,35 @@ export class Verifier {
     while (this.frames.length && this.frames[0].t < keep) this.frames.shift();
   }
 
-  judge(g){
+  resolve(g, ok){
+    g.result = ok;
+    const s = this.stats;
+    if (ok){ s.hit++; s.streak++; s.best = Math.max(s.best, s.streak); }
+    else { s.miss++; s.streak = 0; }
+    for (const x of g.notes) x.n.hit = ok;            // o draw() e a tab view leem n.hit
+    this.onResult(g);
+  }
+
+  /**
+   * true/false. Com `early`, é uma tentativa antes do fim da janela: devolve null
+   * em vez de false e não gasta o onset, porque a prova ainda pode chegar.
+   */
+  judge(g, early = false){
     const { window: W, look } = this.o;
     const onset = this.nearestOnset(g, W);
-    if (g.kind === "muted"){ if (onset) this.lag(onset, g); return !!onset; }
-    if (!onset && !g.legato) return false;
-
-    const from = onset ? onset.t : g.t - W, to = from + look + (g.legato ? W : 0);
-    const ok = g.kind === "chord" ? this.chordOk(g, from, to)
-             : this.singleOk(g, from, to) || (!!onset && this.rescueOk(g, from, to));
-    if (ok && onset) this.lag(onset, g);              // só os acertos: um onset de outra nota enviesaria a média
+    let ok;
+    if (g.kind === "muted") ok = !!onset;
+    else if (!onset && !g.legato) ok = false;
+    else {
+      const from = onset ? onset.t : g.t - W, to = from + look + (g.legato ? W : 0);
+      ok = g.kind === "chord" ? this.chordOk(g, from, to)
+         : this.singleOk(g, from, to) || (!!onset && this.rescueOk(g, from, to));
+    }
+    if (early && !ok) return null;
+    if (onset){
+      onset.used = true;
+      if (ok) this.lag(onset, g);                     // só os acertos: um onset de outra nota enviesaria a média
+    }
     return ok;
   }
 
@@ -148,7 +168,6 @@ export class Verifier {
       if (nx && Math.abs(o.t - nx.t) < d) continue;
       best = o;
     }
-    if (best) best.used = true;
     return best;
   }
 
