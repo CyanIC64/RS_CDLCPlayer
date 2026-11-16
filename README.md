@@ -40,8 +40,9 @@ server, no upload and no account.
 - Stem picker for `.feedpak` files that carry separated stems.
 - Note-sync offset in 1 ms and 10 ms steps.
 - Guitar input (in progress): plug in the Rocksmith Real Tone Cable, or any audio input, and
-  *Options → Guitar input* shows its level and the note it hears. Scoring against the chart is planned
-  (see `plan.md`).
+  *Options → Guitar input* shows its level and the note it hears. A cable icon in the control bar shows
+  when the cable is plugged in, and **U** opens a tuner set to the open strings of the arrangement
+  (its tuning and cent offset). Scoring against the chart is planned (see `plan.md`).
 
 ### Opening songs
 | What you drop | What happens |
@@ -87,6 +88,7 @@ branch and folder to publish.
 | `C` | Metronome on / off |
 | `N` | Note synth on / off |
 | `G` | Guitar input on / off |
+| `U` | Tuner (`Esc` closes it) |
 | `M` | Mute |
 | `O` | Options |
 | `,` / `.` | Note offset −1 / +1 ms |

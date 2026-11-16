@@ -199,6 +199,41 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 #bCable .cq{display:none;position:absolute;right:3px;top:2px;font:700 9px "Segoe UI",system-ui,sans-serif;
   font-style:normal;color:#c3cdd7}
 #bCable.unk .cq{display:block}
+
+/* the tuner (U) */
+#tuner{position:fixed;left:50%;top:12%;transform:translateX(-50%);width:min(440px,calc(100vw - 32px));
+  background:#101317f2;border:1px solid #2b3138;border-radius:8px;box-shadow:0 12px 32px #000a;
+  padding:12px 18px 14px;display:none;z-index:35;text-align:center}
+#tuner.show{display:block}
+#tuner .tuhead{display:flex;justify-content:space-between;align-items:center;gap:10px;color:var(--dim);
+  font-size:11px;letter-spacing:.09em;text-transform:uppercase}
+#tuTun{text-transform:none;letter-spacing:0;color:#c3cdd7;font-size:12px}
+#tuClose{background:none;border:0;color:var(--dim);font-size:20px;line-height:1;cursor:pointer;padding:0 2px}
+#tuClose:hover{color:var(--ink)}
+#tuner .tunote{margin:8px 0 2px;display:flex;align-items:baseline;justify-content:center;gap:12px}
+#tuNote{font:700 54px/1 "Segoe UI",system-ui,sans-serif;color:var(--ink);min-width:2.2ch}
+#tuNote sub{font-size:20px;color:var(--dim);vertical-align:baseline;margin-left:2px}
+#tuCents{font:600 15px "Cascadia Mono",Consolas,monospace;color:var(--dim);min-width:6ch;text-align:left}
+#tuner.ok #tuNote,#tuner.ok #tuCents{color:#3fbf6f}
+#tuner.far #tuCents{color:#e0a43f}
+#tuner .tuscale{position:relative;height:30px;margin:10px 4px 3px;border-bottom:1px solid #2b3138}
+#tuner .tuok{position:absolute;left:45%;width:10%;top:0;bottom:0;background:#3fbf6f1f;
+  border-left:1px solid #3fbf6f55;border-right:1px solid #3fbf6f55}
+#tuner .tumid{position:absolute;left:50%;top:0;bottom:0;width:1px;background:#4a5560}
+#tuNeedle{position:absolute;left:50%;top:-3px;bottom:-3px;width:3px;margin-left:-1.5px;border-radius:2px;
+  background:#e6edf3;opacity:0}
+#tuner.ok #tuNeedle{background:#3fbf6f}
+#tuner.far #tuNeedle{background:#e0a43f}
+#tuner .tulabels{display:flex;justify-content:space-between;color:#6f7c89;font:10px "Cascadia Mono",Consolas,monospace;
+  margin:0 0 12px}
+#tuner .tustrings{display:flex;justify-content:center;gap:6px;flex-wrap:wrap}
+#tuner .tustrings span{min-width:40px;padding:5px 4px;border:1px solid #2b3138;border-radius:5px;color:#8b97a3;
+  font:600 13px "Segoe UI",system-ui,sans-serif}
+#tuner .tustrings span.cur{border-color:#3f8ce0;color:var(--ink);background:#1b2533}
+#tuner .tustrings span.done{color:#3fbf6f}
+#tuner .tustrings span.done::after{content:" ✓"}
+#tuner .tuhz{margin-top:10px;color:#8b97a3;font:11px "Cascadia Mono",Consolas,monospace;min-height:1.4em}
+#tuner .tumsg{color:#6f7c89;font-size:11px;min-height:1.4em}
 #bPlay{width:44px;height:44px;border-radius:50%;background:#e9eef4;margin:0 6px}
 #bPlay:hover{background:#fff;border-color:transparent}
 #bPlay svg{width:20px;height:20px}
@@ -428,6 +463,16 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 <div id="tlhint"></div>
 <div id="drop"><div>Drop to play this song<small>.psarc, .feedpak, or arrangement .xml with its audio - only songs you have obtained legally</small></div></div>
 
+<div id="tuner" role="dialog" aria-label="Tuner">
+  <div class="tuhead"><span>Tuner</span><span id="tuTun"></span><button id="tuClose" title="Close (U or Esc)">×</button></div>
+  <div class="tunote"><b id="tuNote">—</b><span id="tuCents"></span></div>
+  <div class="tuscale"><i class="tuok"></i><i class="tumid"></i><i id="tuNeedle"></i></div>
+  <div class="tulabels"><span>−50</span><span>−25</span><span>0</span><span>+25</span><span>+50</span></div>
+  <div class="tustrings" id="tuStrings"></div>
+  <div class="tuhz" id="tuHz"></div>
+  <div class="tumsg" id="tuMsg"></div>
+</div>
+
 <div id="cfg">
   <h4>Highway</h4>
   <div class="row"><label for="fSpeed">Note speed<span class="rv" id="rvSpeed">100%</span></label><input id="fSpeed" type="range" min="60" max="200" value="200"></div>
@@ -456,6 +501,7 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
   <div class="row"><label for="fInDev">Input</label><select id="fInDev"><option value="">switch on to list inputs</option></select></div>
   <div class="row"><label>Level</label><span class="inmeter"><i id="inLevel"></i></span></div>
   <div class="row"><label>Hearing</label><span class="rv" id="inNote">—</span></div>
+  <div class="row"><label for="bTuner">Tuner (U)</label><button id="bTuner">Open</button></div>
   <div class="hint" id="inMsg">Plug in the Real Tone Cable, then switch on. The browser asks once for the microphone; the sound stays on this computer.</div>
 
   <h4>Sync</h4>
@@ -4213,6 +4259,7 @@ function frame(now){
     fpsAcc = 0; fpsN = 0; fpsT = now;
   }
   inputPaint(dt);
+  tunerPaint(dt);
   requestAnimationFrame(frame);
 }
 
@@ -4380,6 +4427,7 @@ function inputMessage(m){
   if (m.type !== "frame") return;
   IN.level = Math.max(IN.level, m.rms);
   IN.last = m;
+  if (TU.open){ TU.hist.push(m.freq); if (TU.hist.length > 5) TU.hist.shift(); }
 }
 
 function inputFillDevices(){
@@ -4403,6 +4451,104 @@ function inputSync(){
   if (!IN.link){ inEl("inLevel").style.width = "0"; inEl("inNote").textContent = "—"; IN.note = ""; }
   cableIcon();
 }
+
+/* ── tuner ─────────────────────────────────────────────────────────────────
+   U opens it. The targets are the open strings of the arrangement on screen -
+   its tuning and its cent offset; a capo stays where it is - or standard
+   tuning when no song is open. The string closest to what is heard is the one
+   being tuned, and a string held in tune for half a second gets a tick. */
+const TU = { open:false, hist:[], needle:0, cur:-1, okSince:0, done:new Set(), key:"", quiet:0 };
+const TU_OK = 5, TU_HOLD = 0.5;                            // cents, seconds
+
+function tunerTargets(){
+  const a = currentArr(), open = S.nStr === 4 ? OPEN_BASS : OPEN_GTR;
+  const tun = (a && a.tuning) || [], cent = (a && +a.centOffset) || 0;
+  return open.map((m, i) => {
+    const midi = m + (+tun[i] || 0);
+    return { midi, hz: 440*Math.pow(2, (midi - 69)/12 + cent/1200),
+             name: NOTE_NAMES[((midi % 12) + 12) % 12], oct: Math.floor(midi/12) - 1 };
+  });
+}
+
+function tunerShow(on){
+  TU.open = on;
+  inEl("tuner").classList.toggle("show", on);
+  if (!on) return;
+  TU.hist.length = 0; TU.key = ""; TU.cur = -1; TU.okSince = 0; TU.quiet = 0;
+  if (!IN.link && !IN.busy) inputStart();                  // a tuner needs the guitar
+}
+
+function tunerStrings(T){
+  const box = inEl("tuStrings");
+  box.textContent = "";
+  T.forEach((t) => {
+    const s = document.createElement("span");
+    s.textContent = t.name + t.oct;
+    box.appendChild(s);
+  });
+  const a = currentArr(), tt = tuningText(a || {});
+  const cent = (a && +a.centOffset) || 0;
+  inEl("tuTun").textContent = tt.name + (cent ? "  ·  " + (cent > 0 ? "+" : "") + Math.round(cent) + "¢" : "");
+}
+
+function tunerPaint(dt){
+  if (!TU.open) return;
+  const el = inEl("tuner"), T = tunerTargets();
+  const key = T.map(t => t.hz.toFixed(3)).join(",");
+  if (key !== TU.key){ TU.key = key; TU.done.clear(); tunerStrings(T); }
+
+  /* the median of the last five frames, when at least three of them had a pitch */
+  const v = TU.hist.filter(f => f > 0).sort((p, q) => p - q);
+  const hz = v.length >= 3 ? v[v.length >> 1] : 0;
+  TU.quiet = hz ? 0 : TU.quiet + dt;
+
+  const msg = !IN.link ? (IN.busy ? "Connecting…" : "Switch on the guitar input (G) to tune.")
+            : hz || TU.quiet < 0.6 ? "" : "Play an open string.";
+  inEl("tuMsg").textContent = msg;
+  if (!hz){
+    if (TU.quiet >= 0.6){                                  // silent for a while: clear the display
+      el.classList.remove("ok", "far");
+      inEl("tuNote").textContent = "—"; inEl("tuCents").textContent = ""; inEl("tuHz").textContent = "";
+      inEl("tuNeedle").style.opacity = "0";
+      TU.cur = -1; TU.okSince = 0;
+      [...inEl("tuStrings").children].forEach((s, i) => { s.classList.remove("cur"); s.classList.toggle("done", TU.done.has(i)); });
+    }
+    return;
+  }
+
+  /* the string being tuned: the one whose open note is closest */
+  let cur = 0, best = Infinity;
+  T.forEach((t, i) => { const d = Math.abs(1200*Math.log2(hz/t.hz)); if (d < best){ best = d; cur = i; } });
+  const tgt = T[cur], cents = 1200*Math.log2(hz/tgt.hz);
+  if (cur !== TU.cur){ TU.cur = cur; TU.okSince = 0; }
+
+  const ok = Math.abs(cents) <= TU_OK, far = Math.abs(cents) > 50;
+  TU.okSince = ok ? TU.okSince + dt : 0;
+  if (TU.okSince >= TU_HOLD) TU.done.add(cur);
+  el.classList.toggle("ok", ok);
+  el.classList.toggle("far", far);
+
+  const a = currentArr(), n = IN.kit.freqToNote(hz, (a && +a.centOffset) || 0);
+  inEl("tuNote").innerHTML = "";
+  inEl("tuNote").append(n.name, Object.assign(document.createElement("sub"), { textContent: n.octave }));
+  const c = Math.round(cents);
+  inEl("tuCents").textContent = (c > 0 ? "+" : c < 0 ? "−" : "") + Math.abs(c) + "¢";
+  inEl("tuHz").textContent = hz.toFixed(1) + " Hz  →  " + tgt.name + tgt.oct + " " + tgt.hz.toFixed(1) + " Hz"
+    + (far ? (cents < 0 ? "   ▲ tune up" : "   ▼ tune down") : "");
+
+  const goal = clamp(cents, -50, 50);
+  TU.needle += (goal - TU.needle)*Math.min(1, dt*14);
+  const nd = inEl("tuNeedle");
+  nd.style.left = (50 + TU.needle) + "%";
+  nd.style.opacity = "1";
+  [...inEl("tuStrings").children].forEach((s, i) => {
+    s.classList.toggle("cur", i === cur);
+    s.classList.toggle("done", TU.done.has(i));
+  });
+}
+
+inEl("bTuner").onclick = () => tunerShow(!TU.open);
+inEl("tuClose").onclick = () => tunerShow(false);
 
 /* ── the cable icon in the control bar ─────────────────────────────────────
    Shown while the Rocksmith cable is plugged in (or any input is being
@@ -4537,6 +4683,8 @@ window.addEventListener("keydown", (e) => {
   else if (k === "n" || k === "N"){ document.getElementById("bSynth").click(); }
   else if (k === "t" || k === "T"){ document.getElementById("bTab").click(); }
   else if (k === "g" || k === "G"){ document.getElementById("fInOn").click(); }
+  else if (k === "u" || k === "U"){ tunerShow(!TU.open); }
+  else if (k === "Escape" && TU.open){ tunerShow(false); }
   else if (k === "ArrowLeft"){ seek(S.time - (e.shiftKey ? 5 : 1)); }
   else if (k === "ArrowRight"){ seek(S.time + (e.shiftKey ? 5 : 1)); }
   else if (k === "["){ const s = sectionAt(S.time - 0.25); seek(s ? (s.start > S.time - 0.6 ? (sectionAt(s.start - 0.1) || s).start : s.start) : 0); }

@@ -123,7 +123,7 @@ function detChartTime(ctxTime){
     - Em `http(s)` o Chrome memoriza a permissão e, nas visitas seguintes, o cabo é reconhecido logo. Em `file://` pode ser preciso pedir de novo; confirmar no teste com o cabo.
   - WebUSB e WebHID não servem como alternativa: o Chrome bloqueia o acesso a dispositivos de áudio USB por essas APIs.
   - Sem prefs novas: o estado vem do `IN` e da lista de dispositivos.
-- [ ] **Fase 2 — Afinador** (tecla `U`)
+- [x] **Fase 2 — Afinador** (tecla `U`; feita e testada com uma entrada simulada; falta testar com o cabo real)
   - Overlay com nota, cents e ponteiro.
   - Os alvos são as cordas soltas do arranjo atual (`OPEN_* + tuning`, com `centOffset`), destacando a corda mais próxima.
 - [ ] **Fase 3 — Verificação de notas simples**
