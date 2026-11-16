@@ -486,7 +486,7 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
   <div class="tustrings" id="tuStrings"></div>
   <div class="tuhz" id="tuHz"></div>
   <div class="tumsg" id="tuMsg"></div>
-  <div class="turec"><button id="tuRec" title="Save 5 seconds of the input as a WAV file, to report a wrong reading">Record 5 s</button></div>
+  <div class="turec"><button id="tuRec" title="Save 10 seconds of the input as a WAV file, to report a wrong reading">Record 10 s</button></div>
 </div>
 
 <div id="cfg">
@@ -4754,7 +4754,7 @@ function tunerPaint(dt){
   });
 }
 
-/* diagnosis: five seconds of the raw input, saved as a 16-bit WAV, with what
+/* diagnosis: ten seconds of the raw input, saved as a 16-bit WAV, with what
    the tuner read meanwhile in the file name. Nothing leaves the computer. */
 async function tunerRecord(){
   const b = inEl("tuRec");
@@ -4766,7 +4766,7 @@ async function tunerRecord(){
     if (f > 0){ const n = IN.kit.freqToNote(f, 0); const k = n.name.replace(/[♯#]/, "s").replace("♭", "b") + n.octave; seen.set(k, (seen.get(k) || 0) + 1); }
   }, 50);
   try {
-    const { data, sampleRate } = await IN.link.record(5);
+    const { data, sampleRate } = await IN.link.record(10);
     const heard = [...seen].sort((p, q) => q[1] - p[1]).slice(0, 3).map(([k]) => k).join("-") || "silence";
     const wav = new ArrayBuffer(44 + data.length*2), v = new DataView(wav);
     const str = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
@@ -4782,7 +4782,7 @@ async function tunerRecord(){
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   } finally {
     clearInterval(tick);
-    b.classList.remove("on"); b.textContent = "Record 5 s";
+    b.classList.remove("on"); b.textContent = "Record 10 s";
   }
 }
 inEl("tuRec").onclick = () => tunerRecord();
