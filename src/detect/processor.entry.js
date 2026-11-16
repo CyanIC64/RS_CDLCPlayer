@@ -4,21 +4,23 @@ import { McLeodDetector } from "./mpm.js";
 import { FFT } from "./fft.js";
 
 const RMS_GATE = 0.01, MIN_CLARITY = 0.8;
-/* O onset mede a energia da diferença entre amostras (x[n] − x[n−1]), que pesa os
-   harmónicos agudos do ataque. Com a energia simples, uma nota tocada sobre outra
-   que ainda soa alto (ou um acorde mais pequeno depois de um maior) não chegava ao
-   dobro do envelope e o ataque perdia-se. */
-const ONSET_GATE = 1e-6;        // energia média mínima (da diferença) por bloco de 128 amostras
-const ONSET_RATIO = 2.0;        // o bloco tem de ter o dobro do envelope de pico
-const ONSET_DECAY = 0.985;      // decaimento do envelope por bloco (~50 % em 120 ms)
+/* Onset: a energia dos últimos 3 blocos (~8 ms) contra a de 8 a 16 blocos antes
+   (21–43 ms). No cabo real o ataque de um acorde sobe de forma gradual (~5 dB por
+   20 ms, a palhetada leva o seu tempo), e comparar cada bloco com um envelope de
+   pico não o via: o envelope subia com ele. Mede-se a energia simples e a da
+   diferença entre amostras (x[n] − x[n−1]); esta pesa os harmónicos agudos do
+   ataque e apanha uma nota tocada sobre outra que ainda soa alto. */
+const ONSET_GATE = 1e-5;        // energia simples mínima (−50 dBFS): abaixo é ruído ou a mão nas cordas
+const ONSET_RATIO = 4;          // +6 dB sobre a referência
 const ONSET_HOLD = 0.05;        // s: um onset no máximo a cada 50 ms
+const HIST = 16;                // blocos guardados
 
 class PitchProcessor extends AudioWorkletProcessor {
   constructor(){
     super();
     this.configure({ window: 2048, hop: 512, minFreq: 70, maxFreq: 1400 });
     this.freqs = new Float64Array(0);      // frequências pedidas pela página (presença)
-    this.env = 0;
+    this.histE = new Float64Array(HIST); this.histD = new Float64Array(HIST); this.hi = 0;
     this.xp = 0;
     this.lastOnset = -1;
     this.port.onmessage = (e) => {
@@ -52,15 +54,15 @@ class PitchProcessor extends AudioWorkletProcessor {
     const x = inputs[0] && inputs[0][0];             // o cabo é mono
     if (!x) return true;
 
-    let e = 0;
+    let e = 0, d2 = 0;
     for (let i = 0; i < x.length; i++){
       const s = x[i], d = s - this.xp;
       this.xp = s;
-      e += d * d;
+      e += s * s; d2 += d * d;
       this.ring[this.pos] = s;
       this.pos = (this.pos + 1) & this.mask;
     }
-    e /= x.length;
+    e /= x.length; d2 /= x.length;
 
     // gravação do sinal cru (diagnóstico: um WAV do cabo para os testes)
     if (this.rec){
@@ -73,12 +75,20 @@ class PitchProcessor extends AudioWorkletProcessor {
       }
     }
 
-    // onset: subida brusca de energia acima de um envelope de pico que decai
-    if (e > ONSET_GATE && e > ONSET_RATIO * this.env && currentTime - this.lastOnset > ONSET_HOLD){
+    // onset: subida da energia dos últimos blocos sobre a de 21–43 ms antes
+    const { histE: hE, histD: hD } = this;
+    hE[this.hi] = e; hD[this.hi] = d2;
+    const at = (k) => (this.hi - k + HIST) % HIST;
+    let sE = 0, sD = 0, rE = 0, rD = 0;
+    for (let k = 0; k < 3; k++){ sE += hE[at(k)]; sD += hD[at(k)]; }
+    for (let k = 8; k < 16; k++){ rE += hE[at(k)]; rD += hD[at(k)]; }
+    sE /= 3; sD /= 3; rE /= 8; rD /= 8;
+    this.hi = (this.hi + 1) % HIST;
+    if (sE > ONSET_GATE && (sE > ONSET_RATIO * rE || sD > ONSET_RATIO * rD)
+        && currentTime - this.lastOnset > ONSET_HOLD){
       this.lastOnset = currentTime;
-      this.port.postMessage({ type: "onset", time: currentTime, energy: e });
+      this.port.postMessage({ type: "onset", time: currentTime, energy: sE });
     }
-    this.env = Math.max(e, this.env * ONSET_DECAY);
 
     this.since += x.length;
     if (this.since >= this.hop){

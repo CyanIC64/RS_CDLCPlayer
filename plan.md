@@ -163,6 +163,11 @@ function detChartTime(ctxTime){
     | Palm mute (`pm`) | Onset obrigatório; falha só com outra nota clara (mais de 150 cents, e não a oitava) em 2 frames. O acerto antecipado exige 2 frames perto da nota. |
 
   - O rescue das notas simples passa a usar a presença longa, com o mesmo veto.
+  - **Primeiros acordes reais do cabo** (`chord-E5.wav`, `chord-G5.wav`):
+    - **Onset refeito:** o detetor de ataques quase não disparava (1 onset no E5, mesmo no limite). No cabo, o ataque de um acorde sobe de forma gradual (~5 dB por 20 ms), e comparar cada bloco de 128 amostras com um envelope de pico não o via, porque o envelope subia com ele. Agora compara a energia dos últimos 3 blocos (~8 ms) com a de 8 a 16 blocos antes (21–43 ms): onset com +6 dB na energia simples ou na da diferença entre amostras, acima de −50 dBFS. Os testes sintéticos (nota sobre corda a soar, acorde menor depois de um maior) continuam a passar.
+    - **Presença:** pelo acorde certo, 0,14–0,30 por nota; pelo errado, ≤ 0,009. O veto apanha o G5 tocado por E5 (o meio tom ao lado do B2 a 0,09, contra 0). O E2 chega pelo cabo quase sem fundamental (≤ 0,001) e com os harmónicos todos partilhados com o E3 e o B2, por isso não conta como presente: o E5 passa com 2 das 3 notas, pela regra dos 60 %.
+    - Falsos onsets da mão nas cordas (a −49 dBFS) aparecem às vezes; só contam se caírem na janela de uma nota.
+    - Ficam como testes em `cable.test.js`, com o onset de cada corda na gravação do G3.
   - **Testes** (`harness.test.js`, 56 no total): acordes certos E5, A5, G, Am, A, C, G5 passam; falham um G2 sozinho por um Sol, um G5 por E5, Lá maior por Lá menor e vice-versa, um Sol com o B2 um traste acima e um Dó com o baixo um traste abaixo. Slide 5→7 passa, e falha a começar 4 trastes acima; bend de um tom passa; palm mute certo passa e numa corda errada falha; acorde abafado passa só com o ataque. Baixo (janela 16384): linha certa ≥ 7/8, um traste acima ≤ 1/8. No browser, com o synth no lugar do cabo: 4 acordes, slide, bend e 2 palm mutes 8/8; com um dedo errado no Am e no C e o palm mute noutra corda, só esses três falham.
 - [ ] **Fase 5 — Feedback e pontuação**
   - Highway: a cabeça da nota fica verde (acerto) ou escura com contorno vermelho (falha).
