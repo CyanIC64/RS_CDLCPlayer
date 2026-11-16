@@ -1,6 +1,7 @@
 /* AudioWorkletProcessor "playsong-pitch". O build.mjs transforma este ficheiro numa string,
    e a página carrega-o a partir de um Blob (addModule não aceita file://). */
 import { McLeodDetector } from "./mpm.js";
+import { FFT } from "./fft.js";
 
 const RMS_GATE = 0.01, MIN_CLARITY = 0.8;
 /* O onset mede a energia da diferença entre amostras (x[n] − x[n−1]), que pesa os
@@ -16,7 +17,7 @@ class PitchProcessor extends AudioWorkletProcessor {
   constructor(){
     super();
     this.configure({ window: 2048, hop: 512, minFreq: 70, maxFreq: 1400 });
-    this.freqs = new Float64Array(0);      // frequências pedidas pela página (Goertzel)
+    this.freqs = new Float64Array(0);      // frequências pedidas pela página (presença)
     this.env = 0;
     this.xp = 0;
     this.lastOnset = -1;
@@ -28,13 +29,20 @@ class PitchProcessor extends AudioWorkletProcessor {
     };
   }
 
-  configure({ window, hop, minFreq, maxFreq }){
-    this.N = window; this.mask = window - 1; this.hop = hop;
-    this.ring = new Float32Array(window);
+  /* Duas janelas sobre o mesmo anel de amostras:
+     - a curta (`window`), para o MPM: responde depressa;
+     - a longa (`long`, 4× a curta), para a presença das notas esperadas. Com 2048
+       amostras a resolução é de ~23 Hz e o lóbulo de uma nota cobre as vizinhas
+       (Mi2 e Fá2 distam 5 Hz); com 8192 os harmónicos 2 e 3 já se separam do
+       meio tom ao lado, o que permite o veto do vizinho nos acordes. */
+  configure({ window, hop, minFreq, maxFreq, long }){
+    const L = long || window * 4;
+    this.N = window; this.L = L; this.mask = L - 1; this.hop = hop;
+    this.ring = new Float32Array(L);
     this.frame = new Float32Array(window);
-    this.win = new Float32Array(window);           // frame × Hann, para o Goertzel
-    this.hann = new Float32Array(window);
-    for (let i = 0; i < window; i++) this.hann[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (window - 1));
+    this.hannL = new Float32Array(L);
+    for (let i = 0; i < L; i++) this.hannL[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (L - 1));
+    this.fft = new FFT(L);
     this.det = new McLeodDetector(window, sampleRate, minFreq, maxFreq);
     this.res = { freq: 0, clarity: 0 };
     this.pos = 0; this.since = 0;
@@ -81,13 +89,11 @@ class PitchProcessor extends AudioWorkletProcessor {
   }
 
   analyse(endTime){
-    const { N, mask, ring, frame, win, hann } = this;
-    let sum = 0, sumW = 0;
-    for (let i = 0; i < N; i++){
-      const s = ring[(this.pos + i) & mask];
-      frame[i] = s; sum += s * s;
-      const w = s * hann[i];
-      win[i] = w; sumW += w * w;
+    const { N, L, mask, ring, frame } = this;
+    let sum = 0;
+    for (let i = 0, j = this.pos - N; i < N; i++, j++){
+      const v = ring[j & mask];
+      frame[i] = v; sum += v * v;
     }
     const rms = Math.sqrt(sum / N);
 
@@ -96,21 +102,38 @@ class PitchProcessor extends AudioWorkletProcessor {
       freq = this.res.freq; clarity = this.res.clarity;
     }
 
-    // presença em cada frequência pedida: a fração da energia da janela concentrada nela
-    // (cerca de 1 para um seno puro exatamente nessa frequência)
+    // presença em cada frequência pedida: a fração da energia da janela longa que
+    // está nela, interpolando entre os dois bins vizinhos (peso 1 − distância). É
+    // estreita de propósito: o meio tom ao lado, nos graves a pouco mais de um bin,
+    // quase não entra (cerca de 0,67 para um seno puro sobre um bin)
     const F = this.freqs, presence = new Float32Array(F.length);
-    if (rms > RMS_GATE && sumW > 0){
-      for (let k = 0; k < F.length; k++){
-        const c = 2 * Math.cos(2 * Math.PI * F[k] / sampleRate);
-        let s1 = 0, s2 = 0;
-        for (let i = 0; i < N; i++){ const s0 = win[i] + c * s1 - s2; s2 = s1; s1 = s0; }
-        presence[k] = 3 * (s1 * s1 + s2 * s2 - c * s1 * s2) / (N * sumW);
+    if (F.length){
+      const { fft, hannL } = this, { re, im } = fft;
+      let sumL = 0;
+      for (let i = 0, j = this.pos; i < L; i++, j++){
+        const v = ring[j & mask];
+        sumL += v * v;
+        re[i] = v * hannL[i]; im[i] = 0;
+      }
+      if (Math.sqrt(sumL / L) > RMS_GATE / 2){
+        fft.run();
+        const H = L >> 1;
+        let total = 0;
+        for (let k = 1; k < H; k++){ const p = re[k] * re[k] + im[k] * im[k]; re[k] = p; total += p; }
+        if (total > 0){
+          for (let q = 0; q < F.length; q++){
+            const bf = F[q] * L / sampleRate, k0 = Math.floor(bf), w = bf - k0;
+            if (k0 < 1 || k0 + 1 >= H) continue;
+            presence[q] = ((1 - w) * re[k0] + w * re[k0 + 1]) / total;
+          }
+        }
       }
     }
 
     this.port.postMessage({
       type: "frame",
-      time: endTime - N / 2 / sampleRate,              // centro da janela
+      time: endTime - N / 2 / sampleRate,              // centro da janela curta
+      timeL: endTime - L / 2 / sampleRate,             // centro da janela longa (presença)
       freq, clarity, rms,
       freqs: F, presence,
     });

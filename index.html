@@ -4457,11 +4457,11 @@ function inputLost(){
    already holds every note and chord with its real pitch. */
 function inputConfigure(){
   if (!IN.link) return;
-  const bass = S.nStr === 4, a = currentArr();
-  IN.link.config(bass ? IN.kit.PRESETS.bass : IN.kit.PRESETS.guitar);
+  const bass = S.nStr === 4, a = currentArr(), pre = bass ? IN.kit.PRESETS.bass : IN.kit.PRESETS.guitar;
+  IN.link.config(pre);
   for (const e of S.syn) e.n.hit = undefined;
   IN.ver = S.syn.length ? new IN.kit.Verifier(IN.kit.buildTargets(S.syn, eventMidi, (a && +a.centOffset) || 0),
-                                              { window: bass ? 0.15 : 0.12, onResult: inputResult })
+                                              { window: bass ? 0.15 : 0.12, long: pre.long / A.ctx.sampleRate, onResult: inputResult })
                         : null;
   if (IN.ver) IN.ver.seek(chartTime());
   IN.link.expect([]);
@@ -4486,7 +4486,7 @@ function inputMessage(m){
   if (!IN.ver || !S.inScore || !A.playing || IN.cal) return;
   const t = detChartTime(m.time);
   if (m.type === "onset") IN.ver.onset(t, m.energy);
-  else IN.ver.frame(t, m.freq, m.clarity, m.freqs, m.presence);
+  else IN.ver.frame(t, m.freq, m.clarity, m.freqs, m.presence, t - (m.time - m.timeL) * S.rate);
 }
 
 /* every frame while the song plays: tell the worklet which frequencies to

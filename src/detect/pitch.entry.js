@@ -1,8 +1,8 @@
 /* global PROCESSOR_SOURCE */   // injetado pelo build.mjs (define)
-import { Verifier, buildTargets, DEFAULTS } from "./verify.js";
+import { Verifier, buildTargets, DEFAULTS, probe } from "./verify.js";
 import { freqToNote, midiToHz } from "./notes.js";
 
-export { Verifier, buildTargets, DEFAULTS, freqToNote, midiToHz };
+export { Verifier, buildTargets, DEFAULTS, probe, freqToNote, midiToHz };
 
 const loaded = new WeakSet();
 
@@ -60,6 +60,6 @@ export async function connect(ctx, deviceId, onMessage){
 }
 
 export const PRESETS = {
-  guitar: { window: 2048, hop: 512,  minFreq: 70, maxFreq: 1400 },
-  bass:   { window: 4096, hop: 1024, minFreq: 28, maxFreq: 500 },
+  guitar: { window: 2048, hop: 512,  minFreq: 70, maxFreq: 1400, long: 8192 },
+  bass:   { window: 4096, hop: 1024, minFreq: 28, maxFreq: 500,  long: 16384 },
 };

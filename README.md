@@ -43,7 +43,8 @@ server, no upload and no account.
   *Options → Guitar input* shows its level and the note it hears. A cable icon in the control bar shows
   when the cable is plugged in, and **U** opens a tuner set to the open strings of the arrangement
   (its tuning and cent offset); click a string there to tune only that one. While the song plays, every note of the chart is checked against
-  what you play: *Notes hit* in the corner counts the notes and chords you got right out of all in
+  what you play (single notes, chords - a finger on the wrong fret is caught - slides, bends and
+  palm mutes): *Notes hit* in the corner counts the notes and chords you got right out of all in
   the arrangement, and the note-hit light rings green on a hit and red on a miss. *Calibrate* measures the input latency from a few
   strikes on a click; showing hits and misses on the highway is planned (see `plan.md`).
 

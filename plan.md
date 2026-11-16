@@ -147,21 +147,23 @@ function detChartTime(ctxTime){
     - `src/detect/harness.test.js` — "guitarra falsa" em Node: o processor verdadeiro com um `AudioWorkletProcessor` de imitação, cordas sintéticas e o `Verifier`. Melodia certa 16/16 com o atraso medido; ±1 traste ≤ 1/16; notas em falta falham; notas sobre uma corda a soar passam; acordes certos passam.
     - No browser: o synth ligado ao worklet por um `MediaStreamDestination`, em vez do cabo. 16/16 certas; 0/16 com o synth meio tom acima ou abaixo; 16/16 a 50 % de velocidade (modo `el`); o caminho tem ~23 ms, que a sugestão encontrou; a calibração com toques 40 ms depois dos cliques deu 64 ms (40 + 24).
     - Ficam como `todo` da fase 4: uma nota sozinha (G2) ainda passa por um acorde de Sol, e um G5 passa por E5, porque a 23 Hz de resolução as fundamentais graves se misturam.
-- [ ] **Fase 4 — Acordes e técnicas**
-  - Acordes: presença por Goertzel nas fundamentais e harmónicos esperados. Acerto se pelo menos 60 % das cordas estiverem presentes.
-  - **Veto do vizinho (RocksmithAudioBridge #29):** medir também a presença meio tom acima e abaixo (`hz·2^(±1/12)`) e recusar a nota quando um vizinho domina claramente a frequência esperada. Lá mediram razões de potência de 10× a 500× entre a nota certa e a vizinha (7,4× no Mi grave) e, numa sessão real, 493 notas um traste ao lado recusadas sem falsas recusas. O veto só atua quando a evidência é forte; silêncio ou ambiguidade caem na regra normal.
-    - Limitação: com 2048 amostras a resolução é ~23 Hz, e Mi2/Fá2 distam ~5 Hz. O veto precisa de uma janela Goertzel própria, mais longa (8192 amostras ≈ 170 ms, a meio do sustain), sobretudo nos harmónicos 2 e 3. Como a verificação só fecha depois de a janela passar, a latência extra não se nota.
-    - Aplica-se também às notas simples (complementa a tolerância de ±50 cents do MPM).
-  - Técnicas:
+- [x] **Fase 4 — Acordes e técnicas** (feita e testada com a "guitarra falsa"; falta testar com o cabo real e afinar os limiares com gravações de acordes)
+  - **Presença por FFT longa no worklet.** Um só anel de amostras com duas janelas: a curta (2048; baixo 4096) para o MPM e a longa (8192; baixo 16384, `PRESETS.long`) para a presença. A presença de cada frequência pedida é a fração da energia da janela longa nela, interpolada entre os dois bins vizinhos (peso 1 − distância), e não a soma de 3 bins: assim o meio tom ao lado, nos graves a pouco mais de um bin, quase não entra. Cada frame leva `timeL`, o centro da janela longa. Custo medido: ~0,5 ms por análise com 60 frequências (um bloco de áudio tem 2,7 ms).
+  - **`probe(hz)`**: harmónicos 1..3 da nota e do meio tom abaixo e acima; a página e o `Verifier` usam a mesma função, por isso as chaves do mapa de presença coincidem. O `expected()` continua a pedi-las durante `window + look + long` depois da nota, porque a janela longa chega mais tarde.
+  - **Acordes:** uma nota está presente com soma dos harmónicos ≥ 0,04 e a própria fundamental ≥ 0,01 (um G2 sozinho já não faz o D3 de um acorde de Sol). **Veto do vizinho:** só com os harmónicos que não caem noutra nota do acorde (num Sol, o B2 partilha o 2.º harmónico com o B3), o meio tom ao lado com 1,5× a presença da nota é a vizinha a soar. Acerto: ≥ 60 % das notas presentes e nenhuma nota nunca presente e vetada em 2 frames. Os acordes esperam `long` a mais antes de falhar; o acerto antecipado exige todas as notas presentes e nenhuma vetada.
+  - **Técnicas:**
 
     | Técnica | Verificação |
     |---|---|
     | Abafada (`mt`) | Só onset. |
-    | Hammer-on, pull-off, ligada (`ho`/`po`/`linked`) | Sem onset obrigatório; basta o pitch mudar. |
-    | Bend (`bn`) | Pitch dentro do intervalo de `midi` a `midi + bend`. |
-    | Slide (`sl`/`slu`) | Chegar ao traste final antes do fim do sustain. |
-    | Harmónico (`hm`) | Pitch pelo mapa `HARMONIC` (já está em `eventMidi`). |
-    | Palm mute (`pm`) | Onset obrigatório; pitch tolerante. |
+    | Hammer-on, pull-off, ligada (`ho`/`po`/`linked`) | Sem onset obrigatório; basta o pitch certo. |
+    | Bend (`bn`) | Pitch de `midi` até `midi + bn·200` cents: aceita as duas leituras da unidade (meios-tons no synth e na highway; tons inteiros nos XML do Rocksmith, `step="0.500"` = meio tom) até se confirmar com um gráfico real. |
+    | Slide (`sl`/`slu`) | Pitch entre o traste de partida e o de chegada. |
+    | Harmónico (`hm`/`hp`) | Pitch pelo mapa `HARMONIC` (`eventMidi`). |
+    | Palm mute (`pm`) | Onset obrigatório; falha só com outra nota clara (mais de 150 cents, e não a oitava) em 2 frames. O acerto antecipado exige 2 frames perto da nota. |
+
+  - O rescue das notas simples passa a usar a presença longa, com o mesmo veto.
+  - **Testes** (`harness.test.js`, 56 no total): acordes certos E5, A5, G, Am, A, C, G5 passam; falham um G2 sozinho por um Sol, um G5 por E5, Lá maior por Lá menor e vice-versa, um Sol com o B2 um traste acima e um Dó com o baixo um traste abaixo. Slide 5→7 passa, e falha a começar 4 trastes acima; bend de um tom passa; palm mute certo passa e numa corda errada falha; acorde abafado passa só com o ataque. Baixo (janela 16384): linha certa ≥ 7/8, um traste acima ≤ 1/8. No browser, com o synth no lugar do cabo: 4 acordes, slide, bend e 2 palm mutes 8/8; com um dedo errado no Am e no C e o palm mute noutra corda, só esses três falham.
 - [ ] **Fase 5 — Feedback e pontuação**
   - Highway: a cabeça da nota fica verde (acerto) ou escura com contorno vermelho (falha).
   - Tab view: a mesma marcação.
