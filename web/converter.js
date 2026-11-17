@@ -1,793 +1,4 @@
 (() => {
-  // psarc.js
-  var MAGIC = 1347633490;
-  var BLOCK_SIZE_DEFAULT = 65536;
-  var ENTRY_SIZE = 30;
-  var ARC_KEY = hexToBytes(
-    "C53DB23870A1A2F71CAE64061FDD0E1157309DC85204D4C5BFDF25090DF2572C"
-  );
-  var ARC_IV = hexToBytes("E915AA018FEF71FC508132E4BB4CEB42");
-  function hexToBytes(hex2) {
-    const out = new Uint8Array(hex2.length / 2);
-    for (let i = 0; i < out.length; i++) out[i] = parseInt(hex2.substr(i * 2, 2), 16);
-    return out;
-  }
-  var rotl8 = (v, n) => (v << n | v >>> 8 - n) & 255;
-  var SBOX = (() => {
-    const mul = (a, b) => {
-      let p = 0;
-      for (let i = 0; i < 8; i++) {
-        if (b & 1) p ^= a;
-        const hi = a & 128;
-        a = a << 1 & 255;
-        if (hi) a ^= 27;
-        b >>>= 1;
-      }
-      return p;
-    };
-    const pow = (a, n) => {
-      let r = 1;
-      while (n > 0) {
-        if (n & 1) r = mul(r, a);
-        a = mul(a, a);
-        n >>>= 1;
-      }
-      return r;
-    };
-    const s = new Uint8Array(256);
-    for (let x = 0; x < 256; x++) {
-      const inv = x === 0 ? 0 : pow(x, 254);
-      s[x] = inv ^ rotl8(inv, 1) ^ rotl8(inv, 2) ^ rotl8(inv, 3) ^ rotl8(inv, 4) ^ 99;
-    }
-    return s;
-  })();
-  var RCON = [1, 2, 4, 8, 16, 32, 64, 128, 27, 54, 108, 216, 171, 77];
-  function aes256Schedule(key) {
-    const nk = 8, nr = 14, total = 4 * (nr + 1);
-    const rk = new Uint8Array(16 * (nr + 1));
-    rk.set(key, 0);
-    for (let i = nk; i < total; i++) {
-      let t0 = rk[4 * i - 4], t1 = rk[4 * i - 3], t2 = rk[4 * i - 2], t3 = rk[4 * i - 1];
-      if (i % nk === 0) {
-        const s0 = SBOX[t1] ^ RCON[i / nk - 1], s1 = SBOX[t2], s2 = SBOX[t3], s3 = SBOX[t0];
-        t0 = s0;
-        t1 = s1;
-        t2 = s2;
-        t3 = s3;
-      } else if (i % nk === 4) {
-        t0 = SBOX[t0];
-        t1 = SBOX[t1];
-        t2 = SBOX[t2];
-        t3 = SBOX[t3];
-      }
-      rk[4 * i] = rk[4 * (i - nk)] ^ t0;
-      rk[4 * i + 1] = rk[4 * (i - nk) + 1] ^ t1;
-      rk[4 * i + 2] = rk[4 * (i - nk) + 2] ^ t2;
-      rk[4 * i + 3] = rk[4 * (i - nk) + 3] ^ t3;
-    }
-    return rk;
-  }
-  function encryptBlock(rk, block) {
-    const s = Uint8Array.from(block);
-    const addKey = (r) => {
-      for (let i = 0; i < 16; i++) s[i] ^= rk[16 * r + i];
-    };
-    const xtime = (x) => (x << 1 ^ (x & 128 ? 27 : 0)) & 255;
-    addKey(0);
-    for (let r = 1; r <= 14; r++) {
-      for (let i = 0; i < 16; i++) s[i] = SBOX[s[i]];
-      let t;
-      t = s[1];
-      s[1] = s[5];
-      s[5] = s[9];
-      s[9] = s[13];
-      s[13] = t;
-      t = s[2];
-      s[2] = s[10];
-      s[10] = t;
-      t = s[6];
-      s[6] = s[14];
-      s[14] = t;
-      t = s[3];
-      s[3] = s[15];
-      s[15] = s[11];
-      s[11] = s[7];
-      s[7] = t;
-      if (r !== 14) {
-        for (let c = 0; c < 4; c++) {
-          const i = 4 * c;
-          const a0 = s[i], a1 = s[i + 1], a2 = s[i + 2], a3 = s[i + 3];
-          const all = a0 ^ a1 ^ a2 ^ a3;
-          s[i] = a0 ^ all ^ xtime(a0 ^ a1);
-          s[i + 1] = a1 ^ all ^ xtime(a1 ^ a2);
-          s[i + 2] = a2 ^ all ^ xtime(a2 ^ a3);
-          s[i + 3] = a3 ^ all ^ xtime(a3 ^ a0);
-        }
-      }
-      addKey(r);
-    }
-    return s;
-  }
-  function cfbDecrypt(key, iv, ciphertext) {
-    const rk = aes256Schedule(key);
-    const out = new Uint8Array(ciphertext.length);
-    let feedback = Uint8Array.from(iv);
-    for (let off = 0; off < ciphertext.length; off += 16) {
-      const stream = encryptBlock(rk, feedback);
-      const n = Math.min(16, ciphertext.length - off);
-      for (let i = 0; i < n; i++) out[off + i] = ciphertext[off + i] ^ stream[i];
-      feedback = ciphertext.slice(off, off + 16);
-    }
-    return out;
-  }
-  async function inflateZlib(bytes, expected = 0) {
-    const ds = new DecompressionStream("deflate");
-    const writer = ds.writable.getWriter();
-    const reader = ds.readable.getReader();
-    const chunks = [];
-    let total = 0;
-    let readErr = null;
-    const writePromise = (async () => {
-      try {
-        await writer.write(bytes);
-        await writer.close();
-        return null;
-      } catch (e) {
-        return e;
-      }
-    })();
-    try {
-      for (; ; ) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-        total += value.length;
-        if (expected && total >= expected) break;
-      }
-    } catch (e) {
-      readErr = e;
-    }
-    const satisfied = Boolean(expected && total >= expected);
-    try {
-      await reader.cancel();
-    } catch {
-    }
-    try {
-      await writer.abort();
-    } catch {
-    }
-    const writeErr = await writePromise;
-    if (!satisfied && readErr) throw readErr;
-    if (!satisfied && writeErr) throw writeErr;
-    const out = new Uint8Array(total);
-    let o = 0;
-    for (const c of chunks) {
-      out.set(c, o);
-      o += c.length;
-    }
-    return out;
-  }
-  var utf8 = new TextDecoder("utf-8", { fatal: false });
-  var Psarc = class _Psarc {
-    /** @param {Uint8Array} bytes whole file in memory  */
-    constructor(bytes) {
-      this.bytes = bytes;
-      this.view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-      this._parseHeader();
-    }
-    static async fromBlob(blob) {
-      return new _Psarc(new Uint8Array(await blob.arrayBuffer()));
-    }
-    _parseHeader() {
-      const v = this.view;
-      if (v.getUint32(0, false) !== MAGIC) throw new Error("not a PSARC file");
-      this.version = v.getUint32(4, false);
-      this.compression = String.fromCharCode(...this.bytes.slice(8, 12));
-      this.tocLength = v.getUint32(12, false);
-      this.tocEntrySize = v.getUint32(16, false);
-      this.tocEntries = v.getUint32(20, false);
-      this.blockSize = v.getUint32(24, false) || BLOCK_SIZE_DEFAULT;
-      this.archiveFlags = v.getUint32(28, false);
-      if (this.tocEntrySize !== ENTRY_SIZE) {
-        throw new Error(`unsupported PSARC TOC entry size ${this.tocEntrySize}`);
-      }
-      if (this.tocLength < 32 || this.tocEntries < 1) {
-        throw new Error(`corrupt PSARC header (toc_length=${this.tocLength})`);
-      }
-      const regionSize = this.tocLength - 32;
-      let region = this.bytes.subarray(32, 32 + regionSize);
-      if (region.length !== regionSize) throw new Error("PSARC ends inside its TOC");
-      if (this.archiveFlags === 4) region = cfbDecrypt(ARC_KEY, ARC_IV, region);
-      const tocDataSize = this.tocEntrySize * this.tocEntries;
-      this.entries = [];
-      for (let i = 0; i < this.tocEntries; i++) {
-        const off = i * ENTRY_SIZE;
-        this.entries.push({
-          zIndex: readUInt32BE(region, off + 16),
-          length: readUInt40(region, off + 20),
-          offset: readUInt40(region, off + 25)
-        });
-      }
-      this.blockSizes = [];
-      const bt = region.subarray(tocDataSize);
-      for (let i = 0; i + 1 < bt.length; i += 2) {
-        this.blockSizes.push(bt[i] << 8 | bt[i + 1]);
-      }
-      this._names = null;
-      this._byName = null;
-    }
-    /** File names, in TOC order (entry 0 is the list itself). */
-    async names() {
-      if (this._names) return this._names;
-      const raw = await this._entryBytes(0);
-      const list = utf8.decode(raw).replace(/\r\n/g, "\n").trim().split("\n");
-      this._names = list.map((s) => s.trim()).filter(Boolean);
-      return this._names;
-    }
-    async read(name) {
-      if (!this._byName) {
-        const names = await this.names();
-        this._byName = /* @__PURE__ */ new Map();
-        names.forEach((n, i) => this._byName.set(n, i + 1));
-      }
-      const idx = this._byName.get(name);
-      if (idx === void 0) return null;
-      return this._entryBytes(idx);
-    }
-    /** Read every entry matching a predicate over its name. */
-    async readMatching(pred) {
-      const names = await this.names();
-      const out = /* @__PURE__ */ new Map();
-      for (let i = 0; i < names.length; i++) {
-        if (!pred(names[i])) continue;
-        out.set(names[i], await this._entryBytes(i + 1));
-      }
-      return out;
-    }
-    async _entryBytes(index) {
-      const e = this.entries[index];
-      if (!e) throw new Error(`PSARC entry ${index} does not exist`);
-      const names = this._names || [];
-      const name = names[index - 1] || `#${index}`;
-      const out = new Uint8Array(e.length);
-      let produced = 0;
-      const nBlocks = Math.ceil(e.length / this.blockSize);
-      let pos = e.offset;
-      for (let b = 0; b < nBlocks; b++) {
-        const bi = e.zIndex + b;
-        if (bi >= this.blockSizes.length) {
-          throw new Error(`PSARC block table has ${this.blockSizes.length} entries, block ${bi} is missing`);
-        }
-        const expected = Math.min(this.blockSize, e.length - produced);
-        const size = this.blockSizes[bi] || this.blockSize;
-        const raw = this.bytes.subarray(pos, pos + size);
-        if (raw.length !== size) throw new Error(`PSARC data ends mid-entry (${name})`);
-        pos += size;
-        let data;
-        if (size === expected) {
-          data = raw;
-        } else {
-          try {
-            data = await inflateZlib(raw);
-          } catch {
-            throw new Error(`PSARC block ${bi} of ${name} is not a valid zlib stream`);
-          }
-          if (data.length !== expected) {
-            throw new Error(`PSARC block ${bi} produced ${data.length} bytes, expected ${expected}`);
-          }
-        }
-        out.set(data, produced);
-        produced += data.length;
-      }
-      return out;
-    }
-  };
-  function readUInt32BE(buf, off) {
-    return (buf[off] << 24 | buf[off + 1] << 16 | buf[off + 2] << 8 | buf[off + 3]) >>> 0;
-  }
-  function readUInt40(buf, off) {
-    let v = 0;
-    for (let i = 0; i < 5; i++) v = v * 256 + buf[off + i];
-    return v;
-  }
-
-  // js/sng.js
-  var PC_KEY = hex("CB648DF3D12A16BF71701414E69619EC171CCA5D2A142E3E59DE7ADDA18A3A30");
-  var MAC_KEY = hex("9821330E34B91F70D0A48CBD625993126970CEA09192C0E6CDA676CC9838289D");
-  function hex(s) {
-    const out = new Uint8Array(s.length / 2);
-    for (let i = 0; i < out.length; i++) out[i] = parseInt(s.substr(i * 2, 2), 16);
-    return out;
-  }
-  var M_FRETHANDMUTE = 8;
-  var M_TREMOLO = 16;
-  var M_HARMONIC = 32;
-  var M_PALMMUTE = 64;
-  var M_SLAP = 128;
-  var M_PLUCK = 256;
-  var M_HAMMERON = 512;
-  var M_PULLOFF = 1024;
-  var M_PINCHHARMONIC = 32768;
-  var M_VIBRATO = 65536;
-  var M_MUTE = 131072;
-  var M_IGNORE = 262144;
-  var M_HIGHDENSITY = 2097152;
-  var M_ACCENT = 67108864;
-  var M_CHORDNOTES = 16777216;
-  var M_PARENT = 134217728;
-  var utf82 = new TextDecoder("utf-8", { fatal: false });
-  var latin1 = new TextDecoder("latin1");
-  async function decryptSng(data, platform = "pc") {
-    if (data.length < 32) throw new Error("SNG file too small");
-    const iv = data.slice(8, 24);
-    const keyBytes = platform === "mac" ? MAC_KEY : PC_KEY;
-    const key = await crypto.subtle.importKey("raw", keyBytes, "AES-CTR", false, ["decrypt"]);
-    const dec = new Uint8Array(
-      await crypto.subtle.decrypt({ name: "AES-CTR", counter: iv, length: 128 }, key, data.slice(24))
-    );
-    const want = dec[0] | dec[1] << 8 | dec[2] << 16 | dec[3] << 24;
-    let out;
-    try {
-      out = await inflateZlib(dec.slice(4), want);
-    } catch {
-      out = await inflateZlib(dec.slice(4, dec.length - 56), want);
-    }
-    if (want && out.length !== want) {
-      throw new Error(`SNG size mismatch: header says ${want}, inflated ${out.length}`);
-    }
-    return out;
-  }
-  async function sngIsSigned(data, platform = "pc") {
-    if (data.length < 24 + 4 + 56 + 8) return false;
-    const tail = data.subarray(data.length - 56);
-    if (tail.every((b2) => b2 === 0)) return false;
-    const iv = data.slice(8, 24);
-    const keyBytes = platform === "mac" ? MAC_KEY : PC_KEY;
-    const key = await crypto.subtle.importKey("raw", keyBytes, "AES-CTR", false, ["decrypt"]);
-    const dec = new Uint8Array(
-      await crypto.subtle.decrypt({ name: "AES-CTR", counter: iv, length: 128 }, key, data.slice(24))
-    );
-    const want = dec[0] | dec[1] << 8 | dec[2] << 16 | dec[3] << 24;
-    let out;
-    try {
-      out = await inflateZlib(dec.slice(4, dec.length - 56), want);
-    } catch {
-      return false;
-    }
-    if (!want || out.length !== want) return false;
-    let a = 1, b = 0;
-    for (let i = 0; i < out.length; i++) {
-      a = (a + out[i]) % 65521;
-      b = (b + a) % 65521;
-    }
-    const adler = (b << 16 | a) >>> 0;
-    const e = dec.length - 56;
-    const stored = (dec[e - 4] << 24 | dec[e - 3] << 16 | dec[e - 2] << 8 | dec[e - 1]) >>> 0;
-    return adler === stored;
-  }
-  var R = class {
-    constructor(bytes) {
-      this.b = bytes;
-      this.dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-      this.p = 0;
-    }
-    i8() {
-      return this.dv.getInt8(this.p++);
-    }
-    u8() {
-      return this.dv.getUint8(this.p++);
-    }
-    i16() {
-      const v = this.dv.getInt16(this.p, true);
-      this.p += 2;
-      return v;
-    }
-    u16() {
-      const v = this.dv.getUint16(this.p, true);
-      this.p += 2;
-      return v;
-    }
-    i32() {
-      const v = this.dv.getInt32(this.p, true);
-      this.p += 4;
-      return v;
-    }
-    u32() {
-      const v = this.dv.getUint32(this.p, true);
-      this.p += 4;
-      return v;
-    }
-    f32() {
-      const v = this.dv.getFloat32(this.p, true);
-      this.p += 4;
-      return v;
-    }
-    f64() {
-      const v = this.dv.getFloat64(this.p, true);
-      this.p += 8;
-      return v;
-    }
-    skip(n) {
-      this.p += n;
-    }
-    s(n) {
-      const raw = this.b.subarray(this.p, this.p + n);
-      this.p += n;
-      const z = raw.indexOf(0);
-      const cut = z >= 0 ? raw.subarray(0, z) : raw;
-      try {
-        return utf82.decode(cut);
-      } catch {
-        return latin1.decode(cut);
-      }
-    }
-    arr(fn) {
-      const n = this.i32();
-      const out = [];
-      for (let i = 0; i < n; i++) out.push(fn(this));
-      return out;
-    }
-  };
-  var beat = (r) => ({ Time: r.f32(), Measure: r.i16(), Beat: r.i16(), PhraseIteration: r.i32(), Mask: r.i32() });
-  var phrase = (r) => {
-    const Solo = r.i8(), Disparity = r.i8(), Ignore = r.i8();
-    r.skip(1);
-    return { Solo, Disparity, Ignore, MaxDifficulty: r.i32(), IterationCount: r.i32(), Name: r.s(32) };
-  };
-  var chordTemplate = (r) => ({
-    Mask: r.u32(),
-    Frets: [r.i8(), r.i8(), r.i8(), r.i8(), r.i8(), r.i8()],
-    Fingers: [r.i8(), r.i8(), r.i8(), r.i8(), r.i8(), r.i8()],
-    Notes: [r.i32(), r.i32(), r.i32(), r.i32(), r.i32(), r.i32()],
-    Name: r.s(32)
-  });
-  var bendValue = (r) => {
-    const Time = r.f32(), Step = r.f32();
-    r.skip(4);
-    return { Time, Step };
-  };
-  var bendData32 = (r) => ({ BendValues: Array.from({ length: 32 }, () => bendValue(r)), UsedCount: r.i32() });
-  var chordNotes = (r) => ({
-    Mask: [r.u32(), r.u32(), r.u32(), r.u32(), r.u32(), r.u32()],
-    BendData: Array.from({ length: 6 }, () => bendData32(r)),
-    SlideTo: [r.i8(), r.i8(), r.i8(), r.i8(), r.i8(), r.i8()],
-    SlideUnpitchTo: [r.i8(), r.i8(), r.i8(), r.i8(), r.i8(), r.i8()],
-    Vibrato: [r.i16(), r.i16(), r.i16(), r.i16(), r.i16(), r.i16()]
-  });
-  var vocal = (r) => ({ Time: r.f32(), Note: r.i32(), Length: r.f32(), Lyric: r.s(48) });
-  var symHeader = (r) => Array.from({ length: 8 }, () => r.i32());
-  var symTexture = (r) => {
-    const Font = r.s(128), FontPathLength = r.i32();
-    r.skip(4);
-    return { Font, FontPathLength, Width: r.i32(), Height: r.i32() };
-  };
-  var rect = (r) => [r.f32(), r.f32(), r.f32(), r.f32()];
-  var symDef = (r) => ({ Symbol: r.s(12), Outer: rect(r), Inner: rect(r) });
-  var phraseIter = (r) => ({
-    PhraseId: r.i32(),
-    StartTime: r.f32(),
-    EndTime: r.f32(),
-    Difficulty: [r.i32(), r.i32(), r.i32()]
-  });
-  var phraseExtra = (r) => {
-    const d = { PhraseId: r.i32(), Difficulty: r.i32(), Empty: r.i32(), LevelJump: r.i8(), Redundant: r.i16() };
-    r.skip(1);
-    return d;
-  };
-  var nld = (r) => ({ LevelBreak: r.i32(), NLDPhrases: r.arr((x) => x.i32()) });
-  var action = (r) => ({ Time: r.f32(), ActionName: r.s(256) });
-  var event = (r) => ({ Time: r.f32(), Name: r.s(256) });
-  var tone = (r) => ({ Time: r.f32(), ToneId: r.i32() });
-  var dna = (r) => ({ Time: r.f32(), DnaId: r.i32() });
-  var section = (r) => ({
-    Name: r.s(32),
-    Number: r.i32(),
-    StartTime: r.f32(),
-    EndTime: r.f32(),
-    StartPhraseIterationId: r.i32(),
-    EndPhraseIterationId: r.i32(),
-    StringMask: Array.from({ length: 36 }, () => r.i8())
-  });
-  var anchor = (r) => {
-    const StartTime = r.f32(), EndTime = r.f32(), FirstNoteTime = r.f32(), LastNoteTime = r.f32();
-    const FretId = r.i8();
-    r.skip(3);
-    return { StartTime, EndTime, FirstNoteTime, LastNoteTime, FretId, Width: r.i32(), PhraseIterationId: r.i32() };
-  };
-  var anchorExt = (r) => {
-    const BeatTime = r.f32(), FretId = r.i8();
-    r.skip(7);
-    return { BeatTime, FretId };
-  };
-  var fingerprint = (r) => ({
-    ChordId: r.i32(),
-    StartTime: r.f32(),
-    EndTime: r.f32(),
-    FirstNoteTime: r.f32(),
-    LastNoteTime: r.f32()
-  });
-  var note = (r) => {
-    const d = {
-      Mask: r.u32(),
-      Flags: r.u32(),
-      Hash: r.u32(),
-      Time: r.f32(),
-      StringIndex: r.i8(),
-      Fret: r.i8(),
-      AnchorFret: r.i8(),
-      AnchorWidth: r.i8(),
-      ChordId: r.i32(),
-      ChordNotesId: r.i32(),
-      PhraseId: r.i32(),
-      PhraseIterationId: r.i32(),
-      FingerPrintId: [r.i16(), r.i16()],
-      NextIterNote: r.i16(),
-      PrevIterNote: r.i16(),
-      ParentPrevNote: r.i16(),
-      SlideTo: r.i8(),
-      SlideUnpitchTo: r.i8(),
-      LeftHand: r.i8(),
-      Tap: r.i8(),
-      PickDirection: r.i8(),
-      Slap: r.i8(),
-      Pluck: r.i8(),
-      Vibrato: r.i16(),
-      Sustain: r.f32(),
-      MaxBend: r.f32()
-    };
-    d.BendData = r.arr(bendValue);
-    return d;
-  };
-  var level = (r) => ({
-    Difficulty: r.i32(),
-    Anchors: r.arr(anchor),
-    AnchorExtensions: r.arr(anchorExt),
-    HandShapes: r.arr(fingerprint),
-    Arpeggios: r.arr(fingerprint),
-    Notes: r.arr(note),
-    AvgNotesPerIter: r.arr((x) => x.f32()),
-    NotesInIterExclIgnored: r.arr((x) => x.i32()),
-    NotesInIterAll: r.arr((x) => x.i32())
-  });
-  var metadata = (r) => {
-    const d = {
-      MaxScore: r.f64(),
-      MaxNotesAndChords: r.f64(),
-      MaxNotesAndChordsReal: r.f64(),
-      PointsPerNote: r.f64(),
-      FirstBeatLength: r.f32(),
-      StartTime: r.f32(),
-      CapoFretId: r.i8(),
-      LastConversionDateTime: r.s(32),
-      Part: r.i16(),
-      SongLength: r.f32(),
-      Tuning: r.arr((x) => x.i16())
-    };
-    r.f32();
-    d.FirstNoteTime = r.f32();
-    d.MaxDifficulty = r.i32();
-    return d;
-  };
-  async function readSng(bytes, platform = "pc") {
-    const body = await decryptSng(bytes, platform);
-    const r = new R(body);
-    const out = {};
-    out.Beats = r.arr(beat);
-    out.Phrases = r.arr(phrase);
-    out.Chords = r.arr(chordTemplate);
-    out.ChordNotes = r.arr(chordNotes);
-    out.Vocals = r.arr(vocal);
-    if (out.Vocals.length) {
-      out.SymbolsHeaders = r.arr(symHeader);
-      out.SymbolsTextures = r.arr(symTexture);
-      out.SymbolDefinitions = r.arr(symDef);
-    }
-    out.PhraseIterations = r.arr(phraseIter);
-    out.PhraseExtraInfo = r.arr(phraseExtra);
-    out.NewLinkedDifficulties = r.arr(nld);
-    out.Actions = r.arr(action);
-    out.Events = r.arr(event);
-    out.Tones = r.arr(tone);
-    out.DNAs = r.arr(dna);
-    out.Sections = r.arr(section);
-    out.Levels = r.arr(level);
-    out.MetaData = metadata(r);
-    if (r.p !== body.length) {
-      throw new Error(`SNG parse desync: consumed ${r.p} of ${body.length} bytes`);
-    }
-    return out;
-  }
-  var slide = (v) => v !== null && v !== void 0 && v >= 0 ? v : -1;
-  function sngNote(n) {
-    const m = n.Mask;
-    return {
-      time: n.Time,
-      string: n.StringIndex,
-      fret: n.Fret,
-      sustain: n.Sustain > 0 ? n.Sustain : 0,
-      slide_to: slide(n.SlideTo),
-      slide_unpitch_to: slide(n.SlideUnpitchTo),
-      bend: n.MaxBend || 0,
-      hammer_on: !!(m & M_HAMMERON),
-      pull_off: !!(m & M_PULLOFF),
-      harmonic: !!(m & M_HARMONIC),
-      harmonic_pinch: !!(m & M_PINCHHARMONIC),
-      palm_mute: !!(m & M_PALMMUTE),
-      mute: !!(m & M_MUTE),
-      vibrato: !!n.Vibrato,
-      tremolo: !!(m & M_TREMOLO),
-      accent: !!(m & M_ACCENT),
-      link_next: !!(m & M_PARENT),
-      tap: n.Tap > 0,
-      fret_hand_mute: false,
-      pluck: !!(m & M_PLUCK),
-      slap: !!(m & M_SLAP),
-      right_hand: -1,
-      pick_direction: n.PickDirection > 0 ? n.PickDirection : -1,
-      ignore: !!(m & M_IGNORE)
-    };
-  }
-  function sngChord(n, sng) {
-    const m = n.Mask;
-    const cid = n.ChordId;
-    const tmpl = cid >= 0 && cid < sng.Chords.length ? sng.Chords[cid] : null;
-    const cnId = n.ChordNotesId;
-    const cn = m & M_CHORDNOTES && cnId >= 0 && cnId < sng.ChordNotes.length ? sng.ChordNotes[cnId] : null;
-    const pPm = !!(m & M_PALMMUTE), pFhm = !!(m & M_FRETHANDMUTE), pAcc = !!(m & M_ACCENT);
-    const notes = [];
-    if (tmpl) {
-      for (let s = 0; s < 6; s++) {
-        const fret = tmpl.Frets[s];
-        if (fret === null || fret < 0) continue;
-        if (cn) {
-          const sm = cn.Mask[s];
-          const bd = cn.BendData[s];
-          let bend = 0;
-          for (let i = 0; i < bd.UsedCount; i++) bend = Math.max(bend, bd.BendValues[i].Step);
-          notes.push({
-            time: n.Time,
-            string: s,
-            fret,
-            sustain: n.Sustain > 0 ? n.Sustain : 0,
-            slide_to: slide(cn.SlideTo[s]),
-            slide_unpitch_to: slide(cn.SlideUnpitchTo[s]),
-            bend,
-            hammer_on: !!(sm & M_HAMMERON),
-            pull_off: !!(sm & M_PULLOFF),
-            harmonic: !!(sm & M_HARMONIC),
-            harmonic_pinch: !!(sm & M_PINCHHARMONIC),
-            palm_mute: !!(sm & M_PALMMUTE) || pPm,
-            mute: !!(sm & M_MUTE),
-            vibrato: !!(sm & M_VIBRATO) || !!cn.Vibrato[s],
-            tremolo: !!(sm & M_TREMOLO),
-            accent: !!(sm & M_ACCENT) || pAcc,
-            link_next: !!(sm & M_PARENT),
-            fret_hand_mute: pFhm,
-            pluck: !!(sm & M_PLUCK),
-            slap: !!(sm & M_SLAP),
-            ignore: !!(sm & M_IGNORE),
-            tap: false
-          });
-        } else {
-          notes.push({
-            time: n.Time,
-            string: s,
-            fret,
-            sustain: n.Sustain > 0 ? n.Sustain : 0,
-            palm_mute: pPm,
-            fret_hand_mute: pFhm,
-            accent: pAcc,
-            ignore: !!(m & M_IGNORE)
-          });
-        }
-      }
-    }
-    return { time: n.Time, chord_id: cid, high_density: !!(m & M_HIGHDENSITY), notes };
-  }
-  function prepLevel(sng, lv) {
-    const notes = [], chords = [];
-    for (const n of lv.Notes) {
-      if (n.ChordId !== -1) chords.push(sngChord(n, sng));
-      else notes.push(sngNote(n));
-    }
-    notes.sort((a, b) => a.time - b.time);
-    chords.sort((a, b) => a.time - b.time);
-    const anchors = lv.Anchors.map((a) => ({ time: a.StartTime, fret: a.FretId, width: a.Width })).sort((a, b) => a.time - b.time);
-    const hs = [
-      ...lv.HandShapes.map((h) => ({ chord_id: h.ChordId, start_time: h.StartTime, end_time: h.EndTime, arpeggio: false })),
-      ...lv.Arpeggios.map((h) => ({ chord_id: h.ChordId, start_time: h.StartTime, end_time: h.EndTime, arpeggio: true }))
-    ].sort((a, b) => a.start_time - b.start_time);
-    return {
-      notes,
-      nt: notes.map((x) => x.time),
-      chords,
-      ct: chords.map((x) => x.time),
-      anchors,
-      at: anchors.map((x) => x.time),
-      hs,
-      ht: hs.map((x) => x.start_time)
-    };
-  }
-  function lowerBound(arr, v) {
-    let lo = 0, hi = arr.length;
-    while (lo < hi) {
-      const mid = lo + hi >> 1;
-      if (arr[mid] < v) lo = mid + 1;
-      else hi = mid;
-    }
-    return lo;
-  }
-  var sliceRange = (items, times, t0, t1) => items.slice(lowerBound(times, t0), lowerBound(times, t1));
-  function sngToArrangement(sng, name) {
-    const levels = sng.Levels;
-    let notes = [], chords = [], anchors = [], handShapes = [];
-    if (levels.length) {
-      const prepared = /* @__PURE__ */ new Map();
-      const by = new Map(levels.map((lv) => [lv.Difficulty, lv]));
-      const tier = (diff) => {
-        if (!by.has(diff)) {
-          const below = [...by.keys()].filter((d) => d <= diff);
-          if (!below.length) return null;
-          diff = Math.max(...below);
-        }
-        if (!prepared.has(diff)) prepared.set(diff, prepLevel(sng, by.get(diff)));
-        return prepared.get(diff);
-      };
-      const phrases = sng.Phrases;
-      const iters = sng.PhraseIterations;
-      let usedMerge = false;
-      for (const it of iters) {
-        const pid = it.PhraseId;
-        if (!(pid >= 0 && pid < phrases.length)) continue;
-        const t = tier(phrases[pid].MaxDifficulty);
-        if (!t) continue;
-        const t0 = it.StartTime, t1 = it.EndTime;
-        if (t1 <= t0) continue;
-        notes = notes.concat(sliceRange(t.notes, t.nt, t0, t1));
-        chords = chords.concat(sliceRange(t.chords, t.ct, t0, t1));
-        anchors = anchors.concat(sliceRange(t.anchors, t.at, t0, t1));
-        handShapes = handShapes.concat(sliceRange(t.hs, t.ht, t0, t1));
-        usedMerge = true;
-      }
-      if (!usedMerge) {
-        const best = prepLevel(sng, levels.reduce((a, b) => b.Notes.length > a.Notes.length ? b : a));
-        notes = best.notes;
-        chords = best.chords;
-        anchors = best.anchors;
-        handShapes = best.hs;
-      }
-    }
-    notes.sort((a, b) => a.time - b.time);
-    chords.sort((a, b) => a.time - b.time);
-    anchors.sort((a, b) => a.time - b.time);
-    handShapes.sort((a, b) => a.start_time - b.start_time);
-    const templates = sng.Chords.map((c) => ({
-      name: c.Name,
-      display_name: c.Name,
-      arpeggio: !!(c.Mask & 1),
-      fingers: [...c.Fingers],
-      frets: [...c.Frets]
-    }));
-    const md = sng.MetaData;
-    return {
-      name,
-      tuning: md.Tuning && md.Tuning.length ? [...md.Tuning] : [0, 0, 0, 0, 0, 0],
-      capo: md.CapoFretId && md.CapoFretId > 0 ? md.CapoFretId : 0,
-      notes,
-      chords,
-      anchors,
-      hand_shapes: handShapes,
-      chord_templates: templates,
-      phrases: null,
-      tones: null,
-      path_lead: false,
-      path_rhythm: false,
-      path_bass: false,
-      bonus_arr: false,
-      represent: 0
-    };
-  }
-
   // js/xml.js
   function elementFromDom(el) {
     xmlStats.count = (xmlStats.count || 0) + 1;
@@ -1028,7 +239,7 @@
       ignore: bool(n, "ignore")
     };
   }
-  var lowerBound2 = (arr, v) => {
+  var lowerBound = (arr, v) => {
     let lo = 0, hi = arr.length;
     while (lo < hi) {
       const m = lo + hi >> 1;
@@ -1093,7 +304,7 @@
       for (const c of findAll(find(levelEl, "chords"), "chord")) {
         const t = num(c, "time");
         const cnElems = findAll(c, "chordNote");
-        let chordNotes2 = cnElems.map(parseNoteEl);
+        let chordNotes = cnElems.map(parseNoteEl);
         const cid = int(c, "chordId");
         const chPm = bool(c, "palmMute"), chMt = bool(c, "mute");
         const chFhm = bool(c, "fretHandMute"), chAcc = bool(c, "accent");
@@ -1101,9 +312,9 @@
           const ct = chordTemplates[cid];
           const fretted = [];
           for (let s = 0; s < ct.frets.length; s++) if (ct.frets[s] >= 0) fretted.push([s, ct.frets[s]]);
-          if (!chordNotes2.length) {
+          if (!chordNotes.length) {
             for (const [s, f] of fretted) {
-              chordNotes2.push({
+              chordNotes.push({
                 time: t,
                 string: s,
                 fret: f,
@@ -1113,11 +324,11 @@
                 accent: chAcc
               });
             }
-          } else if (chordNotes2.length < fretted.length) {
-            const have = new Set(chordNotes2.map((n) => n.string));
+          } else if (chordNotes.length < fretted.length) {
+            const have = new Set(chordNotes.map((n) => n.string));
             for (const [s, f] of fretted) {
               if (!have.has(s)) {
-                chordNotes2.push({
+                chordNotes.push({
                   time: t,
                   string: s,
                   fret: f,
@@ -1130,17 +341,17 @@
             }
           }
         }
-        if (chordNotes2.length && (chPm || chMt || chFhm || chAcc)) {
-          for (let i = 0; i < chordNotes2.length && i < cnElems.length; i++) {
-            const cn = chordNotes2[i], el = cnElems[i];
+        if (chordNotes.length && (chPm || chMt || chFhm || chAcc)) {
+          for (let i = 0; i < chordNotes.length && i < cnElems.length; i++) {
+            const cn = chordNotes[i], el = cnElems[i];
             if (chPm && getAttr(el, "palmMute") === null) cn.palm_mute = true;
             if (chMt && getAttr(el, "mute") === null) cn.mute = true;
             if (chFhm && getAttr(el, "fretHandMute") === null) cn.fret_hand_mute = true;
             if (chAcc && getAttr(el, "accent") === null) cn.accent = true;
           }
         }
-        chordNotes2.sort((a, b) => a.string - b.string);
-        lvChords.push({ time: t, chord_id: cid, notes: chordNotes2, high_density: chordHighDensity(c) });
+        chordNotes.sort((a, b) => a.string - b.string);
+        lvChords.push({ time: t, chord_id: cid, notes: chordNotes, high_density: chordHighDensity(c) });
       }
       lvChords.sort((a, b) => a.time - b.time);
       const lvAnchors = findAll(find(levelEl, "anchors"), "anchor").map((a) => ({ time: num(a, "time"), fret: int(a, "fret"), width: int(a, "width", 4) })).sort((a, b) => a.time - b.time);
@@ -1178,7 +389,7 @@
     const parsed = /* @__PURE__ */ new Map();
     for (const [d, el] of allLevels) parsed.set(d, parseLevelFully(el));
     const sliceOf = (p, t0, t1) => {
-      const s = (items, times) => items.slice(lowerBound2(times, t0), lowerBound2(times, t1));
+      const s = (items, times) => items.slice(lowerBound(times, t0), lowerBound(times, t1));
       return [s(p.notes, p.note_times), s(p.chords, p.chord_times), s(p.anchors, p.anchor_times), s(p.hand_shapes, p.hs_times)];
     };
     let notes = [], chords = [], anchors = [], handShapes = [];
@@ -1442,112 +653,6 @@
       }
     }
   }
-  var SKIP = ["vocals", "jvocals", "showlights"];
-  function manifestIndex(files) {
-    const idx = /* @__PURE__ */ new Map();
-    const names = [...files.keys()].filter((n) => {
-      const l = n.toLowerCase();
-      return l.endsWith(".json") || l.endsWith(".hsan");
-    });
-    for (const name of names) {
-      let data;
-      try {
-        data = JSON.parse(decodeText(files.get(name)));
-      } catch {
-        continue;
-      }
-      if (!data || typeof data !== "object" || Array.isArray(data)) continue;
-      const entries = data.Entries;
-      if (!entries || typeof entries !== "object" || Array.isArray(entries)) continue;
-      for (const v of Object.values(entries)) {
-        if (!v || typeof v !== "object") continue;
-        const attrs = v.Attributes;
-        if (!attrs || typeof attrs !== "object") continue;
-        const rawName = attrs.ArrangementName;
-        const an = typeof rawName === "string" ? rawName : "";
-        if (!an || ["Vocals", "JVocals", "ShowLights"].includes(an)) continue;
-        const keys = /* @__PURE__ */ new Set();
-        const songKey = attrs.SongKey || "";
-        if (songKey) keys.add(`${songKey}_${an}`.toLowerCase());
-        if (Object.keys(entries).length === 1) keys.add(stem(name));
-        for (const k of keys) {
-          const prev = idx.get(k);
-          if (!prev || Object.keys(attrs).length >= Object.keys(prev).length) idx.set(k, attrs);
-        }
-      }
-    }
-    return idx;
-  }
-  function nameFromStem(s) {
-    const low = s.toLowerCase();
-    for (const [key, disp] of [["lead", "Lead"], ["rhythm", "Rhythm"], ["bass", "Bass"], ["combo", "Combo"]]) {
-      if (low.includes(key)) return disp;
-    }
-    return s;
-  }
-  async function loadSongFromExtract(files) {
-    const song = {
-      title: "",
-      artist: "",
-      album: "",
-      year: 0,
-      song_length: 0,
-      beats: [],
-      sections: [],
-      arrangements: []
-    };
-    const sngNames = [...files.keys()].filter((n) => n.toLowerCase().endsWith(".sng")).filter((n) => !SKIP.some((k) => stem(n).includes(k))).sort();
-    if (!sngNames.length) return song;
-    const manifests = manifestIndex(files);
-    const recs = /* @__PURE__ */ new Map();
-    let metaAttrs = null;
-    const failed = [];
-    for (const name of sngNames) {
-      let rec;
-      const platform = name.toLowerCase().includes("/macos/") || name.toLowerCase().includes("/mac/") ? "mac" : "pc";
-      try {
-        rec = await readSng(files.get(name), platform);
-      } catch (e) {
-        console.warn(`[warn] failed to read ${name}: ${e.message}`);
-        failed.push(`${name} (${e.message})`);
-        continue;
-      }
-      const attrs = manifests.get(stem(name)) || {};
-      const arrName = attrs.ArrangementName || nameFromStem(stem(name));
-      const arr = sngToArrangement(rec, arrName);
-      const ap = attrs.ArrangementProperties || {};
-      arr.path_lead = !!ap.pathLead;
-      arr.path_rhythm = !!ap.pathRhythm;
-      arr.path_bass = !!ap.pathBass;
-      arr.bonus_arr = !!ap.bonusArr;
-      arr.represent = parseInt(ap.represent || 0, 10) || 0;
-      song.arrangements.push(arr);
-      recs.set(arr, rec);
-      if (!metaAttrs && attrs.SongName) metaAttrs = attrs;
-    }
-    if (failed.length && !song.arrangements.length) {
-      throw new Error(`no arrangement SNG could be decoded (${failed.join(", ")})`);
-    }
-    const prio = { lead: 0, combo: 1, rhythm: 2, bass: 3 };
-    song.arrangements.sort((a, b) => (prio[a.name.toLowerCase()] ?? 99) - (prio[b.name.toLowerCase()] ?? 99));
-    if (song.arrangements.length) {
-      const timeline = recs.get(song.arrangements[0]);
-      const md = timeline.MetaData;
-      const attrs = metaAttrs || {};
-      song.song_length = parseFloat(attrs.SongLength || md.SongLength || 0) || 0;
-      song.title = attrs.SongName || "";
-      song.artist = attrs.ArtistName || "";
-      song.album = attrs.AlbumName || "";
-      song.year = parseInt(attrs.SongYear || 0, 10) || 0;
-      for (const b of timeline.Beats) {
-        song.beats.push({ time: b.Time, measure: b.Mask & 1 ? b.Measure : -1 });
-      }
-      for (const sec of timeline.Sections) {
-        song.sections.push({ name: sec.Name, number: sec.Number, time: sec.StartTime });
-      }
-    }
-    return song;
-  }
 
   // js/tones.js
   var NON_TONE = /* @__PURE__ */ new Set(["vocals", "showlights", "jvocals"]);
@@ -1580,14 +685,14 @@
         const definitions = [];
         const seen = /* @__PURE__ */ new Set();
         const rawTones = Array.isArray(attrs.Tones) ? attrs.Tones : [];
-        for (const tone2 of rawTones) {
-          if (!tone2 || typeof tone2 !== "object") continue;
-          const key = tone2.Key;
+        for (const tone of rawTones) {
+          if (!tone || typeof tone !== "object") continue;
+          const key = tone.Key;
           if (typeof key === "string" && key) {
             if (seen.has(key)) continue;
             seen.add(key);
           }
-          definitions.push(tone2);
+          definitions.push(tone);
         }
         const idName = /* @__PURE__ */ new Map();
         ["Tone_A", "Tone_B", "Tone_C", "Tone_D"].forEach((k, i) => {
@@ -1685,33 +790,6 @@
     used.add(cand);
     return cand;
   }
-  async function parseVocalsSng(bytes, platform) {
-    const body = await decryptSng(bytes, platform);
-    const headerSkip = 16;
-    if (body.length < headerSkip + 4) return [];
-    for (let i = 0; i < headerSkip; i++) if (body[i] !== 0) return [];
-    const dv = new DataView(body.buffer, body.byteOffset, body.byteLength);
-    const count = dv.getUint32(headerSkip, true);
-    if (!count || body.length < headerSkip + 4 + count * 60) return [];
-    const out = [];
-    let off = headerSkip + 4;
-    for (let i = 0; i < count; i++) {
-      const time = dv.getFloat32(off, true);
-      const length = dv.getFloat32(off + 8, true);
-      const raw = body.subarray(off + 12, off + 60);
-      const z = raw.indexOf(0);
-      const cut = z >= 0 ? raw.subarray(0, z) : raw;
-      let lyric;
-      try {
-        lyric = new TextDecoder("utf-8", { fatal: true }).decode(cut);
-      } catch {
-        lyric = new TextDecoder("latin1").decode(cut);
-      }
-      out.push({ t: r32(time), d: r32(length), w: lyric });
-      off += 60;
-    }
-    return out;
-  }
   async function parseLyrics(files) {
     const names = [...files.keys()].sort();
     for (const n of names) {
@@ -1729,15 +807,6 @@
         w: v.attrs.lyric || ""
       }));
       if (toks.length) return { tokens: toks, source: "xml" };
-    }
-    for (const n of names) {
-      if (!n.toLowerCase().includes("vocals") || !n.toLowerCase().endsWith(".sng")) continue;
-      const platform = /\/macos\//i.test(n) || /\/mac\//i.test(n) ? "mac" : "pc";
-      try {
-        const toks = await parseVocalsSng(files.get(n), platform);
-        if (toks.length) return { tokens: toks, source: "sng" };
-      } catch {
-      }
     }
     return { tokens: [], source: "" };
   }
@@ -1837,31 +906,6 @@
     out.changes.sort((a, b) => a.t - b.t);
     return out;
   }
-  var OFFICIAL_SONG = "this is an official song from the game's store. Play Song only opens custom songs (CDLC) and .feedpak files";
-  async function convertPsarc(bytes, { name = "song.psarc", onProgress = () => {
-  } } = {}) {
-    onProgress("Opening the archive\u2026");
-    const psarc = new Psarc(bytes);
-    const names = await psarc.names();
-    const wanted = names.filter((n) => /\.(xml|sng|json|hsan)$/i.test(n));
-    const files = /* @__PURE__ */ new Map();
-    for (let i = 0; i < wanted.length; i++) {
-      files.set(wanted[i], await psarc.read(wanted[i]));
-      if ((i & 7) === 0) onProgress(`Reading the chart\u2026 ${Math.round(i / wanted.length * 100)}%`);
-    }
-    const hasDds = names.some((n) => n.toLowerCase().endsWith(".dds"));
-    onProgress("Checking the song\u2026");
-    if (!names.some((n) => /toolkit\.version$/i.test(n))) {
-      const sngs = [...files.keys()].filter((n) => /\.sng$/i.test(n) && !/vocals/i.test(n));
-      for (const n of sngs.slice(0, 3)) {
-        if (await sngIsSigned(files.get(n), /macos|\/mac\//i.test(n) ? "mac" : "pc")) {
-          throw new Error(OFFICIAL_SONG);
-        }
-      }
-    }
-    const payload = await buildPayload(files, { name, hasCover: hasDds, onProgress });
-    return { payload, psarc, names, files };
-  }
   async function convertXmlSet(entries, { name = "song", onProgress = () => {
   } } = {}) {
     onProgress("Reading the XML\u2026");
@@ -1883,8 +927,7 @@
   }
   async function buildPayload(files, { name, hasCover, onProgress }) {
     onProgress("Parsing the arrangements\u2026");
-    const xmlMode = hasArrangementXml(files);
-    const song = xmlMode ? loadSong(files, true) : await loadSongFromExtract(files);
+    const song = loadSong(files, true);
     if (!song.arrangements.length) throw new Error("no playable arrangements found");
     onProgress("Reading tones and lyrics\u2026");
     const tonesByArr = extractTonesForSong(files, song.arrangements.map((a) => a.name));
@@ -4044,8 +3087,8 @@
     }
     return result;
   }
-  function generateNextLine(state, level2) {
-    return "\n" + common.repeat(" ", state.indent * level2);
+  function generateNextLine(state, level) {
+    return "\n" + common.repeat(" ", state.indent * level);
   }
   function testImplicitResolving(state, str2) {
     var index, length, type2;
@@ -4152,7 +3195,7 @@
     }
     return quotingType === QUOTING_TYPE_DOUBLE ? STYLE_DOUBLE : STYLE_SINGLE;
   }
-  function writeScalar(state, string, level2, iskey, inblock) {
+  function writeScalar(state, string, level, iskey, inblock) {
     state.dump = function() {
       if (string.length === 0) {
         return state.quotingType === QUOTING_TYPE_DOUBLE ? '""' : "''";
@@ -4162,9 +3205,9 @@
           return state.quotingType === QUOTING_TYPE_DOUBLE ? '"' + string + '"' : "'" + string + "'";
         }
       }
-      var indent = state.indent * Math.max(1, level2);
+      var indent = state.indent * Math.max(1, level);
       var lineWidth = state.lineWidth === -1 ? -1 : Math.max(Math.min(state.lineWidth, 40), state.lineWidth - indent);
-      var singleLineOnly = iskey || state.flowLevel > -1 && level2 >= state.flowLevel;
+      var singleLineOnly = iskey || state.flowLevel > -1 && level >= state.flowLevel;
       function testAmbiguity(string2) {
         return testImplicitResolving(state, string2);
       }
@@ -4261,14 +3304,14 @@
     }
     return result;
   }
-  function writeFlowSequence(state, level2, object) {
+  function writeFlowSequence(state, level, object) {
     var _result = "", _tag = state.tag, index, length, value;
     for (index = 0, length = object.length; index < length; index += 1) {
       value = object[index];
       if (state.replacer) {
         value = state.replacer.call(object, String(index), value);
       }
-      if (writeNode(state, level2, value, false, false) || typeof value === "undefined" && writeNode(state, level2, null, false, false)) {
+      if (writeNode(state, level, value, false, false) || typeof value === "undefined" && writeNode(state, level, null, false, false)) {
         if (_result !== "") _result += "," + (!state.condenseFlow ? " " : "");
         _result += state.dump;
       }
@@ -4276,16 +3319,16 @@
     state.tag = _tag;
     state.dump = "[" + _result + "]";
   }
-  function writeBlockSequence(state, level2, object, compact) {
+  function writeBlockSequence(state, level, object, compact) {
     var _result = "", _tag = state.tag, index, length, value;
     for (index = 0, length = object.length; index < length; index += 1) {
       value = object[index];
       if (state.replacer) {
         value = state.replacer.call(object, String(index), value);
       }
-      if (writeNode(state, level2 + 1, value, true, true, false, true) || typeof value === "undefined" && writeNode(state, level2 + 1, null, true, true, false, true)) {
+      if (writeNode(state, level + 1, value, true, true, false, true) || typeof value === "undefined" && writeNode(state, level + 1, null, true, true, false, true)) {
         if (!compact || _result !== "") {
-          _result += generateNextLine(state, level2);
+          _result += generateNextLine(state, level);
         }
         if (state.dump && CHAR_LINE_FEED === state.dump.charCodeAt(0)) {
           _result += "-";
@@ -4298,7 +3341,7 @@
     state.tag = _tag;
     state.dump = _result || "[]";
   }
-  function writeFlowMapping(state, level2, object) {
+  function writeFlowMapping(state, level, object) {
     var _result = "", _tag = state.tag, objectKeyList = Object.keys(object), index, length, objectKey, objectValue, pairBuffer;
     for (index = 0, length = objectKeyList.length; index < length; index += 1) {
       pairBuffer = "";
@@ -4309,12 +3352,12 @@
       if (state.replacer) {
         objectValue = state.replacer.call(object, objectKey, objectValue);
       }
-      if (!writeNode(state, level2, objectKey, false, false)) {
+      if (!writeNode(state, level, objectKey, false, false)) {
         continue;
       }
       if (state.dump.length > 1024) pairBuffer += "? ";
       pairBuffer += state.dump + (state.condenseFlow ? '"' : "") + ":" + (state.condenseFlow ? "" : " ");
-      if (!writeNode(state, level2, objectValue, false, false)) {
+      if (!writeNode(state, level, objectValue, false, false)) {
         continue;
       }
       pairBuffer += state.dump;
@@ -4323,7 +3366,7 @@
     state.tag = _tag;
     state.dump = "{" + _result + "}";
   }
-  function writeBlockMapping(state, level2, object, compact) {
+  function writeBlockMapping(state, level, object, compact) {
     var _result = "", _tag = state.tag, objectKeyList = Object.keys(object), index, length, objectKey, objectValue, explicitPair, pairBuffer;
     if (state.sortKeys === true) {
       objectKeyList.sort();
@@ -4335,14 +3378,14 @@
     for (index = 0, length = objectKeyList.length; index < length; index += 1) {
       pairBuffer = "";
       if (!compact || _result !== "") {
-        pairBuffer += generateNextLine(state, level2);
+        pairBuffer += generateNextLine(state, level);
       }
       objectKey = objectKeyList[index];
       objectValue = object[objectKey];
       if (state.replacer) {
         objectValue = state.replacer.call(object, objectKey, objectValue);
       }
-      if (!writeNode(state, level2 + 1, objectKey, true, true, true)) {
+      if (!writeNode(state, level + 1, objectKey, true, true, true)) {
         continue;
       }
       explicitPair = state.tag !== null && state.tag !== "?" || state.dump && state.dump.length > 1024;
@@ -4355,9 +3398,9 @@
       }
       pairBuffer += state.dump;
       if (explicitPair) {
-        pairBuffer += generateNextLine(state, level2);
+        pairBuffer += generateNextLine(state, level);
       }
-      if (!writeNode(state, level2 + 1, objectValue, true, explicitPair)) {
+      if (!writeNode(state, level + 1, objectValue, true, explicitPair)) {
         continue;
       }
       if (state.dump && CHAR_LINE_FEED === state.dump.charCodeAt(0)) {
@@ -4402,7 +3445,7 @@
     }
     return false;
   }
-  function writeNode(state, level2, object, block, compact, iskey, isblockseq) {
+  function writeNode(state, level, object, block, compact, iskey, isblockseq) {
     state.tag = null;
     state.dump = object;
     if (!detectType(state, object, false)) {
@@ -4412,14 +3455,14 @@
     var inblock = block;
     var tagStr;
     if (block) {
-      block = state.flowLevel < 0 || state.flowLevel > level2;
+      block = state.flowLevel < 0 || state.flowLevel > level;
     }
     var objectOrArray = type2 === "[object Object]" || type2 === "[object Array]", duplicateIndex, duplicate;
     if (objectOrArray) {
       duplicateIndex = state.duplicates.indexOf(object);
       duplicate = duplicateIndex !== -1;
     }
-    if (state.tag !== null && state.tag !== "?" || duplicate || state.indent !== 2 && level2 > 0) {
+    if (state.tag !== null && state.tag !== "?" || duplicate || state.indent !== 2 && level > 0) {
       compact = false;
     }
     if (duplicate && state.usedDuplicates[duplicateIndex]) {
@@ -4430,35 +3473,35 @@
       }
       if (type2 === "[object Object]") {
         if (block && Object.keys(state.dump).length !== 0) {
-          writeBlockMapping(state, level2, state.dump, compact);
+          writeBlockMapping(state, level, state.dump, compact);
           if (duplicate) {
             state.dump = "&ref_" + duplicateIndex + state.dump;
           }
         } else {
-          writeFlowMapping(state, level2, state.dump);
+          writeFlowMapping(state, level, state.dump);
           if (duplicate) {
             state.dump = "&ref_" + duplicateIndex + " " + state.dump;
           }
         }
       } else if (type2 === "[object Array]") {
         if (block && state.dump.length !== 0) {
-          if (state.noArrayIndent && !isblockseq && level2 > 0) {
-            writeBlockSequence(state, level2 - 1, state.dump, compact);
+          if (state.noArrayIndent && !isblockseq && level > 0) {
+            writeBlockSequence(state, level - 1, state.dump, compact);
           } else {
-            writeBlockSequence(state, level2, state.dump, compact);
+            writeBlockSequence(state, level, state.dump, compact);
           }
           if (duplicate) {
             state.dump = "&ref_" + duplicateIndex + state.dump;
           }
         } else {
-          writeFlowSequence(state, level2, state.dump);
+          writeFlowSequence(state, level, state.dump);
           if (duplicate) {
             state.dump = "&ref_" + duplicateIndex + " " + state.dump;
           }
         }
       } else if (type2 === "[object String]") {
         if (state.tag !== "?") {
-          writeScalar(state, state.dump, level2, iskey, inblock);
+          writeScalar(state, state.dump, level, iskey, inblock);
         }
       } else if (type2 === "[object Undefined]") {
         return false;
@@ -4585,7 +3628,7 @@
   var SIG_LOCAL = 67324752;
   var u16 = (dv, o) => dv.getUint16(o, true);
   var u32 = (dv, o) => dv.getUint32(o, true);
-  var utf83 = new TextDecoder("utf-8", { fatal: false });
+  var utf8 = new TextDecoder("utf-8", { fatal: false });
   async function inflateRaw(bytes) {
     const ds = new DecompressionStream("deflate-raw");
     const w = ds.writable.getWriter();
@@ -4652,7 +3695,7 @@
         const extraLen = u16(this.dv, p + 30);
         const commentLen = u16(this.dv, p + 32);
         const localOffset = u32(this.dv, p + 42);
-        const name = utf83.decode(this.bytes.subarray(p + 46, p + 46 + nameLen));
+        const name = utf8.decode(this.bytes.subarray(p + 46, p + 46 + nameLen));
         this.entries.set(name, { method, compSize, size, localOffset });
         p += 46 + nameLen + extraLen + commentLen;
       }
@@ -4684,7 +3727,7 @@
 
   // js/feedpak.js
   var r33 = (v) => Math.round(v * 1e3) / 1e3;
-  var utf84 = new TextDecoder("utf-8", { fatal: false });
+  var utf82 = new TextDecoder("utf-8", { fatal: false });
   var LYRIC_LINE_RE = /^\s*\[(\d+):(\d+(?:\.\d+)?)\]\s*(.*)$/;
   function lyricsFromText(text) {
     const out = [];
@@ -4706,13 +3749,86 @@
     const zip = new Zip(bytes);
     const manifestName = zip.has("manifest.yaml") ? "manifest.yaml" : zip.has("manifest.yml") ? "manifest.yml" : null;
     if (!manifestName) throw new Error("not a .feedpak (no manifest.yaml inside)");
-    const m = js_yaml_default.load(utf84.decode(await zip.read(manifestName))) || {};
+    const m = js_yaml_default.load(utf82.decode(await zip.read(manifestName))) || {};
+    return packFrom(zip, m, name, onProgress);
+  }
+  var AUDIO_RX = /\.(ogg|mp3|wav|flac|m4a|aac|opus|webm)$/i;
+  var IMAGE_RX = /\.(jpe?g|png|webp|gif|bmp)$/i;
+  function isArrangementJson(text) {
+    try {
+      const w = JSON.parse(text);
+      return !!w && typeof w === "object" && !Array.isArray(w) && (Array.isArray(w.notes) || Array.isArray(w.chords));
+    } catch {
+      return false;
+    }
+  }
+  async function convertFeedpakFiles(entries, { name = "song", onProgress = () => {
+  } } = {}) {
+    onProgress("Reading the arrangements\u2026");
+    const norm = (n) => String(n).split(/[\\/]/).filter(Boolean).join("/");
+    const all = entries.map((e) => ({ name: norm(e.name), bytes: e.bytes instanceof Uint8Array ? e.bytes : new Uint8Array(e.bytes) }));
+    const man = all.find((e) => /(^|\/)manifest\.ya?ml$/i.test(e.name));
+    let root = "";
+    if (man) root = man.name.includes("/") ? man.name.slice(0, man.name.lastIndexOf("/") + 1) : "";
+    else {
+      const dirs = all.map((e) => e.name.includes("/") ? e.name.split("/")[0] + "/" : "");
+      if (dirs.length && dirs.every((d) => d && d === dirs[0])) root = dirs[0];
+    }
+    const files = /* @__PURE__ */ new Map();
+    for (const e of all) files.set(e.name.startsWith(root) ? e.name.slice(root.length) : e.name, e.bytes);
+    const byBase = /* @__PURE__ */ new Map();
+    for (const k of files.keys()) {
+      const b = k.split("/").pop().toLowerCase();
+      byBase.set(b, byBase.has(b) ? null : k);
+    }
+    const find2 = (n) => files.has(norm(n)) ? norm(n) : byBase.get(String(n).split("/").pop().toLowerCase()) || null;
+    const src = { has: (n) => !!find2(n), read: async (n) => files.get(find2(n)) };
+    let m;
+    if (man) m = js_yaml_default.load(utf82.decode(man.bytes)) || {};
+    else {
+      m = { title: "", artist: "", arrangements: [], stems: [] };
+      const used = /* @__PURE__ */ new Set();
+      for (const [k, b] of files) {
+        if (!/\.json$/i.test(k)) continue;
+        const text = utf82.decode(b);
+        if (!isArrangementJson(text)) {
+          try {
+            const d = JSON.parse(text);
+            if (Array.isArray(d) && d.length && d[0] && "w" in d[0]) m.lyrics = k;
+          } catch {
+          }
+          continue;
+        }
+        const w = JSON.parse(text);
+        const stem2 = k.split("/").pop().replace(/\.json$/i, "");
+        let id = stem2.toLowerCase().replace(/[^a-z0-9]+/g, "_") || "arr", i = 2;
+        while (used.has(id)) id = `${id}${i++}`;
+        used.add(id);
+        const fromFile = stem2.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+        const taken = (x) => m.arrangements.some((a) => a.name.toLowerCase() === String(x).toLowerCase());
+        const nm = w.name && !taken(w.name) ? w.name : fromFile;
+        m.arrangements.push({ id, name: nm, file: k, tuning: w.tuning || [0, 0, 0, 0, 0, 0], capo: w.capo || 0 });
+      }
+      if (!m.arrangements.length) throw new Error('no arrangement JSON among the files (a chart JSON holds "notes" or "chords")');
+      const order = (a) => /lead/i.test(a.name) ? 0 : /rhythm/i.test(a.name) ? 1 : /bass/i.test(a.name) ? 2 : 3;
+      m.arrangements.sort((a, b) => order(a) - order(b));
+      const audio = [...files.keys()].filter((k) => AUDIO_RX.test(k) && !/preview/i.test(k));
+      const stems = audio.filter((k) => /(^|\/)stems\//i.test(k));
+      const pick = stems.length ? stems : audio.sort((a, b) => files.get(b).length - files.get(a).length).slice(0, 1);
+      m.stems = pick.map((k) => ({ id: k.split("/").pop().replace(/\.[^.]+$/, ""), file: k }));
+      const img = [...files.keys()].filter((k) => IMAGE_RX.test(k)).sort((a, b) => (/cover|album|art|folder/i.test(b) ? 1 : 0) - (/cover|album|art|folder/i.test(a) ? 1 : 0));
+      if (img.length) m.cover = img[0];
+    }
+    if (!m.title) m.title = String(name).replace(/\.[^.]+$/, "");
+    return packFrom(src, m, name, onProgress);
+  }
+  async function packFrom(zip, m, name, onProgress) {
     const arrangements = [];
     let firstWire = null;
     for (const a of m.arrangements || []) {
       if (!a || !a.file) continue;
-      const wire = JSON.parse(utf84.decode(await zip.read(a.file)));
-      if (!firstWire) firstWire = wire;
+      const wire = JSON.parse(utf82.decode(await zip.read(a.file)));
+      if (!firstWire || !(firstWire.beats || []).length && (wire.beats || []).length) firstWire = wire;
       arrangements.push({
         id: a.id,
         name: a.name || a.id,
@@ -4734,7 +3850,7 @@
     if (!arrangements.length) throw new Error("the feedpak has no arrangements");
     let lyrics = { lines: [], source: m.lyrics_source || "" };
     if (m.lyrics && zip.has(m.lyrics)) {
-      const text = utf84.decode(await zip.read(m.lyrics));
+      const text = utf82.decode(await zip.read(m.lyrics));
       let lines = [];
       try {
         const data = JSON.parse(text);
@@ -4759,7 +3875,8 @@
       if (!s || !s.file || !zip.has(s.file)) continue;
       onProgress("Reading " + s.file + "\u2026");
       const raw = await zip.read(s.file);
-      stems.push({ id: s.id || s.file, blob: new Blob([raw], { type: "audio/ogg" }) });
+      const type2 = /\.mp3$/i.test(s.file) ? "audio/mpeg" : /\.wav$/i.test(s.file) ? "audio/wav" : /\.flac$/i.test(s.file) ? "audio/flac" : "audio/ogg";
+      stems.push({ id: s.id || s.file, blob: new Blob([raw], { type: type2 }) });
     }
     const payload = {
       meta: {
@@ -4903,5 +4020,5 @@
   }
 
   // converter.entry.js
-  window.CDLC = { convertPsarc, convertXmlSet, convertFeedpak, decodeDds, clearXmlCache, xmlStats };
+  window.CDLC = { convertFeedpakFiles, convertXmlSet, convertFeedpak, decodeDds, clearXmlCache, xmlStats };
 })();

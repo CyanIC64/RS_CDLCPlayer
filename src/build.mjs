@@ -7,18 +7,20 @@ import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const esbuild = require(process.env.ESBUILD || "esbuild");
 const here = path.dirname(fileURLToPath(import.meta.url));
-const out = process.argv[2] || path.join(here, "..", "deploy_ready", "V1.1", "web");
+// V1.2's web/ scripts
+const out = process.argv[2] || path.join(here, "..", "deploy_ready", "V1.2", "web");
+const define = {};
 fs.mkdirSync(out, { recursive: true });
 
 // 1. the in-page converter (fallback when a Worker cannot be started)
 await esbuild.build({ entryPoints: [path.join(here, "converter.entry.js")], bundle: true, format: "iife",
-                      outfile: path.join(out, "converter.js"), legalComments: "inline", logLevel: "warning" });
+                      outfile: path.join(out, "converter.js"), legalComments: "inline", logLevel: "warning", define });
 
 // 2. the worker: converter + ww2ogg in one script, wrapped as a string so the page
 //    can start it from a Blob - a Worker cannot be loaded from a file:// URL.
 if (fs.existsSync(path.join(here, "worker.entry.js"))) {
   const r = await esbuild.build({ entryPoints: [path.join(here, "worker.entry.js")], bundle: true, format: "iife",
-                                  write: false, legalComments: "inline", logLevel: "warning" });
+                                  write: false, legalComments: "inline", logLevel: "warning", define });
   const ww2ogg = fs.readFileSync(path.join(here, "vendor", "ww2ogg.bundle.js"), "utf8");
   const src = ww2ogg + "\n;\n" + r.outputFiles[0].text;
   fs.writeFileSync(path.join(out, "converter.worker.js"),

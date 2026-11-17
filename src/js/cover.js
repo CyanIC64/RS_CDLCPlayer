@@ -1,6 +1,6 @@
 // Minimal DDS decoder for album art (DXT1/DXT5, plus uncompressed).
-// Browsers have no DDS decoder; album art in a PSARC is always DXT1 or DXT5 in
-// practice, and either is ~60 lines of block maths.
+// Browsers have no DDS decoder; the cover art in a charting project folder is
+// DXT1 or DXT5 in practice, and either is ~60 lines of block maths.
 
 export function decodeDds(bytes) {
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);

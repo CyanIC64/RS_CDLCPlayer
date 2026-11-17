@@ -2,55 +2,68 @@
 
 **See and hear a guitar chart on a 3-D note highway or as tablature, right in your browser.**
 
-Play Song is a single static web page. Drop a custom song (`.psarc`), a `.feedpak`, or a chart's
-arrangement `.xml` files onto it, and it plays the song with the notes flying toward a fretboard,
-like a rhythm game, or scrolls along a tab sheet. Everything runs on your own computer: there is no
-server, no upload and no account.
-A
+Play Song is a single static web page. Drop a `.feedpak` or `.sloppak` song pack onto it, or a
+chart's arrangement files with their audio, and it plays the song: the notes fly toward a
+fretboard like a rhythm game, or scroll along a tab sheet. Everything runs on your own computer.
+There is no server, no upload and no account.
+
 > **Please use only songs you have obtained legally.** Play Song is an independent, non-commercial
-> project. It does not provide any songs, does not open official songs from the game's store, and is
-> not affiliated with any game publisher or rights holder.
+> project. It does not provide any songs and is not affiliated with any game publisher or rights holder.
 
 ---
 
 ## Features
 
 ### The highway
-- 3-D note highway drawn with Canvas2D, with a camera that follows the hand position and eases
-  over to new positions ahead of time.
+- 3-D note highway drawn with Canvas2D. The camera follows the hand position and eases over to new
+  positions ahead of time.
 - Every playing technique has its own notehead and tail: slides, bends, vibrato, hammer-ons,
-  pull-offs, harmonics, palm mutes, tremolo, accents and more.
-- Chord frames with chord names, finger-position numbers, and a chord diagram for the chord being held.
-- Fret numbers that fade as notes reach the fretboard, a note-hit light, and a gradual glow as notes approach.
-- **Left-handed view**: the whole scene is mirrored (nut on the right) while all writing stays readable.
+  pull-offs, harmonics, palm and fret-hand mutes, taps, tremolo, accents and more.
+  Technique symbols are visible as far down the highway as the note itself.
+- Chord frames with chord names, finger-position indicators, and a chord diagram for the chord being held.
+- Chord names and fret numbers are sized with the fretboard, as if printed on it, and fade in
+  as they come closer.
+- The glow on the fret numbers under the neck slides to the next hand position together with the
+  finger indicators.
+- A note-hit light, and a glow that builds up gradually as notes approach.
+- **Left-handed view**: the whole scene is mirrored, nut on the right, with all writing still readable.
 - **Invert strings**: low string at the bottom instead of the top.
 
 ### Tab view
-- The chart as guitar tablature with rhythm stems, chord names and lyrics under the bars.
-- A pointer line that glides with the music and highlights the notes being played.
+- The chart as guitar tablature, with rhythm stems, chord names and lyrics under the bars.
+- A pointer line glides with the music and highlights the notes being played.
+- The syllable being sung is highlighted too. Bars sung before the guitar comes in are included.
 - Press **T** or click **Tab** to switch.
 
+### Lyrics
+- Karaoke-style, two lines in view. When a line is sung, the lyrics scroll up one line: the finished line
+  fades out as it rises and the next one fades in below.
+- Seeking puts the right lines in place at once.
+
 ### Playing along
-- Arrangement picker (Lead / Rhythm / Bass / ...) right in the control bar.
+- Arrangement picker (Lead / Rhythm / Bass / …) right in the control bar.
 - Song speed from 20 % to 100 % without changing pitch.
 - Loop the current section, or press, hold and drag on the difficulty bars to loop any stretch.
 - Metronome and a note synth that plays the chart's notes.
-- Karaoke-style lyrics, two lines at a time.
 - Tone changes marked on the seek bar, with the current tone shown in the corner.
-- Stem picker for `.feedpak` files that carry separated stems.
+- Stem picker for packs that carry separated stems.
 - Note-sync offset in 1 ms and 10 ms steps.
+- Switching songs while one plays fades the old one out over a second, sound and picture together,
+  before the new one loads.
 
 ### Opening songs
 | What you drop | What happens |
 |---|---|
-| Custom song `.psarc` (CDLC) | Unpacked and converted on the page, audio included |
-| `.feedpak` | Opened as it is, including its stems |
-| Arrangement `.xml` files + audio + cover art, or the whole project folder | Played directly, handy while charting. Audio can be `.wem`, `.ogg`, `.mp3`, `.wav`, `.flac` or `.m4a`. Without audio the chart plays silently |
+| `.feedpak` or `.sloppak` | Opened as it is, stems included (`.sloppak` is the same format under its earlier name) |
+| An unpacked pack folder (`manifest.yaml`, `arrangements/*.json`, `stems/`, …) | Opened like the packed file |
+| Arrangement `.json` files in the pack format, with their audio (and `lyrics.json`, cover) | Played directly; the arrangements are found by their notes and chords |
+| Arrangement `.xml` files with their audio and cover art, or the whole project folder | Played directly, handy while charting. Audio can be `.wem`, `.ogg`, `.mp3`, `.wav`, `.flac` or `.m4a` |
 
-Only CDLC's are supported.
+A chart dropped without audio plays silently, with a notice.
 
 ### Performance
-- Converting runs in a Web Worker, so the page keeps drawing while a song opens.
+- Songs are opened in a Web Worker, so the page keeps drawing while a song loads.
+- A pack's stems are decoded two at a time and mixed as they finish: quick, without stalling the picture.
 - Sprite caches for noteheads and text, a render-scale option, and optional automatic resolution.
 - Settings are remembered in the browser (`localStorage`).
 
@@ -59,11 +72,12 @@ Only CDLC's are supported.
 ## Getting started
 
 ### Use it locally
-Open `index.html` in Chrome, Edge or Firefox. It works straight from disk (`file://`); nothing needs to be installed.
+Open `index.html` in Chrome, Edge or Firefox. It works straight from disk (`file://`), and nothing
+needs to be installed.
 
 ### Host it
 The folder is a plain static site: `index.html` and the `web/` folder. Put it on any static host,
-such as GitHub Pages, Vercel, Netlify or your own web server. No build step or server code is needed.
+such as GitHub Pages, Vercel, Netlify or your own web server. There is no build step and no server code.
 
 **GitHub Pages:** push this folder to a repository, then go to *Settings → Pages* and choose the
 branch and folder to publish.
@@ -92,14 +106,13 @@ branch and folder to publish.
 ## Files
 
 ```
-index.html                  the whole player: highway, tab view, audio, controls
-web/converter.worker.js     the converter, started as a Web Worker
-web/converter.js            the same converter for the page itself (used when a Worker cannot start)
+index.html                  the whole player: highway, tab view, lyrics, audio, controls
+web/converter.worker.js     opens songs in a Web Worker (packs, arrangement JSON and XML)
+web/converter.js            the same for the page itself (used when a Worker cannot start)
 web/ww2ogg.bundle.js        audio converter (.wem to Ogg Vorbis) for the in-page converter
 ```
 
-The scripts in `web/` are built from the converter sources (`src/` in the development tree)
-with esbuild:
+The scripts in `web/` are built from the sources in `src_v1.2/` (in the development tree) with esbuild:
 
 ```bash
 ESBUILD=/path/to/node_modules/esbuild node build.mjs
@@ -110,8 +123,8 @@ ESBUILD=/path/to/node_modules/esbuild node build.mjs
 ## Browser support
 
 A current Chrome, Edge or Firefox on a desktop computer. The page needs `DecompressionStream`,
-Web Crypto (`crypto.subtle`), Web Audio and Web Workers. Safari has not been tested.
-Phones can open it, but the control bar is made for wider screens.
+Web Audio and Web Workers. Safari has not been tested. Phones can open it, but the control bar is
+made for wider screens.
 
 ---
 
@@ -124,8 +137,8 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Limitations
 
-- Very long songs can take a few seconds to decode on slower computers.
 - Only the hardest difficulty level of a chart is shown.
+- Very long songs, or packs with many stems, can take several seconds to decode on slower computers.
 
 ---
 
@@ -138,11 +151,15 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Version
 
-**V1.1**, built on V1, adds:
-- the converter running in a Web Worker;
-- fixed lyric-line rules;
-- the Tab view with a line pointer and note highlighting;
-- the left-handed view and the invert-strings option;
-- raw XML input and the arrangement picker in the control bar;
-- stacked sliders;
-- a gradual note glow;
+**V1.2**, built on V1.1:
+- **Formats:** opens `.feedpak` and `.sloppak` packs, unpacked pack folders, arrangement JSON and
+  arrangement XML. It no longer opens game archives.
+- **Lyrics:** scroll line by line, and stay in place when you seek.
+- **Tab view:** highlights the syllable being sung.
+- **Song switching:** smoother, with a one-second fade-out and the camera easing to rest.
+- **Loading:** faster, with stems decoded in parallel.
+- **Highway:**
+  - technique symbols visible at any distance;
+  - chord names and fret numbers sized with the fretboard, and fading in;
+  - the fret-number glow moves with the finger indicators.
+- **Fix:** the stem picker no longer covers the Play button.

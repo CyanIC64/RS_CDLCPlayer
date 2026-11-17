@@ -1,10 +1,9 @@
-// Whole conversion: .psarc bytes -> the exact payload the page consumes
-// (server.py WebPack.payload()), plus the audio bytes, all in the browser.
-import { Psarc } from "../psarc.js";
-import { decryptSng, sngIsSigned } from "./sng.js";
+// Arrangement XML -> the exact payload the page consumes, in the browser.
+// (A .feedpak / .sloppak is read by feedpak.js; the lyric and tone helpers
+// here are shared with it.)
 import { parseArchiveXml, clearXmlCache } from "./xml.js";
 import {
-  arrangementToWire, hasArrangementXml, loadSong, loadSongFromExtract,
+  arrangementToWire, hasArrangementXml, loadSong,
 } from "./song.js";
 import { extractTonesForSong } from "./tones.js";
 
@@ -18,34 +17,8 @@ function arrId(name, used) {
   return cand;
 }
 
-// ── lyrics (psarc2feedpak._parse_lyrics + play_song._lyrics_from_tokens) ────
+// ── lyrics: vocals XML or lyric tokens -> lines (play_song._lyrics_from_tokens) ──
 const decodeText = (b) => new TextDecoder("utf-8", { fatal: false }).decode(b);
-
-// SNG vocals (sng_vocals.py) -- AES-CTR + zlib + 60-byte records.
-async function parseVocalsSng(bytes, platform) {
-  const body = await decryptSng(bytes, platform);
-  const headerSkip = 16;
-  if (body.length < headerSkip + 4) return [];
-  for (let i = 0; i < headerSkip; i++) if (body[i] !== 0) return [];
-  const dv = new DataView(body.buffer, body.byteOffset, body.byteLength);
-  const count = dv.getUint32(headerSkip, true);
-  if (!count || body.length < headerSkip + 4 + count * 60) return [];
-  const out = [];
-  let off = headerSkip + 4;
-  for (let i = 0; i < count; i++) {
-    const time = dv.getFloat32(off, true);
-    const length = dv.getFloat32(off + 8, true);
-    const raw = body.subarray(off + 12, off + 60);
-    const z = raw.indexOf(0);
-    const cut = z >= 0 ? raw.subarray(0, z) : raw;
-    let lyric;
-    try { lyric = new TextDecoder("utf-8", { fatal: true }).decode(cut); }
-    catch { lyric = new TextDecoder("latin1").decode(cut); }
-    out.push({ t: r3(time), d: r3(length), w: lyric });
-    off += 60;
-  }
-  return out;
-}
 
 export async function parseLyrics(files) {
   const names = [...files.keys()].sort();
@@ -62,14 +35,6 @@ export async function parseLyrics(files) {
         w: v.attrs.lyric || "",
       }));
     if (toks.length) return { tokens: toks, source: "xml" };
-  }
-  for (const n of names) {
-    if (!n.toLowerCase().includes("vocals") || !n.toLowerCase().endsWith(".sng")) continue;
-    const platform = /\/macos\//i.test(n) || /\/mac\//i.test(n) ? "mac" : "pc";
-    try {
-      const toks = await parseVocalsSng(files.get(n), platform);
-      if (toks.length) return { tokens: toks, source: "sng" };
-    } catch { /* try the next one */ }
   }
   return { tokens: [], source: "" };
 }
@@ -176,40 +141,6 @@ function tonesForPage(tones, title) {
   return out;
 }
 
-export const OFFICIAL_SONG =
-  "this is an official song from the game's store. Play Song only opens custom songs (CDLC) and .feedpak files";
-
-// ── the payload ─────────────────────────────────────────────────────────────
-export async function convertPsarc(bytes, { name = "song.psarc", onProgress = () => {} } = {}) {
-  onProgress("Opening the archive…");
-  const psarc = new Psarc(bytes);
-  const names = await psarc.names();
-
-  const wanted = names.filter((n) => /\.(xml|sng|json|hsan)$/i.test(n));
-  const files = new Map();
-  for (let i = 0; i < wanted.length; i++) {
-    files.set(wanted[i], await psarc.read(wanted[i]));
-    if ((i & 7) === 0) onProgress(`Reading the chart… ${Math.round((i / wanted.length) * 100)}%`);
-  }
-  const hasDds = names.some((n) => n.toLowerCase().endsWith(".dds"));
-
-  /* Official songs are not opened - only custom songs and .feedpak files.
-     A package built by a custom-song tool names that tool in toolkit.version;
-     otherwise the chart files are checked for the store's signature. */
-  onProgress("Checking the song…");
-  if (!names.some((n) => /toolkit\.version$/i.test(n))) {
-    const sngs = [...files.keys()].filter((n) => /\.sng$/i.test(n) && !/vocals/i.test(n));
-    for (const n of sngs.slice(0, 3)) {
-      if (await sngIsSigned(files.get(n), /macos|\/mac\//i.test(n) ? "mac" : "pc")) {
-        throw new Error(OFFICIAL_SONG);
-      }
-    }
-  }
-
-  const payload = await buildPayload(files, { name, hasCover: hasDds, onProgress });
-  return { payload, psarc, names, files };
-}
-
 /* Raw arrangement XML - a song as charting tools leave it in a project folder,
    not packed yet: one XML per arrangement, a vocals XML for the lyrics. The
    audio and the cover art are not handled here (see the page / the worker).
@@ -235,8 +166,7 @@ export async function convertXmlSet(entries, { name = "song", onProgress = () =>
 
 async function buildPayload(files, { name, hasCover, onProgress }) {
   onProgress("Parsing the arrangements…");
-  const xmlMode = hasArrangementXml(files);
-  const song = xmlMode ? loadSong(files, true) : await loadSongFromExtract(files);
+  const song = loadSong(files, true);
   if (!song.arrangements.length) throw new Error("no playable arrangements found");
 
   onProgress("Reading tones and lyrics…");

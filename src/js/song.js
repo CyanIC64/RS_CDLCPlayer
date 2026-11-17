@@ -1,8 +1,7 @@
-// Arrangement XML -> wire JSON, and the two load_song paths.
-// Direct port of song.py (parse_arrangement / load_song / sng path), keeping
-// exactly the keys the Play Song page consumes.
+// Arrangement XML -> wire JSON.
+// Port of song.py (parse_arrangement / load_song), keeping exactly the keys
+// the Play Song page consumes.
 import { find, findAll, getAttr, textOf, parseArchiveXml } from "./xml.js";
-import { readSng, sngToArrangement } from "./sng.js";
 
 // ── wire format (song.py note_to_wire ... arrangement_to_wire) ───────────────
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -464,103 +463,4 @@ function loadManifestMetadata(song, files) {
       if (song.title && song.artist) return;
     }
   }
-}
-
-// ── official-DLC path: SNG + manifest index (sng.load_song_from_extract) ────
-const SKIP = ["vocals", "jvocals", "showlights"];
-
-function manifestIndex(files) {
-  const idx = new Map();
-  const names = [...files.keys()].filter((n) => {
-    const l = n.toLowerCase();
-    return l.endsWith(".json") || l.endsWith(".hsan");
-  });
-  for (const name of names) {
-    let data;
-    try { data = JSON.parse(decodeText(files.get(name))); } catch { continue; }
-    if (!data || typeof data !== "object" || Array.isArray(data)) continue;
-    const entries = data.Entries;
-    if (!entries || typeof entries !== "object" || Array.isArray(entries)) continue;
-    for (const v of Object.values(entries)) {
-      if (!v || typeof v !== "object") continue;
-      const attrs = v.Attributes;
-      if (!attrs || typeof attrs !== "object") continue;
-      const rawName = attrs.ArrangementName;
-      const an = typeof rawName === "string" ? rawName : "";
-      if (!an || ["Vocals", "JVocals", "ShowLights"].includes(an)) continue;
-      const keys = new Set();
-      const songKey = attrs.SongKey || "";
-      if (songKey) keys.add(`${songKey}_${an}`.toLowerCase());
-      if (Object.keys(entries).length === 1) keys.add(stem(name));
-      for (const k of keys) {
-        const prev = idx.get(k);
-        if (!prev || Object.keys(attrs).length >= Object.keys(prev).length) idx.set(k, attrs);
-      }
-    }
-  }
-  return idx;
-}
-
-function nameFromStem(s) {
-  const low = s.toLowerCase();
-  for (const [key, disp] of [["lead", "Lead"], ["rhythm", "Rhythm"], ["bass", "Bass"], ["combo", "Combo"]]) {
-    if (low.includes(key)) return disp;
-  }
-  return s;
-}
-
-export async function loadSongFromExtract(files) {
-  const song = {
-    title: "", artist: "", album: "", year: 0, song_length: 0.0,
-    beats: [], sections: [], arrangements: [],
-  };
-  const sngNames = [...files.keys()]
-    .filter((n) => n.toLowerCase().endsWith(".sng"))
-    .filter((n) => !SKIP.some((k) => stem(n).includes(k)))
-    .sort();
-  if (!sngNames.length) return song;
-
-  const manifests = manifestIndex(files);
-  const recs = new Map();
-  let metaAttrs = null;
-  const failed = [];
-  for (const name of sngNames) {
-    let rec;
-    const platform = name.toLowerCase().includes("/macos/") || name.toLowerCase().includes("/mac/") ? "mac" : "pc";
-    try { rec = await readSng(files.get(name), platform); }
-    catch (e) { console.warn(`[warn] failed to read ${name}: ${e.message}`); failed.push(`${name} (${e.message})`); continue; }
-    const attrs = manifests.get(stem(name)) || {};
-    const arrName = attrs.ArrangementName || nameFromStem(stem(name));
-    const arr = sngToArrangement(rec, arrName);
-    const ap = attrs.ArrangementProperties || {};
-    arr.path_lead = !!ap.pathLead; arr.path_rhythm = !!ap.pathRhythm; arr.path_bass = !!ap.pathBass;
-    arr.bonus_arr = !!ap.bonusArr;
-    arr.represent = parseInt(ap.represent || 0, 10) || 0;
-    song.arrangements.push(arr);
-    recs.set(arr, rec);
-    if (!metaAttrs && attrs.SongName) metaAttrs = attrs;
-  }
-  if (failed.length && !song.arrangements.length) {
-    throw new Error(`no arrangement SNG could be decoded (${failed.join(", ")})`);
-  }
-  const prio = { lead: 0, combo: 1, rhythm: 2, bass: 3 };
-  song.arrangements.sort((a, b) => (prio[a.name.toLowerCase()] ?? 99) - (prio[b.name.toLowerCase()] ?? 99));
-
-  if (song.arrangements.length) {
-    const timeline = recs.get(song.arrangements[0]);
-    const md = timeline.MetaData;
-    const attrs = metaAttrs || {};
-    song.song_length = parseFloat(attrs.SongLength || md.SongLength || 0) || 0;
-    song.title = attrs.SongName || "";
-    song.artist = attrs.ArtistName || "";
-    song.album = attrs.AlbumName || "";
-    song.year = parseInt(attrs.SongYear || 0, 10) || 0;
-    for (const b of timeline.Beats) {
-      song.beats.push({ time: b.Time, measure: b.Mask & 1 ? b.Measure : -1 });
-    }
-    for (const sec of timeline.Sections) {
-      song.sections.push({ name: sec.Name, number: sec.Number, time: sec.StartTime });
-    }
-  }
-  return song;
 }

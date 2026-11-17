@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Song</title>
-<meta name="description" content="Play a guitar chart on a 3-D note highway or as tablature in your browser: drop a .psarc or .feedpak file.">
+<meta name="description" content="Play a guitar chart on a 3-D note highway or as tablature in your browser: drop a .feedpak or .sloppak file.">
 <style>
 :root{
   --bg:#0c0e16; --panel:#101216; --panel2:#191d23; --line:#2b3138; --ink:#e6edf3; --dim:#8b97a3;
@@ -54,6 +54,11 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 .tabrow .tdot{fill:#9a9a9a}
 .tabrow .ttri{font:9px Arial,Helvetica,sans-serif;fill:#888;text-anchor:middle}
 .tabrow .tly{font:13px Arial,Helvetica,sans-serif;fill:#8a8a8a}
+/* the syllable being sung: the same soft mark as the notes being played */
+.tabrow .tsh{fill:#d9f2e1;opacity:0;transition:opacity .12s}
+.tabrow .tsy.on .tsh{opacity:1;transition:none}
+.tabrow .tsy.on .tly{fill:#0e7a33;font-weight:700}
+.tabrow .tsy.measure .tsh{transition:none}
 #bTab{width:auto;padding:0 11px;gap:7px;font:600 12.5px "Segoe UI",system-ui,sans-serif;border-color:#2b3138;margin-left:6px}
 /* what the player is busy with: starting, converting, reading, decoding */
 #msg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:11px;
@@ -93,7 +98,13 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
   pointer-events:none;text-shadow:0 2px 6px #000, 0 0 2px #000}
 #lyr{position:absolute;left:8%;top:17%;max-width:62%;display:none}
 #lyr .ln{font-weight:600;font-size:clamp(17px,4.5vh,46px);line-height:1.16;white-space:pre-wrap;
-  letter-spacing:.01em;min-height:1.16em;transition:color .18s}
+  letter-spacing:.01em;min-height:1.16em;transition:color .18s,opacity .28s ease-out}
+/* The lines of a verse sit in one column, two of them in view: the line being
+   sung on top, the next one under it. When the top line is over the column
+   scrolls up by one line - the finished line fades out as it rises, the next
+   takes its place, and the one after it fades in below. */
+#lyrTrack{transition:transform .45s cubic-bezier(.25,.75,.3,1);will-change:transform}
+#lyr .ln.out{opacity:0}
 #lyr .ln.next{color:#b9bec4}
 #lyr .ln.done{color:#3d4046}
 /* When a line is over its syllables go from the light grey of "sung" straight
@@ -161,7 +172,9 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
   white-space:nowrap;z-index:50;pointer-events:none}
 #tlhint b{font:600 12px "Cascadia Mono",Consolas,monospace;margin-right:7px;color:#fff}
 
-#ctl{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:18px;
+/* the tools keep at least their own width (with a stem picker they are wide):
+   the song title gives way first, with an ellipsis, so nothing slides over Play */
+#ctl{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(max-content,1fr);align-items:center;gap:18px;
      padding:3px 16px 9px}
 #song{display:flex;align-items:center;gap:11px;min-width:0}
 #cover{width:58px;height:58px;flex:none;background:#000;display:flex;align-items:center;border-radius:4px;
@@ -262,7 +275,7 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 <div id="stage">
   <canvas id="hw"></canvas>
   <div id="tabview" tabindex="-1"><div id="tabpage"></div></div>
-  <div id="lyr"><div class="ln" id="lyrA"></div><div class="ln" id="lyrB"></div></div>
+  <div id="lyr"><div id="lyrTrack"></div></div>
   <div id="lyrErr"><b>[Lyric load error!]</b><span id="lyrErrWhy"></span></div>
   <div id="hud">
     <div class="k">ARRANGEMENT</div><div class="v" id="hudArr">—</div>
@@ -275,17 +288,17 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
          stroke-linejoin="round"><path d="M12 15V4"/><path d="M8 8l4-4 4 4"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
     <h2>Drop a song here</h2>
-    <p>Drag a custom song (<b>.psarc</b>) or a <b>.feedpak</b> file onto this window to see and hear its chart<br>on a 3-D note highway or as tablature.</p>
+    <p>Drag a <b>.feedpak</b> or <b>.sloppak</b> file onto this window to see and hear its chart<br>on a 3-D note highway or as tablature.</p>
     <p class="sub">Charting a song? Drop its <b>arrangement .xml</b> files together with the audio (and cover art),
       or the whole project folder.</p>
     <button id="hintPick" type="button">Choose a file…</button>
     <small id="hintNote">The file is opened on this page - it is never uploaded, and nothing is changed in your file.</small>
     <div id="hintLegal"><b>Please use only songs you have obtained legally.</b> Play Song is an independent,
-      non-commercial project; it does not provide any songs, does not open official songs from the game's store,
-      and is not affiliated with any game publisher or rights holder.</div>
+      non-commercial project; it does not provide any songs and is not affiliated with any game publisher or
+      rights holder.</div>
   </div>
   <input id="filePick" type="file" multiple style="display:none"
-         accept=".psarc,.feedpak,.xml,.ogg,.mp3,.wav,.flac,.m4a,.opus,.wem,.png,.jpg,.jpeg,.webp,.dds">
+         accept=".feedpak,.sloppak,.xml,.json,.yaml,.ogg,.mp3,.wav,.flac,.m4a,.opus,.wem,.png,.jpg,.jpeg,.webp,.dds">
   <div id="msg"><span class="spin"></span><span id="msgTxt">Starting…</span></div>
 </div>
 
@@ -393,7 +406,7 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 
       <div id="stats"><div id="bpm">—</div><div id="fps">0 FPS</div></div>
 
-      <button class="ib" id="bOpen" title="Open another song (.psarc, .feedpak, or arrangement .xml files with their audio)">
+      <button class="ib" id="bOpen" title="Open another song (.feedpak, .sloppak, or arrangement .xml / .json files with their audio)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
              stroke-linejoin="round"><path d="M12 15V5"/><path d="M8 9l4-4 4 4"/><path d="M5 15v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3"/></svg>
         <span>Open</span>
@@ -407,7 +420,7 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
   </div>
 </div>
 <div id="tlhint"></div>
-<div id="drop"><div>Drop to play this song<small>.psarc, .feedpak, or arrangement .xml with its audio - only songs you have obtained legally</small></div></div>
+<div id="drop"><div>Drop to play this song<small>.feedpak, .sloppak, an unpacked pack folder, or arrangement .xml / .json with its audio - only songs you have obtained legally</small></div></div>
 
 <div id="cfg">
   <h4>Highway</h4>
@@ -442,6 +455,7 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
       <button class="nudge" data-d="10" title="+10 ms">+10</button>
     </span>
   </div>
+  <div class="row" id="saveOffRow"><label>Save into the pack</label><button id="bSaveOff">Save offset</button></div>
   <div class="hint" id="offMsg">Positive offset = chart later than the audio.</div>
   <div class="hint">Space play/pause · ←/→ 1 s · [ ] section · L loop · R restart · M mute · C metronome · N note synth · T tab view · O options · <b>,</b> <b>.</b> nudge ±1 ms</div>
 </div>
@@ -456,10 +470,10 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
    uploaded and converted there.
 
    Opened as a plain file - or from any static host - there is nothing to ask.
-   A dropped .psarc is then converted in this tab by the scripts in web/:
-   the archive is decrypted and inflated, the chart is parsed, the song's audio is
-   repackaged as Ogg and decoded by the browser. Nothing is uploaded, and the
-   visitor's file never leaves their machine. */
+   A dropped .feedpak / .sloppak is then opened in this tab by the scripts in
+   web/: the pack is unzipped, its chart read and its stems mixed and decoded by
+   the browser. Nothing is uploaded, and the visitor's file never leaves their
+   machine. */
 const LOCAL = { payload: null, cover: "", audio: null, stems: null };
 let SERVER = true;                      // decided in boot(), by probing /api/status
 
@@ -613,13 +627,12 @@ async function openLocal(file, onStage){
   if (w){
     try { return await openInWorker(w, file, onStage); }
     catch (e){
-      if (/official song/i.test(e.message)) throw e;           // a refusal, not a failure: the page would refuse it too
-      console.warn("converter worker failed, converting in the page instead:", e);
+      console.warn("converter worker failed, opening it in the page instead:", e);
     }
   }
   await loadStatics();
   if (!window.CDLC || !window.WW2OGG) throw new Error("the in-page converter did not load (web/converter.js)");
-  return /\.feedpak$/i.test(file.name) ? openLocalFeedpak(file, onStage) : openLocalPsarc(file, onStage);
+  return openLocalFeedpak(file, onStage);
 }
 
 /* ── raw arrangement XML ───────────────────────────────────────────────────────
@@ -641,8 +654,9 @@ function pickBest(list, rx, good){
 function xmlSetName(list){
   const withDir = list.find((f) => f.relPath && f.relPath.split("/").filter(Boolean).length > 1);
   if (withDir) return withDir.relPath.split("/").filter(Boolean)[0];
-  const x = list.find((f) => /\.xml$/i.test(f.name) && !/vocal/i.test(f.name)) || list.find((f) => /\.xml$/i.test(f.name));
-  return x ? x.name : "song.xml";
+  const x = list.find((f) => /\.xml$/i.test(f.name) && !/vocal/i.test(f.name)) || list.find((f) => /\.xml$/i.test(f.name))
+    || list.find((f) => /\.json$/i.test(f.name) && !/lyrics/i.test(f.name));
+  return x ? x.name : "song";
 }
 async function openLocalXml(list, onStage){
   const name = xmlSetName(list);
@@ -698,6 +712,48 @@ async function openLocalXml(list, onStage){
   return { payload: r.payload, cover, audio, stems: null };
 }
 
+/* A pack's own files - an unpacked .feedpak folder, or arrangement JSONs in
+   the pack's format dropped loose with their audio, lyrics and cover. Read
+   like a .feedpak, without the unzipping. */
+async function openLocalJson(list, onStage){
+  const name = xmlSetName(list);
+  const keep = list.filter((f) => /\.(json|ya?ml|ogg|mp3|wav|flac|m4a|aac|opus|webm|jpe?g|png|webp|gif|bmp)$/i.test(f.name));
+  onStage("Reading " + name + "…");
+  const entries = [];
+  for (const f of keep) entries.push({ name: f.relPath || f.name, bytes: await f.arrayBuffer() });
+  let r = null;
+  const w = await startWorker();
+  if (w){
+    try {
+      r = await new Promise((resolve, reject) => {
+        const id = ++convSeq;
+        convPending.set(id, { resolve, reject, onStage });
+        w.postMessage({ id, name, jsonSet: true, entries: entries.map((e) => ({ name: e.name, bytes: e.bytes.slice(0) })) });
+      });
+      r.payload = JSON.parse(r.payloadJson); delete r.payloadJson;
+    } catch (e){
+      if (/no arrangement/i.test(e.message)) throw e;
+      console.warn("converter worker failed, converting in the page instead:", e);
+      r = null;
+    }
+  }
+  if (!r){
+    await loadStatics();
+    if (!window.CDLC || !window.CDLC.convertFeedpakFiles) throw new Error("the in-page converter did not load (web/converter.js)");
+    const { payload, coverBlob, stems } = await window.CDLC.convertFeedpakFiles(
+      entries.map((e) => ({ name: e.name, bytes: new Uint8Array(e.bytes) })), { name, onProgress: onStage });
+    r = { payload, cover: coverBlob ? { blob: coverBlob } : null, stems };
+  }
+  const stems = new Map((r.stems || []).map((s) => [s.id, s.blob]));
+  if (!stems.size) r.payload.meta.duration = r.payload.meta.duration || 0;
+  return {
+    payload: r.payload,
+    cover: r.cover && r.cover.blob ? URL.createObjectURL(r.cover.blob) : "",
+    audio: null,
+    stems: stems.size ? stems : null,                 // no audio: the chart plays against silence
+  };
+}
+
 /* a .feedpak is already converted: unzip, read the manifest, take its stems */
 async function openLocalFeedpak(file, onStage){
   const bytes = new Uint8Array(await file.arrayBuffer());
@@ -713,47 +769,6 @@ async function openLocalFeedpak(file, onStage){
   };
 }
 
-async function openLocalPsarc(file, onStage){
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  onStage("Reading the archive…");
-  const { payload, psarc, names } = await window.CDLC.convertPsarc(bytes, {
-    name: file.name,
-    onProgress: (m) => onStage(m),
-  });
-
-  /* cover art: album art ships as DDS at several sizes; show the largest. */
-  let cover = "";
-  const dds = names.filter((n) => /\.dds$/i.test(n));
-  if (dds.length){
-    let best = null;
-    for (const n of dds){
-      const data = await psarc.read(n);
-      if (!best || data.length > best.data.length) best = { n, data };
-    }
-    try {
-      const { width, height, rgba } = window.CDLC.decodeDds(best.data);
-      const canvas = document.createElement("canvas");
-      canvas.width = width; canvas.height = height;
-      canvas.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(rgba), width, height), 0, 0);
-      cover = canvas.toDataURL("image/jpeg", 0.9);
-    } catch (e) { console.warn("cover art:", e); }
-  }
-
-  /* audio: the largest .wem is the song; the small one is a preview clip. */
-  let audio = null;
-  const wems = names.filter((n) => /\.wem$/i.test(n));
-  if (wems.length){
-    let best = null;
-    for (const n of wems){
-      const data = await psarc.read(n);
-      if (!best || data.length > best.data.length) best = { n, data };
-    }
-    onStage("Converting the audio…");
-    await new Promise((r) => setTimeout(r, 20));       // let the message paint before the heavy loop
-    audio = new Blob([convertWem(best.data)], { type: "audio/ogg" });
-  }
-  return { payload, cover, audio, stems: null };
-}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Play Song - a 3-D note highway, drawn with Canvas2D.
@@ -867,11 +882,22 @@ function savePrefs(){
     const o = {};
     for (const k in PREFS) o[k] = S[k];
     try { localStorage.setItem("playsong.prefs", JSON.stringify(o)); } catch (e) {}
+    /* the desktop server keeps them in play_song_prefs.json: every launch
+       listens on another port, and a browser keeps its storage per port */
+    if (SERVER !== false) fetch("/api/prefs", { method:"POST", headers:{"Content-Type":"application/json"},
+                                               body:JSON.stringify(o) }).catch(() => {});
   }, 350);
 }
 async function loadPrefs(){
   try {
-    const p = JSON.parse(localStorage.getItem("playsong.prefs") || "{}") || {};
+    let p = null;
+    try {                                          // the desktop server's copy first
+      const ctrl = new AbortController(), tm = setTimeout(() => ctrl.abort(), 1200);
+      const r = await fetch("/api/prefs", { cache:"no-store", signal:ctrl.signal });
+      clearTimeout(tm);
+      if (r.ok){ const j = JSON.parse(await r.text()); if (j && typeof j === "object" && !Array.isArray(j) && !j.error) p = j; }
+    } catch (e) {}
+    if (!p) p = JSON.parse(localStorage.getItem("playsong.prefs") || "{}") || {};
     for (const k in PREFS){
       if (typeof p[k] !== typeof S[k]) continue;
       S[k] = PREFS[k] ? clamp(p[k], PREFS[k][0], PREFS[k][1]) : p[k];
@@ -951,17 +977,21 @@ async function loadStemAudio(stem){
     const raw = await LOCAL.stems.get(stem).arrayBuffer();
     return A.ctx.decodeAudioData(raw);
   }
-  /* The full mix: every stem decoded in turn and added into one buffer. The
-     adding is done a slice at a time with a pause between slices, so the page
-     keeps drawing while six stems of a long song are summed. Only the mix and
-     the stem being added are in memory at once. */
+  /* The full mix: every stem decoded and added into one buffer. Decoding is
+     the slow part (a few seconds a stem), and each decode runs on a thread of
+     its own - so two run at once and each stem is added in as soon as it is
+     ready. Not more: with three, the decoders took all of a two-core
+     machine and the page stopped drawing for two seconds (a frozen camera
+     glide); with two the longest pause is under 0.1 s, for 1.7 s more load. The adding
+     is done a slice at a time with a pause between slices, so the page keeps
+     drawing while the stems of a long song are summed. */
   const blobs = [...LOCAL.stems.values()];
   const SLICE = 1 << 20;                                       // samples per slice: a few ms of work
   const breathe = () => new Promise((r) => setTimeout(r, 0));
-  let out = null;
-  for (let i = 0; i < blobs.length; i++){
-    busy(`Mixing the stems… ${i + 1}/${blobs.length}`);
-    const buf = await A.ctx.decodeAudioData(await blobs[i].arrayBuffer());
+  const POOL = Math.max(1, Math.min(2, blobs.length));
+  let out = null, done = 0, next = 0, adding = Promise.resolve();
+  busy(`Mixing the stems… 0/${blobs.length}`);
+  const add = async (buf) => {                                 // one at a time, in the order they finish
     if (!out || buf.length > out.length){                      // first stem, or a longer one: (re)size the mix
       const bigger = A.ctx.createBuffer(2, buf.length, buf.sampleRate);
       if (out){
@@ -977,7 +1007,18 @@ async function loadStemAudio(stem){
       for (let k = k0; k < k1; k++){ L[k] += l[k]; R[k] += r[k]; }
       await breathe();
     }
-  }
+    busy(`Mixing the stems… ${++done}/${blobs.length}`);
+  };
+  const lane = async () => {
+    while (next < blobs.length){
+      const blob = blobs[next++];
+      const buf = await A.ctx.decodeAudioData(await blob.arrayBuffer());
+      adding = adding.then(() => add(buf));
+      await adding;                                            // a lane waits for its stem to be added: memory stays bounded
+    }
+  };
+  await Promise.all(Array.from({ length: POOL }, lane));
+  await adding;
   return out;
 }
 
@@ -1536,14 +1577,19 @@ function drawHead(x, y, ang, hw, hh, col, n, a, gk){
   if (a <= 0.004) return;
   const c0 = Math.cos(ang), s0 = Math.sin(ang);
   const ex = SK.on ? SK.x : -s0, ey = SK.on ? SK.y : c0;           // the head's own frame, see setSkew
-  if (hw < 2.4){                                   // too far away for any detail
+  /* A note's technique symbol (palm mute, fret-hand mute, harmonic,
+     hammer-on / pull-off, tap, accent, bend) is drawn however far away the
+     note is - seen as far down the highway as the note itself. Only a plain
+     note, with nothing to show, is drawn as a quick bar when it is tiny. */
+  const tech = n.pm || n.mt || n.hm || n.hp || n.ho || n.po || n.tp || n.ac || n.bn > 0;
+  if (hw < 2.4 && !tech){                          // far away and plain: no detail to show
     ctx.globalAlpha = a; ctx.fillStyle = col;
     ctx.setTransform(dpr*c0, dpr*s0, dpr*ex, dpr*ey, dpr*x, dpr*y);
     ctx.fillRect(-hw, -Math.max(0.8, hh), hw*2, Math.max(1.6, hh*2));
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.globalAlpha = 1;
     return;
   }
-  const marks = S.showLabels && hh > 2.6;
+  const marks = S.showLabels;
   let q = hw;
   for (const v of HEAD_SIZES) if (v >= hw){ q = v; break; }
   const bend = n.bn > 0 ? (n.bn < 1.5 ? 1 : n.bn < 2.5 ? 2 : 3) : 0;
@@ -1591,7 +1637,7 @@ function headShape(g, hw, hh, col, n, marks, gk){
     rr(-hw, -hh, hw*2, hh*2, hh*0.32, g);
     g.fillStyle = (isPM || fhm) ? shade(col, 0.22) : n.hp ? shade(col, 0.95) : shade(col, 0.80);
     g.fill();
-    if (isPM && marks){                            // palm mute: the head is crossed out in its own colour
+    if (isPM){                                     // palm mute: the head is crossed out in its own colour
       g.save(); g.clip();
       g.strokeStyle = col; g.lineWidth = Math.max(1.4, hh*0.55); g.lineCap = "butt";
       g.beginPath();
@@ -1991,20 +2037,25 @@ function applyOffset(ms){
    over, and the next pair comes up LYR_LEAD seconds before its first word. */
 const LYR_GAP = 5.0, LYR_LEAD = 3.0;
 function buildLyricPairs(){
-  const L = S.lyrics, pairs = [];
+  /* a verse: lines that follow each other without a silence longer than
+     LYR_GAP. It comes up LYR_LEAD seconds before its first word and goes a
+     second after its last line. adv[i] is when line i is over and the column
+     scrolls on: its end (with a moment to see it finished), but no later than
+     the next line's first word. */
+  const L = S.lyrics, blocks = [];
   for (let i = 0; i < L.length; ){
-    const p = { a: L[i], b: null, show: 0, end: 0, gone: Infinity };
-    if (i + 1 < L.length && L[i+1].t - L[i].end <= LYR_GAP){ p.b = L[i+1]; i += 2; } else i += 1;
-    p.end = (p.b || p.a).end;
-    const q = pairs.length ? pairs[pairs.length-1] : null;
-    if (!q || p.a.t - q.end > LYR_GAP){
-      p.show = p.a.t - LYR_LEAD;
-      if (q) q.gone = q.end + 1.0;                  // a silence follows: fade out right after the line
-    } else p.show = Math.min(p.a.t - 0.05, q.end + 0.25);
-    pairs.push(p);
+    const b = { lines: [L[i++]] };
+    while (i < L.length && L[i].t - L[i-1].end <= LYR_GAP) b.lines.push(L[i++]);
+    blocks.push(b);
   }
-  if (pairs.length) pairs[pairs.length-1].gone = pairs[pairs.length-1].end + 1.0;
-  S.lyrPairs = pairs;
+  for (const b of blocks){
+    const n = b.lines.length;
+    b.show = b.lines[0].t - LYR_LEAD;
+    b.end = b.lines[n-1].end;
+    b.gone = b.end + 1.0;
+    b.adv = b.lines.slice(0, -1).map((ln, i) => Math.max(ln.t, Math.min(ln.end + 0.15, b.lines[i+1].t)));
+  }
+  S.lyrPairs = blocks;
 }
 
 function loadSongData(d){
@@ -2036,7 +2087,7 @@ function loadSongData(d){
 
 /* Start-up, in the order the user sees it:
      1. the server is already up, so the page and the saved settings load at once
-     2. wait while the server opens the pack (a .psarc is converted first)
+     2. wait while the server opens the pack
      3. read the chart and show the highway
      4. fetch and decode the audio - the slow part, done last
      5. play                                                              */
@@ -2046,6 +2097,7 @@ async function waitForPack(){
     try { st = await (await fetch("/api/status")).json(); }
     catch (e) { st = { stage:"starting", message:"Waiting for the Play Song server…" }; }
     if (st.stage === "ready" || st.stage === "empty") return st;
+    if (st.stage === "standby"){ fetch("/api/load", { method:"POST" }).catch(() => {}); }   // the server opens it after all
     if (st.stage === "error") throw new Error(st.error || "the pack could not be opened");
     busy(st.message || "Processing…");
     await new Promise(r => setTimeout(r, 400));
@@ -2104,6 +2156,9 @@ async function boot(){
   /* Is a Play Song server behind this page? If not, the page is on its own:
      load the in-page converter and wait for a dropped file. */
   SERVER = await serverAvailable();
+  document.getElementById("saveOffRow").style.display = "none";    // shown once a song the server holds is up
+  if (SERVER) document.getElementById("hintNote").textContent =
+    "The song is opened by Play Song on this computer. Nothing is changed in your file.";
   if (!SERVER){
     /* get the converter ready while the visitor looks for a song; if no Worker
        can run here, the in-page converter is loaded when a song is dropped */
@@ -2122,6 +2177,35 @@ async function boot(){
       "The file is sent to this server to be converted (up to " + L.max_upload_mb + " MB), and deleted after "
       + L.idle_minutes + " minutes without use. Nothing is changed in your file.";
   }).catch(() => {});
+  /* With a server behind the page, the song it was started with is opened
+     here, in the worker, like a dropped one: mixing a pack's stems is much
+     quicker in the page than in the server. The server keeps what only it can
+     do: settings, and saving the note offset into the pack. If the page cannot
+     open the file (no Worker), the server opens it. */
+  {
+    let st0 = null;
+    try { st0 = await (await fetch("/api/status", { cache:"no-store" })).json(); } catch (e) {}
+    const src = st0 && st0.source;
+    if (src && /\.(feedpak|sloppak)$/i.test(src.name)){
+      try {
+        busy("Reading " + src.name + "…");
+        document.getElementById("title").textContent = src.name;
+        document.getElementById("artist").textContent = "opening…";
+        const res = await fetch("/api/source");
+        if (!res.ok) throw new Error("the server did not send the file (" + res.status + ")");
+        const song = await openLocal(new File([await res.blob()], src.name), (m) => busy(m));
+        LOCAL.payload = song.payload; LOCAL.cover = song.cover; LOCAL.audio = song.audio; LOCAL.stems = song.stems;
+        LOCAL.serverPack = true;                              // the server holds it too: the offset can be saved into it
+        await showSong();
+        return;
+      } catch (e){
+        console.warn("opening the song in the page failed - the server opens it:", e);
+        LOCAL.payload = null; LOCAL.audio = null; LOCAL.stems = null; LOCAL.cover = "";
+        await fetch("/api/load", { method:"POST" }).catch(() => {});
+      }
+    }
+    LOCAL.serverPack = !!(st0 && !st0.generation);           // a pack the server holds (a folder, or the fallback)
+  }
   const st = await waitForPack();
   if (st.stage === "empty"){                      // the usual start: nothing open yet
     idle();
@@ -2137,6 +2221,7 @@ async function boot(){
    and play it. Runs at start-up, and again whenever another song is dropped. */
 async function showSong(noPlay){
   showHint(false);
+  document.getElementById("saveOffRow").style.display = SERVER && LOCAL.serverPack ? "" : "none";
   busy("Reading the chart…");
   const d = LOCAL.payload || await (async () => {
     const res = await fetch("/api/song");
@@ -2263,7 +2348,7 @@ async function showSong(noPlay){
   }
   idle();
   if (A.silent){
-    notice("No audio came with this chart - it plays silently. Drop the XML together with the song's audio to hear it.");
+    notice("No audio came with this chart - it plays silently. Drop the chart together with the song's audio to hear it.");
     setTimeout(idle, 7000);
   }
   if (noPlay || q.has("paused")) return;
@@ -2297,43 +2382,98 @@ function upload(file, onProgress){
     x.send(file);
   });
 }
+/* Another song while one is playing: for one second the song, the metronome
+   and the note synth fade out together with everything on the highway - notes,
+   indicators, lyrics. Then the playback stops, the levels are put back for
+   the next song, and the caller sends the camera to rest. */
+const SWITCH_FADE = 1.0;
+async function fadeOutPlaying(){
+  if (!S.playing || !A.ctx) return false;
+  const c = A.ctx, now = c.currentTime;
+  for (const g of [A.gain, A.gainClick, SY.out]){
+    if (!g) continue;
+    g.gain.cancelScheduledValues(now);
+    g.gain.setValueAtTime(g.gain.value, now);
+    g.gain.linearRampToValueAtTime(0, now + SWITCH_FADE);
+  }
+  S.visDur = SWITCH_FADE; S.visTo = 0;
+  await new Promise((r) => setTimeout(r, SWITCH_FADE*1000 + 30));
+  pause(); setPlayIcon(false);
+  const t = c.currentTime;
+  for (const [g, v] of [[A.gain, S.muted ? 0 : S.master], [A.gainClick, S.clickLevel], [SY.out, S.synthLevel]]){
+    if (!g) continue;
+    g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(v, t);
+  }
+  S.vis = 0; S.visDur = 0;
+  return true;
+}
+/* The camera heads for its rest position the way it heads for incoming notes:
+   slowly, at the Camera speed setting. A full glide takes several seconds (ten
+   or more at a low setting), so the new song is not held back until it ends:
+   loading starts once the glide is under way, the camera keeps drifting while
+   the song is read, and it carries on from wherever it is to the new song's
+   first notes. */
+const REST_HEAD_START = 0.6;            // seconds of glide before the new song is read
+async function cameraAtRest(){
+  await new Promise((r) => setTimeout(r, REST_HEAD_START*1000));
+}
+
 async function openDropped(input){
   if (opening) return;
   const list = Array.isArray(input) ? input : [input];
-  /* arrangement XML among the files: a chart still in its project folder (a
-     .psarc next to it is that chart packed - the XML is what is being worked on) */
+  /* arrangement XML among the files: a chart still in its project folder */
   const xmlSet = list.some((f) => /\.xml$/i.test(f.name));
-  const file = xmlSet ? null : list.find((f) => /\.(psarc|feedpak)$/i.test(f.name));
-  if (!xmlSet && !file){
-    notice("Only .psarc, .feedpak and arrangement .xml files can be played - not " + (list.length ? list[0].name : "that"));
+  /* a pack's own files: its manifest, or arrangement JSONs (an unpacked
+     .feedpak folder, or charts dropped loose with their audio) */
+  const jsonSet = !xmlSet && (list.some((f) => /(^|\/)manifest\.ya?ml$/i.test(f.relPath || f.name))
+    || list.some((f) => /\.json$/i.test(f.name) && !/lyrics/i.test(f.name))) && !list.some((f) => /\.(feedpak|sloppak)$/i.test(f.name) && !f.relPath);
+  const file = xmlSet || jsonSet ? null : list.find((f) => /\.(feedpak|sloppak)$/i.test(f.name));
+  if (!xmlSet && !jsonSet && !file){
+    notice("Only .feedpak, .sloppak, arrangement .xml or .json files can be played - not " + (list.length ? list[0].name : "that"));
     setTimeout(idle, 5000);
     return;
   }
-  const label = xmlSet ? xmlSetName(list) : file.name;
+  const label = xmlSet || jsonSet ? xmlSetName(list) : file.name;
   opening = true;
   let cleared = Promise.resolve();
   try {
+    /* a song that is playing fades out over a second, sound and picture together */
+    const faded = await fadeOutPlaying();
     if (S.playing){ pause(); setPlayIcon(false); }
     showHint(false);
     try { audioInit(); A.ctx.resume(); } catch (e) {}     // while the click or drop still counts as the user's
     SERVER = await serverAvailable();                     // a drop can beat boot()'s probe
 
-    if (!SERVER || xmlSet){
-      /* no server: convert here, in a worker beside the page (or in the page itself) */
+    /* Opened here, in a worker beside the page - with a server behind the page
+       too, as it is quicker; the server opens the file only when the page
+       cannot (no Worker) */
+    let song = null;
+    {
       cleared = fadeTo(0).then(() => {
         restChart(); S.visTo = 1;
         document.getElementById("title").textContent = label;
         document.getElementById("artist").textContent = "opening…";
         document.getElementById("album").textContent = "";
       });
+      /* after the fade the camera goes to rest, and only then is the new song read */
+      if (faded){ idle(); await cleared; await cameraAtRest(); }
       busy("Reading " + label + "…");
-      const song = xmlSet ? await openLocalXml(list, (m) => busy(m)) : await openLocal(file, (m) => busy(m));
+      try {
+        song = xmlSet ? await openLocalXml(list, (m) => busy(m))
+             : jsonSet ? await openLocalJson(list, (m) => busy(m)) : await openLocal(file, (m) => busy(m));
+      } catch (e){
+        if (!SERVER || xmlSet || jsonSet) throw e;
+        console.warn("opening the song in the page failed - the server opens it:", e);
+      }
+    }
+    if (song){
       await cleared;
       const oldCover = LOCAL.cover;
       LOCAL.payload = song.payload;
       LOCAL.cover = song.cover;
       LOCAL.audio = song.audio;
       LOCAL.stems = song.stems;
+      LOCAL.serverPack = false;                    // Play Song's copy of a dropped file: nothing to save into
       if (oldCover && oldCover.startsWith("blob:") && oldCover !== LOCAL.cover)
         setTimeout(() => URL.revokeObjectURL(oldCover), 2000);   // the new picture has replaced it
       await showSong();
@@ -2341,6 +2481,7 @@ async function openDropped(input){
     }
 
     LOCAL.payload = null; LOCAL.audio = null; LOCAL.stems = null;   // the server's song from now on, not one opened here
+    LOCAL.serverPack = false;
     busy("Uploading " + file.name + "…");
     /* what is on screen fades away and the highway goes to rest while the new song is opened */
     cleared = fadeTo(0).then(() => {
@@ -2376,7 +2517,7 @@ async function openDropped(input){
   window.addEventListener("dragover",  (e) => { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = "copy"; });
   window.addEventListener("dragleave", (e) => { if (!hasFiles(e)) return; if (--depth <= 0){ depth = 0; veil.classList.remove("show"); } });
   /* a dropped folder is read through (a project folder: XML, audio, art) */
-  const KEEP = /\.(psarc|feedpak|xml|ogg|mp3|wav|flac|m4a|aac|opus|webm|wem|jpe?g|png|webp|gif|bmp|dds)$/i;
+  const KEEP = /\.(feedpak|sloppak|xml|json|ya?ml|ogg|mp3|wav|flac|m4a|aac|opus|webm|wem|jpe?g|png|webp|gif|bmp|dds)$/i;
   async function readTree(entries){
     const out = [];
     const walk = async (en, depth) => {
@@ -2672,9 +2813,19 @@ const nameY = () => YLO + S.nStr*PITCH;
    its baseline runs along the strings and its uprights along the frets, so it
    leans and slopes exactly as the neck does from the camera. `ax` holds those
    two directions on screen (see neckAxes); without it the text is drawn flat. */
+/* Chord names and fret numbers are sized from the fretboard's own scale at
+   their spot, with no upper or lower limit: they grow and shrink exactly with
+   the neck as the camera moves, as if printed on it. Only text too small to
+   read is left out. */
+/* A fret number travelling up the highway is too small to read far away. It
+   fades in while it grows from NUM_FADE0 to NUM_FADE1 pixels, instead of
+   popping up at one size. */
+const NUM_FADE0 = 6, NUM_FADE1 = 12;
+const numFadeIn = (fs) => sstep(clamp((fs - NUM_FADE0)/(NUM_FADE1 - NUM_FADE0), 0, 1));
 function chordName(name, tl, sc, a, ax){
-  const fs = clamp(sc*FW*0.62, 0, 54);
-  if (fs < 9 || a <= 0.01) return;
+  const fs = sc*FW*0.62;
+  a *= numFadeIn(fs);                              // far away: fades in as it grows, like the fret numbers
+  if (a <= 0.01) return;
   const sp = textSprite(name, fs, "#eef1f3", null), k = fs/sp.q, tw = sp.tw*k;
   if (S.lefty){
     /* mirrored, the frame's low-fret edge is on its right: the name stands right
@@ -2981,6 +3132,7 @@ function draw(dt){
     lo = Math.max(0, S.fMin - 1); hi = Math.max(lo + 4, S.fMax);
   }
   const wantC = (lo + hi)/2, wantS = Math.max(4, hi - lo);
+  S.camWantC = wantC; S.camWantS = wantS;
   if (S.camC === null){ S.camC = wantC; S.camS = wantS; S.camCv = S.camSv = 0; }
   else {
     /* A critically damped spring: the camera eases out of one framing and
@@ -3106,9 +3258,9 @@ function draw(dt){
         if (!inZone && !INLAY.has(f)) continue;
         const p = P(fretMid(f), 0, z);
         if (!p) continue;
-        const fs = p.s*FW*0.46;
-        if (fs < 7) continue;
-        label(String(f), p.x, p.y, Math.min(fs, 34), inZone ? "#a9dcec" : "#1f8f88", (inZone ? 0.85 : 0.75)*al, null,
+        const fs = p.s*FW*0.46, nIn = numFadeIn(fs);
+        if (nIn <= 0) continue;
+        label(String(f), p.x, p.y, fs, inZone ? "#a9dcec" : "#1f8f88", (inZone ? 0.85 : 0.75)*al*nIn, null,
               neckAxes(cam, fretMid(f), 0, z));                  // slanted with the neck, like the numbers under it
       }
     }
@@ -3363,7 +3515,8 @@ function draw(dt){
            the neck's own fret numbers take over (by distance, so it looks the
            same at every note speed) */
         const na = al * clamp((d*G.sc - 0.12)/0.80, 0, 1);
-        if (fs >= 7 && na > 0.02) label(String(n.f), p.x, p.y, Math.min(fs, 40), grey ? "#aab2ba" : "#ffab1f", na, !grey && d < 1.2 && na > 0.5 ? "rgba(255,150,0,0.8)" : null,
+        const nIn = numFadeIn(fs);                              // far away: fades in as it grows, no pop
+        if (nIn > 0 && na*nIn > 0.02) label(String(n.f), p.x, p.y, fs, grey ? "#aab2ba" : "#ffab1f", na*nIn, !grey && d < 1.2 && na > 0.5 ? "rgba(255,150,0,0.8)" : null,
                                         neckAxes(cam, xc, 0, z + FW*(inChord ? 0.62 : 0.60)));
       }
     }
@@ -3426,16 +3579,35 @@ function draw(dt){
 
   /* ── 8. fret numbers under the neck: every fret of the anchor, and the
           inlay frets everywhere else ──────────────────────────────────── */
+  /* The glowing range moves to the next hand position the way the finger
+     indicators move to the next chord: in a straight line, on the song's own
+     clock, over FING_MOVE seconds at most (less when the positions follow each
+     other closely), arriving exactly when the new position starts. A number
+     the moving range only partly covers is part glow, part plain, so the glow
+     is seen travelling. */
+  let za = zf0, zb = zf1;
+  {
+    const nx = A[ai + 1];
+    if (nx){
+      const n0 = nx.fret - 1, n1 = Math.min(24, nx.fret + nx.width - 1);
+      if (n0 !== zf0 || n1 !== zf1){
+        const D = Math.min(FING_MOVE, Math.max(nx.t - curA.t, 0.12));
+        const u = clamp((t - (nx.t - D))/D, 0, 1);
+        za = lerp(zf0, n0, u); zb = lerp(zf1, n1, u);
+      }
+    }
+  }
   for (let f = 1; f <= 24; f++){
-    const inZone = f > zf0 && f <= zf1;
-    if (!inZone && !INLAY.has(f)) continue;
+    const g = clamp(Math.min(f, zb) - Math.max(f - 1, za), 0, 1);   // how much of this fret the glowing range covers
+    if (g <= 0.001 && !INLAY.has(f)) continue;
     const p = P(fretMid(f), 0, FW*0.40);
     if (!p || p.x < -30 || p.x > W + 30) continue;
-    const fs = clamp(p.s*FW*0.40, 9, 44);
+    const fs = p.s*FW*0.40;
+    if (fs < 6) continue;                                      // too small to read
     /* slanted with the neck, like the chord name */
     const ax = neckAxes(cam, fretMid(f), 0, FW*0.40);
-    if (inZone) label(String(f), p.x, p.y, fs, "#ffb01f", 1, "rgba(255,140,0,0.75)", ax);
-    else label(String(f), p.x, p.y, fs*0.92, "#1c8f86", 0.85, null, ax);
+    if (g < 0.999 && INLAY.has(f)) label(String(f), p.x, p.y, fs*0.92, "#1c8f86", 0.85*(1 - g), null, ax);
+    if (g > 0.001) label(String(f), p.x, p.y, fs*(0.92 + 0.08*g), "#ffb01f", g, "rgba(255,140,0,0.75)", ax);
   }
 
   drawPhraseBars(t, S.offMs/1000);
@@ -3539,13 +3711,39 @@ function lyrBuild(el, line){
 function lyrPaint(el, line, t){
   if (!line) return;
   const state = t < line.t - 0.02 ? "next" : t > line.end + 0.12 ? "done" : "live";
-  if (el._state !== state){ el._state = state; el.className = "ln " + state; }
+  if (el._state !== state){
+    if (el._state) el.classList.remove(el._state);
+    el._state = state; el.classList.add(state);
+  }
   if (state !== "live") return;
   let cur = -1;
   for (let i = 0; i < line.syl.length; i++) if (line.syl[i][0] <= t + 0.02) cur = i;
   for (let i = 0; i < el._spans.length; i++){
     const c = i < cur ? "sung" : i === cur ? "now" : "";
     if (el._spans[i]._c !== c){ el._spans[i]._c = c; el._spans[i].className = c; }
+  }
+}
+/* which line of the verse is on top: the column is moved so that line sits at
+   the top, the line above it fades out and the one under it stays in view */
+/* Only the step from one line to the next is animated. A jump - a seek
+   forwards or backwards - puts the column in place at once: animated, it
+   would scroll through every line in between, with the lines landed on
+   sliding up from far below. */
+function lyrPlace(b, k, instant){
+  const track = document.getElementById("lyrTrack");
+  const jump = instant || b.k === undefined || b.k < 0 || k !== b.k + 1;
+  b.k = k;
+  if (jump){
+    track.style.transition = "none";
+    for (const el of b.els) el.style.transition = "none";
+  }
+  for (let j = 0; j < b.els.length; j++) b.els[j].classList.toggle("out", j < k || j > k + 1);
+  const el = b.els[k];
+  track.style.transform = `translateY(${el ? -el.offsetTop : 0}px)`;
+  if (jump){
+    void track.offsetWidth;                         // apply it now, then the animations are back
+    track.style.transition = "";
+    for (const el of b.els) el.style.transition = "";
   }
 }
 function updateLyrics(){
@@ -3555,31 +3753,39 @@ function updateLyrics(){
   if (!S.showLyrics || !S.lyrPairs.length) return hide();
   /* lyrics ride the same clock as the notes, so they take the sync offset too */
   const t = S.time - S.offMs/1000;
-  const Pp = S.lyrPairs;
-  let lo = 0, hi = Pp.length - 1, idx = -1;
-  while (lo <= hi){ const m = (lo + hi) >> 1; if (Pp[m].show <= t){ idx = m; lo = m + 1; } else hi = m - 1; }
+  const Bs = S.lyrPairs;
+  let lo = 0, hi = Bs.length - 1, idx = -1;
+  while (lo <= hi){ const m = (lo + hi) >> 1; if (Bs[m].show <= t){ idx = m; lo = m + 1; } else hi = m - 1; }
   if (idx < 0) return hide();
-  const p = Pp[idx];
-  if (t > p.gone) return hide();                   // nothing sung for a while
-  const A = document.getElementById("lyrA"), B = document.getElementById("lyrB");
-  if (lyrPair !== p){
-    /* A new pair of lines takes over the two rows. The rows still carry the
-       colour of the lines they just held - often the white of a line being
-       sung - and a colour change is animated, so without care the new text
-       would be seen fading from that white to its own grey: a flash. The
-       animation is switched off for this one change. */
-    lyrPair = p;
-    A.style.transition = B.style.transition = "none";
-    lyrBuild(A, p.a); lyrBuild(B, p.b);
-    A._state = B._state = "";
-    A.className = B.className = "ln next";
-    lyrPaint(A, p.a, t); lyrPaint(B, p.b, t);
+  const b = Bs[idx];
+  if (t > b.gone) return hide();                   // nothing sung for a while
+  let k = 0;
+  while (k < b.adv.length && t >= b.adv[k]) k++;
+  const track = document.getElementById("lyrTrack");
+  if (lyrPair !== b){
+    /* A new verse: its lines are laid out in the column and put in place at
+       once, with the animations off - otherwise the column would be seen
+       scrolling to its place, and new text fading from the colour the old
+       text had (often the white of a line being sung): a flash. */
+    lyrPair = b;
+    track.style.transition = "none";
+    track.textContent = "";
+    b.els = b.lines.map((line) => {
+      const el = document.createElement("div");
+      el.className = "ln next"; el._state = "next"; el.style.transition = "none";
+      lyrBuild(el, line); track.appendChild(el);
+      return el;
+    });
     box.style.display = "block";
-    void box.offsetWidth;                           // apply it now, before the animation is back
-    A.style.transition = B.style.transition = "";
-  }
-  box.style.opacity = (clamp(Math.min((t - p.show)/0.3, (p.gone - t)/0.6), 0, 1)*S.vis).toFixed(3);
-  lyrPaint(A, p.a, t); lyrPaint(B, p.b, t);
+    b.k = -1;
+    lyrPlace(b, k, true);
+    for (let j = 0; j < b.els.length; j++) lyrPaint(b.els[j], b.lines[j], t);
+    void box.offsetWidth;                           // apply it now, before the animations are back
+    track.style.transition = "";
+    for (const el of b.els) el.style.transition = "";
+  } else if (k !== b.k) lyrPlace(b, k);
+  box.style.opacity = (clamp(Math.min((t - b.show)/0.3, (b.gone - t)/0.6), 0, 1)*S.vis).toFixed(3);
+  for (let j = Math.max(0, k - 1); j <= Math.min(b.els.length - 1, k + 2); j++) lyrPaint(b.els[j], b.lines[j], t);
 }
 
 /* corner read-out: section, and the tone in force with its raw key */
@@ -3727,10 +3933,18 @@ function tabBuild(){
   const evs = TAB.evs;
   let lastT = 0;
   for (const e of evs) for (const n of e.notes) lastT = Math.max(lastT, n.t + n.sus);
+  /* the tab runs from the first note or the first sung syllable, whichever
+     comes first, to the last of either: words sung before the guitar comes in
+     (or after it stops) get their bars too */
+  let firstT = evs[0].t;
+  for (const ln of S.lyrics) for (const sy of ln.syl){
+    if (!String(sy[2]).trim()) continue;
+    firstT = Math.min(firstT, sy[0]); lastT = Math.max(lastT, sy[0] + Math.max(sy[1] || 0, 0.2));
+  }
   let bars = tabMeasures(lastT);
-  /* bars before the first note are left out, as a tab book would */
-  while (bars.length > 1 && bars[1].t0 <= evs[0].t + 1e-4) bars.shift();
-  bars = bars.filter((b) => b.t1 > evs[0].t - 1e-4 || b.t0 > evs[0].t);
+  /* bars before that are left out, as a tab book would */
+  while (bars.length > 1 && bars[1].t0 <= firstT + 1e-4) bars.shift();
+  bars = bars.filter((b) => b.t1 > firstT - 1e-4 || b.t0 > firstT);
 
   /* lengths, note values and slot widths */
   let bi = 0;
@@ -3797,10 +4011,38 @@ function tabBuild(){
   });
   /* drawn once every bar has its place: a mark may reach into a later bar */
   TAB.rows = rows; TAB.bars = bars;
+  /* every syllable in time order, with when it stops being sung: its own
+     length (at least a moment), never past the next syllable */
+  TAB.syls = []; TAB.sylIdx = new Map();
+  for (const ln of S.lyrics) for (const sy of ln.syl) if (String(sy[2]).trim()) TAB.syls.push({ t: sy[0], d: sy[1], sy });
+  TAB.syls.sort((a, b) => a.t - b.t);
+  TAB.syls.forEach((q, k) => {
+    const nx = TAB.syls[k + 1];
+    q.end = Math.max(q.t + Math.max(q.d || 0, 0.15), q.t);
+    if (nx && nx.t > q.t) q.end = Math.min(q.end, nx.t);
+    TAB.sylIdx.set(q.sy, k);
+  });
   for (const row of rows) html += tabRowSvg(row, width, nStr);
   page.innerHTML = html + '<div id="tabcur"></div>';
   TAB.groups = [];
   for (const g of page.querySelectorAll("g.te")) TAB.groups[+g.dataset.e] = g;
+  TAB.sylEls = [];
+  for (const g of page.querySelectorAll("g.tsy[data-s]")) TAB.sylEls[+g.dataset.s] = g;
+  /* fit each syllable's mark to its text as it looks when sung (bold): measured
+     with the bold on, all at once, then off again */
+  {
+    const gs = [...page.querySelectorAll("g.tsy")];
+    gs.forEach((g) => g.classList.add("on", "measure"));
+    const boxes = gs.map((g) => { try { return g.querySelector("text").getBBox(); } catch (e) { return null; } });
+    gs.forEach((g, k) => {
+      g.classList.remove("on", "measure");
+      const bb = boxes[k], r = g.querySelector("rect");
+      if (!bb || !bb.width || !r) return;
+      r.setAttribute("x", (bb.x - 4).toFixed(1)); r.setAttribute("width", (bb.width + 8).toFixed(1));
+      r.setAttribute("y", (bb.y - 2).toFixed(1)); r.setAttribute("height", (bb.height + 4).toFixed(1));
+    });
+  }
+  TAB.sylOn = -1;
   TAB.lit = new Set();
   TAB.maxLen = evs.reduce((m, e) => Math.max(m, e.end - e.t), 0);
   page.style.height = (top + 40) + "px";
@@ -3979,8 +4221,13 @@ function tabRowSvg(row, width, nStr){
       let x = tabXAt(b, t);
       const cont = !/^\s/.test(text) && sy !== ln.syl[0];         // continues the word before it
       if (x < lastEnd + 4) x = lastEnd + 4;
-      L.push(`<text x="${x}" y="${yL}" class="tly">${cont ? "-" : ""}${tabEsc(w)}</text>`);
-      lastEnd = x + (w.length + (cont ? 1 : 0))*6.4;
+      const tw = (w.length + (cont ? 1 : 0))*6.4, si = TAB.sylIdx ? TAB.sylIdx.get(sy) : undefined;
+      /* centred on its spot, so the bold of the sung syllable grows to both
+         sides; the mark behind it is fitted to the bold text once it is drawn */
+      const cx = (x + tw/2).toFixed(1);
+      L.push(`<g class="tsy"${si !== undefined ? ` data-s="${si}"` : ""}><rect class="tsh" x="${(x - 4).toFixed(1)}" y="${yL - 12}" width="${(tw + 8).toFixed(1)}" height="16" rx="3"/>`
+           + `<text x="${cx}" y="${yL}" class="tly" text-anchor="middle">${cont ? "-" : ""}${tabEsc(w)}</text></g>`);
+      lastEnd = x + tw;
     }
   }
 
@@ -4034,6 +4281,18 @@ function tabFollow(){
   for (const k of TAB.lit) if (!now.has(k) && TAB.groups[k]) TAB.groups[k].classList.remove("on");
   for (const k of now) if (!TAB.lit.has(k) && TAB.groups[k]) TAB.groups[k].classList.add("on");
   TAB.lit = now;
+
+  /* the syllable being sung now */
+  let sOn = -1;
+  if (TAB.syls && TAB.syls.length && S.showLyrics){
+    const k = lowerBound(TAB.syls, "t", t + 0.005) - 1;
+    if (k >= 0 && t < TAB.syls[k].end) sOn = k;
+  }
+  if (sOn !== TAB.sylOn){
+    if (TAB.sylOn >= 0 && TAB.sylEls[TAB.sylOn]) TAB.sylEls[TAB.sylOn].classList.remove("on");
+    if (sOn >= 0 && TAB.sylEls[sOn]) TAB.sylEls[sOn].classList.add("on");
+    TAB.sylOn = sOn;
+  }
 }
 
 function setTabView(on){
@@ -4138,7 +4397,7 @@ function frame(now){
 
   S.time = songTime();
   if (S.vis !== S.visTo){
-    const step = dt/0.42;
+    const step = dt/(S.visDur || 0.42);
     S.vis = S.visTo > S.vis ? Math.min(S.visTo, S.vis + step) : Math.max(S.visTo, S.vis - step);
   }
 
@@ -4275,6 +4534,38 @@ document.querySelectorAll("#cfg .nudge").forEach(b => {
 });
 
 
+
+/* desktop: write the offset into the pack (the server shifts every time in it
+   and keeps a backup), then reload the chart and zero the dial */
+async function saveOffset(){
+  const msg = document.getElementById("offMsg");
+  const ms = S.offMs;
+  if (!ms){ msg.textContent = "offset is 0 - nothing to save."; return; }
+  msg.textContent = "saving " + (ms > 0 ? "+" : "") + ms + " ms into the pack…";
+  try {
+    const r = await fetch("/api/note-offset", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ms}),
+    });
+    const d = await r.json();
+    if (!r.ok || d.error){ msg.textContent = "save failed: " + (d.error || r.status); return; }
+    const fresh = await (await fetch("/api/song")).json();
+    if (fresh.error) throw new Error(fresh.error);
+    if (LOCAL.payload) LOCAL.payload = fresh;      // the page's copy of the chart follows the pack
+    loadSongData(fresh);
+    S.offMs = 0;
+    selectArrangement(S.arrIdx);
+    lyrPair = null;
+    TAB.dirty = true; if (TAB.on) tabBuild();
+    msg.textContent = "saved " + (ms > 0 ? "+" : "") + ms + " ms (" + d.moved + " times moved"
+      + (d.clamped ? ", " + d.clamped + " clamped at 0" : "")
+      + (d.backup ? "; backup: " + d.backup.split(/[\\\/]/).pop() : "") + ")"
+      + (d.note ? " — " + d.note + "." : "");
+  } catch (err) {
+    msg.textContent = "save failed: " + err.message;
+  }
+}
+document.getElementById("bSaveOff").onclick = saveOffset;
 
 window.addEventListener("wheel", (e) => {
   if (e.target.closest("#bar, #cfg")) return;

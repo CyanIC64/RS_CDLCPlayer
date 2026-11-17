@@ -111,8 +111,8 @@ export function textOf(el) {
 }
 
 // ── per-archive XML tree cache (song.py's xml_cache) ────────────────────────
-// One conversion reads each arrangement XML several times (to tell CDLC from
-// official DLC, for metadata, for the notes, for tones, for lyrics) and the
+// One conversion reads each arrangement XML several times (to find the
+// arrangements, for metadata, for the notes, for tones, for lyrics) and the
 // parse is the expensive part. Cleared by the caller when the conversion ends
 // so the DOMs do not stay alive.
 const archiveCache = new Map();
