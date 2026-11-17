@@ -383,6 +383,9 @@ export function sngToArrangement(sng, name) {
     capo: md.CapoFretId && md.CapoFretId > 0 ? md.CapoFretId : 0,
     notes, chords, anchors, hand_shapes: handShapes,
     chord_templates: templates, phrases: null, tones: null,
+    // tone switches as the chart has them (ToneId 0..3 = the manifest's Tone_A..Tone_D);
+    // used when the package has no arrangement XML to read them from
+    sng_tones: (sng.Tones || []).map((t) => ({ t: Math.round(t.Time * 1000) / 1000, id: t.ToneId })),
     path_lead: false, path_rhythm: false, path_bass: false, bonus_arr: false, represent: 0,
   };
 }

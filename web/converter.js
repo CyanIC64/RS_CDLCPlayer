@@ -780,6 +780,9 @@
       chord_templates: templates,
       phrases: null,
       tones: null,
+      // tone switches as the chart has them (ToneId 0..3 = the manifest's Tone_A..Tone_D);
+      // used when the package has no arrangement XML to read them from
+      sng_tones: (sng.Tones || []).map((t) => ({ t: Math.round(t.Time * 1e3) / 1e3, id: t.ToneId })),
       path_lead: false,
       path_rhythm: false,
       path_bass: false,
@@ -1653,7 +1656,7 @@
     }
     return { base, changes };
   }
-  function extractOne(arrName, jsonNames, xmlNames, files) {
+  function extractOne(arrName, jsonNames, xmlNames, files, sngTones) {
     if (NON_TONE.has((arrName || "").trim().toLowerCase())) return null;
     const { definitions, idName, jsonStem } = manifestToneData(jsonNames, files, arrName);
     let xmlName = null;
@@ -1679,6 +1682,12 @@
     }
     let base = "", changes = [];
     if (xmlName) ({ base, changes } = xmlToneChanges(files, xmlName, idName));
+    if (!changes.length && Array.isArray(sngTones)) {
+      for (const s of sngTones) {
+        const name = idName.get(s.id);
+        if (name && Number.isFinite(s.t)) changes.push({ t: s.t, name });
+      }
+    }
     if (!base && idName.has(0)) base = idName.get(0);
     if (!base && !changes.length && !definitions.length) return null;
     const result = {};
@@ -1687,20 +1696,359 @@
     if (definitions.length) result.definitions = definitions;
     return result;
   }
-  function extractTonesForSong(files, arrNames) {
+  function extractTonesForSong(files, arrNames, sngTones = /* @__PURE__ */ new Map()) {
     const names = [...files.keys()].sort();
     const jsonNames = names.filter((n) => n.toLowerCase().endsWith(".json"));
     const xmlNames = names.filter((n) => n.toLowerCase().endsWith(".xml"));
     const out = /* @__PURE__ */ new Map();
     for (const name of arrNames) {
-      const block = extractOne(name, jsonNames, xmlNames, files);
+      const block = extractOne(name, jsonNames, xmlNames, files, sngTones.get(name));
       if (block) out.set(name, block);
     }
     return out;
   }
 
-  // js/convert.js
+  // amp/catalog.js
+  var FX = {
+    Overdrive: { knobs: [
+      { k: "gain", label: "DRIVE", min: 0, max: 1, step: 0.01, def: 0.5 },
+      { k: "tone", label: "TONE", min: 0, max: 1, step: 0.01, def: 0.5 },
+      { k: "level", label: "LEVEL", min: 0, max: 1, step: 0.01, def: 0.5 }
+    ] },
+    Compressor: { knobs: [
+      { k: "threshold", label: "THRESH", min: -60, max: 0, step: 0.5, def: -24, unit: "dB" },
+      { k: "ratio", label: "RATIO", min: 1, max: 20, step: 0.1, def: 4, unit: ":1" },
+      { k: "attack", label: "ATTACK", min: 0, max: 200, step: 1, def: 5, unit: "ms" },
+      { k: "release", label: "RELEASE", min: 10, max: 1e3, step: 5, def: 200, unit: "ms" }
+    ] },
+    Chorus: { knobs: [
+      { k: "rate", label: "RATE", min: 0.05, max: 8, step: 0.05, def: 1.5, unit: "Hz" },
+      { k: "depth", label: "DEPTH", min: 0, max: 1, step: 0.01, def: 0.7 },
+      { k: "feedback", label: "FDBK", min: 0, max: 0.95, step: 0.01, def: 0.2 }
+    ] },
+    Phaser: { knobs: [
+      { k: "rate", label: "RATE", min: 0.05, max: 8, step: 0.05, def: 0.6, unit: "Hz" },
+      { k: "depth", label: "DEPTH", min: 0, max: 1, step: 0.01, def: 0.6 },
+      { k: "feedback", label: "RES", min: 0, max: 0.95, step: 0.01, def: 0.5 }
+    ] },
+    Tremolo: { knobs: [
+      { k: "rate", label: "RATE", min: 0.1, max: 11, step: 0.1, def: 5, unit: "Hz" },
+      { k: "intensity", label: "DEPTH", min: 0, max: 1, step: 0.01, def: 0.5 }
+    ] },
+    WahWah: { knobs: [
+      { k: "sensitivity", label: "SENS", min: -1, max: 1, step: 0.01, def: 0.2 },
+      { k: "baseFrequency", label: "FREQ", min: 0, max: 1, step: 0.01, def: 0.3 },
+      { k: "resonance", label: "Q", min: 1, max: 60, step: 0.5, def: 15 }
+    ] },
+    Delay: { knobs: [
+      { k: "time", label: "TIME", min: 20, max: 1e3, step: 5, def: 360, unit: "ms" },
+      { k: "feedback", label: "REPEAT", min: 0, max: 0.9, step: 0.01, def: 0.35 },
+      { k: "mix", label: "LEVEL", min: 0, max: 1, step: 0.01, def: 0.35 },
+      { k: "tone", label: "TONE", min: 0, max: 1, step: 0.01, def: 0.6 }
+    ] },
+    Reverb: { knobs: [
+      { k: "mix", label: "LEVEL", min: 0, max: 1, step: 0.01, def: 0.3 },
+      { k: "tone", label: "TONE", min: 0, max: 1, step: 0.01, def: 0.7 }
+    ] },
+    EQ: { knobs: [
+      { k: "bass", label: "BASS", min: -12, max: 12, step: 0.5, def: 0, unit: "dB" },
+      { k: "mid", label: "MID", min: -12, max: 12, step: 0.5, def: 0, unit: "dB" },
+      { k: "treble", label: "TREBLE", min: -12, max: 12, step: 0.5, def: 0, unit: "dB" },
+      { k: "level", label: "LEVEL", min: -12, max: 12, step: 0.5, def: 0, unit: "dB" }
+    ] },
+    Octave: { knobs: [
+      { k: "mix", label: "OCTAVE", min: 0, max: 1, step: 0.01, def: 0.5 },
+      { k: "dry", label: "DRY", min: 0, max: 1, step: 0.01, def: 1 }
+    ] }
+  };
+  var MODELS = {
+    od: { name: "Tube Drive", group: "Drive", fx: "Overdrive", color: "#3f9a54", tuna: { algorithm: 0 }, params: { gain: 0.45, tone: 0.55, level: 0.6 } },
+    boost: { name: "Warm Boost", group: "Drive", fx: "Overdrive", color: "#c9c2b0", tuna: { algorithm: 4 }, params: { gain: 0.2, tone: 0.6, level: 0.7 } },
+    dist: { name: "Distortion", group: "Drive", fx: "Overdrive", color: "#e07b28", tuna: { algorithm: 3 }, params: { gain: 0.6, tone: 0.5, level: 0.5 } },
+    metal: { name: "Metal", group: "Drive", fx: "Overdrive", color: "#2b2e33", tuna: { algorithm: 0 }, params: { gain: 0.9, tone: 0.45, level: 0.45 } },
+    fuzz: { name: "Fuzz", group: "Drive", fx: "Overdrive", color: "#8a8f99", tuna: { algorithm: 2 }, params: { gain: 0.7, tone: 0.45, level: 0.5 } },
+    comp: { name: "Compressor", group: "Dynamics", fx: "Compressor", color: "#2f6fc0", params: {} },
+    chorus: { name: "Chorus", group: "Modulation", fx: "Chorus", color: "#6fb8d9", params: {} },
+    flanger: { name: "Flanger", group: "Modulation", fx: "Chorus", color: "#9b5fc0", tuna: { delay: 2e-3 }, params: { rate: 0.4, depth: 0.8, feedback: 0.75 } },
+    phaser: { name: "Phaser", group: "Modulation", fx: "Phaser", color: "#e0a020", params: {} },
+    tremolo: { name: "Tremolo", group: "Modulation", fx: "Tremolo", color: "#e6cf45", params: {} },
+    wah: { name: "Auto Wah", group: "Filter", fx: "WahWah", color: "#b13b3b", params: {} },
+    eq: { name: "EQ", group: "Filter", fx: "EQ", color: "#d8dde3", params: {} },
+    octave: { name: "Octave Up", group: "Pitch", fx: "Octave", color: "#5a6fd6", params: {} },
+    delay: { name: "Delay", group: "Time", fx: "Delay", color: "#d7d9dc", params: {} },
+    echo: { name: "Tape Echo", group: "Time", fx: "Delay", color: "#7a5a3a", params: { time: 420, feedback: 0.45, mix: 0.35, tone: 0.3 } },
+    room: { name: "Room Reverb", group: "Time", fx: "Reverb", color: "#3a7f8c", ir: "room", params: {} },
+    plate: { name: "Plate Reverb", group: "Time", fx: "Reverb", color: "#26507a", ir: "plate", params: { mix: 0.35, tone: 0.75 } }
+  };
+  var clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   var r32 = (v) => Math.round(v * 1e3) / 1e3;
+  var uid = 0;
+  var newId = (model) => `${model}-${Date.now().toString(36)}-${(uid++).toString(36)}`;
+  function makePedal(model, params = {}, id = "") {
+    const m = MODELS[model];
+    if (!m) return null;
+    const p = {};
+    for (const kn of FX[m.fx].knobs) {
+      const v = Number(params[kn.k] ?? m.params[kn.k] ?? kn.def);
+      p[kn.k] = r32(clamp(Number.isFinite(v) ? v : kn.def, kn.min, kn.max));
+    }
+    return { id: id || newId(model), model, on: true, params: p };
+  }
+  function emptyBoard(bass = false) {
+    return {
+      amp: { name: bass ? "Bass amp" : "Amp", bassAmp: !!bass, on: true, gain: 0.3, bass: 0, mid: 0, treble: 0, presence: 0 },
+      cab: bass ? "bass" : "2x12",
+      pre: [],
+      loop: []
+    };
+  }
+  function knob(gear, ...names) {
+    const kv = gear && gear.KnobValues || {};
+    for (const [k, v] of Object.entries(kv)) {
+      const tail = k.slice(k.lastIndexOf("_") + 1).toLowerCase();
+      if (names.includes(tail) && Number.isFinite(Number(v))) return Number(v);
+    }
+    return null;
+  }
+  var unit = (v) => clamp(v / 100, 0, 1);
+  var inDb = (gear) => Object.values(gear && gear.KnobValues || {}).some((v) => Number(v) < 0);
+  var asDb = (v, db) => v === null ? 0 : r32(clamp(db ? v : (v - 50) * 0.24, -12, 12));
+  var RE = {
+    octave: /octave|octaver|pitchshift|harmon/i,
+    wah: /wah/i,
+    fuzz: /fuzz|muff/i,
+    metal: /metal|highgain|hi_?gain|grind/i,
+    boost: /boost|treble|clean_?boost/i,
+    dist: /distort|dist\d?|rat\b|crunch/i,
+    od: /overdrive|screamer|drive|od\d|tube/i,
+    flanger: /flang|jet/i,
+    chorus: /chorus|ensemble|ce\d|dimension/i,
+    phaser: /phase|vibe|univibe/i,
+    tremolo: /trem|rotary|leslie|pan\b/i,
+    delay: /delay|echo/i,
+    reverb: /reverb|verb|hall|room|plate|spring|cathedral|ambien/i,
+    comp: /comp|limit|sustain|dynamics/i,
+    eq: /eq\b|graphic|equal|parametric|filter/i
+  };
+  function modelOfGear(key, category = "") {
+    const what = `${key} ${category}`;
+    if (RE.octave.test(what)) return "octave";
+    if (RE.wah.test(what)) return "wah";
+    if (RE.reverb.test(what)) return /plate|hall|cathedral/i.test(what) ? "plate" : "room";
+    if (RE.delay.test(what)) return /tape|echo|analog/i.test(what) ? "echo" : "delay";
+    if (RE.flanger.test(what)) return "flanger";
+    if (RE.chorus.test(what)) return "chorus";
+    if (RE.phaser.test(what)) return "phaser";
+    if (RE.tremolo.test(what)) return "tremolo";
+    if (RE.fuzz.test(what)) return "fuzz";
+    if (RE.metal.test(what)) return "metal";
+    if (RE.boost.test(what)) return "boost";
+    if (RE.dist.test(what)) return "dist";
+    if (RE.od.test(what)) return "od";
+    if (RE.comp.test(what)) return "comp";
+    if (RE.eq.test(what)) return "eq";
+    return "";
+  }
+  function paramsOfGear(model, g) {
+    const fx = MODELS[model].fx, p = {}, db = inDb(g);
+    const u = (...n) => {
+      const v = knob(g, ...n);
+      return v === null ? null : unit(v);
+    };
+    if (fx === "Overdrive") {
+      const d = u("gain", "drive", "dist", "distortion", "fuzz", "sustain", "overdrive", "boost");
+      const t = u("tone", "treble", "filter"), l = u("level", "volume", "output", "vol");
+      if (d !== null) p.gain = d;
+      if (t !== null) p.tone = t;
+      if (l !== null) p.level = l;
+    } else if (fx === "Compressor") {
+      const th = knob(g, "threshold", "thresh"), ra = knob(g, "ratio"), at = knob(g, "attack"), re = knob(g, "release");
+      if (th !== null) p.threshold = th <= 0 ? th : -10 - 40 * unit(th);
+      if (ra !== null) p.ratio = ra;
+      if (at !== null) p.attack = at;
+      if (re !== null) p.release = re;
+      const c = u("compress", "sustain", "comp", "amount");
+      if (th === null && c !== null) p.threshold = -10 - 40 * c;
+    } else if (fx === "Chorus" || fx === "Phaser" || fx === "Tremolo") {
+      const r = u("rate", "speed"), d = u("depth", "intensity", "width", "mix", "level"), f = u("feedback", "resonance", "regen", "res");
+      const k = FX[fx].knobs.find((x) => x.k === "rate");
+      if (r !== null) p.rate = k.min + (k.max - k.min) * r * r;
+      if (d !== null) p[fx === "Tremolo" ? "intensity" : "depth"] = d;
+      if (f !== null && fx !== "Tremolo") p.feedback = f * 0.9;
+    } else if (fx === "WahWah") {
+      const s = u("sensitivity", "sens", "range"), q = u("resonance", "q", "peak");
+      if (s !== null) p.sensitivity = s * 2 - 1;
+      if (q !== null) p.resonance = 1 + q * 59;
+    } else if (fx === "Delay") {
+      const t = knob(g, "time", "delay", "delaytime"), f = u("feedback", "repeats", "regen"), m = u("mix", "level", "blend");
+      if (t !== null) p.time = t > 20 ? t : unit(t) * 1e3;
+      if (f !== null) p.feedback = f * 0.9;
+      if (m !== null) p.mix = m;
+    } else if (fx === "Reverb") {
+      const m = u("mix", "level", "blend", "verb");
+      if (m !== null) p.mix = m;
+    } else if (fx === "EQ") {
+      p.bass = asDb(knob(g, "bass", "low", "lo"), db);
+      p.mid = asDb(knob(g, "mid", "middle", "lomid", "himid"), db);
+      p.treble = asDb(knob(g, "treble", "high", "hi"), db);
+    } else if (fx === "Octave") {
+      const m = u("mix", "level", "blend", "octave");
+      if (m !== null) p.mix = m;
+    }
+    return p;
+  }
+  function cabOfGear(cabKey, ampKey, { bass = false, kind = "" } = {}) {
+    if (bass || /^bass_/i.test(cabKey || "") || /^bass_/i.test(ampKey || "")) return "bass";
+    const m = /_[A-Za-z]*?([124])(1[02]|15|10)/.exec(cabKey || "");
+    if (m) {
+      if (m[1] === "1") return "1x12";
+      if (m[1] === "2") return "2x12";
+      return kind === "distortion" ? "4x12m" : "4x12";
+    }
+    return kind === "clean" ? "2x12" : kind === "crunch" ? "4x12" : kind === "distortion" ? "4x12m" : "2x12";
+  }
+  function boardFromGear(gl, rig, kind = "") {
+    gl = gl && typeof gl === "object" ? gl : {};
+    const bass = !!(rig && rig.bass);
+    const amp = gl.Amp && typeof gl.Amp === "object" ? gl.Amp : null;
+    const board = emptyBoard(bass);
+    const ampKey = amp ? amp.Key || amp.PedalKey || "" : "";
+    board.amp.name = ampKey ? ampKey.replace(/^(bass_)?amp_/i, "") : board.amp.name;
+    ampFromRig(board.amp, rig);
+    board.cab = cabOfGear(gl.Cabinet && gl.Cabinet.Key, ampKey, { bass, kind });
+    const slots = Object.keys(gl).filter((s) => s !== "Amp" && s !== "Cabinet" && gl[s] && typeof gl[s] === "object");
+    const order = (s) => (/^PrePedal/i.test(s) ? 0 : /^LoopPedal/i.test(s) ? 1 : /^Rack/i.test(s) ? 2 : /^PostPedal/i.test(s) ? 3 : 4) * 100 + (parseInt(s.replace(/\D+/g, ""), 10) || 0);
+    slots.sort((a, b) => order(a) - order(b));
+    for (const s of slots) {
+      const g = gl[s], key = g.Key || g.PedalKey || "";
+      if (!key) continue;
+      const model = modelOfGear(key, g.Category || "");
+      if (!model) continue;
+      const pedal = makePedal(model, paramsOfGear(model, g), s.toLowerCase());
+      pedal.gear = key;
+      (/^PrePedal/i.test(s) ? board.pre : board.loop).push(pedal);
+    }
+    if (board.pre.some((p) => MODELS[p.model].fx === "Overdrive") && rig && Number.isFinite(rig.gain)) {
+      board.amp.gain = r32(clamp(Math.min(rig.gain, Number.isFinite(rig.total) ? rig.total : 1), 0, 1));
+    }
+    return board;
+  }
+  function ampFromRig(a, rig) {
+    if (!rig) return a;
+    const eq = (v) => Number.isFinite(v) ? r32(clamp((v - 0.5) * 24, -12, 12)) : 0;
+    a.gain = r32(clamp(Number.isFinite(rig.total) ? rig.total : Number.isFinite(rig.gain) ? rig.gain : 0.3, 0, 1));
+    a.bass = eq(rig.low);
+    a.mid = eq(rig.mid);
+    a.treble = eq(rig.high);
+    a.presence = eq(rig.presence);
+    return a;
+  }
+
+  // js/rig.js
+  var DESCRIPTOR_RE = /^\$\[\d+\]\s*/;
+  var KIND_BY_DESCRIPTOR = [
+    [/^(clean|acoustic)$/, "clean"],
+    [/^(crunch|overdrive)$/, "crunch"],
+    [/^(distortion|high gain|fuzz|metal)$/, "distortion"]
+  ];
+  function unit2(v, db = false) {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return null;
+    if (db || n < 0) return Math.min(1, Math.max(0, 0.5 + n / 24));
+    return Math.min(1, Math.max(0, n / 100));
+  }
+  var inDb2 = (gear) => Object.values(gear && gear.KnobValues || {}).some((v) => Number(v) < 0);
+  function knob2(gear, ...names) {
+    const kv = gear && gear.KnobValues || {};
+    for (const [k, v] of Object.entries(kv)) {
+      const tail = k.slice(k.lastIndexOf("_") + 1).toLowerCase();
+      if (names.includes(tail)) return Number(v);
+    }
+    return null;
+  }
+  var DRIVE_RE = /overdrive|distort|fuzz|drive|screamer|boost|metal|muff|grind|crunch|dist\d?|od\d/i;
+  var OCTAVE_RE = /octave|octaver|pitchshift|harmon/i;
+  var MOD_RE = /chorus|flang|phase|vibe|vibrato|trem|rotary|ensemble/i;
+  var DELAY_RE = /delay|echo/i;
+  var REVERB_RE = /reverb|verb|hall|room|plate|spring|cathedral|ambien/i;
+  var COMP_RE = /comp|limit|sustain/i;
+  var kindOfGain = (g) => g < 0.35 ? "clean" : g < 0.72 ? "crunch" : "distortion";
+  function descriptorKind(defn) {
+    for (const d of defn && defn.ToneDescriptors || []) {
+      if (typeof d !== "string") continue;
+      const w = d.replace(DESCRIPTOR_RE, "").trim().toLowerCase();
+      for (const [re, kind] of KIND_BY_DESCRIPTOR) if (re.test(w)) return kind;
+    }
+    return "";
+  }
+  function toneRig(defn, { bass = false } = {}) {
+    if (!defn || typeof defn !== "object") return null;
+    const gl = defn.GearList && typeof defn.GearList === "object" ? defn.GearList : {};
+    const gear = Object.entries(gl).filter(([, g]) => g && typeof g === "object" && (g.Key || g.PedalKey));
+    const amp = gl.Amp && (gl.Amp.Key || gl.Amp.PedalKey) ? gl.Amp : null;
+    const rig = {
+      amp: amp ? amp.Key || amp.PedalKey : "",
+      bass: !!bass || /^bass_/i.test(amp && amp.Key || ""),
+      gain: 0.4,
+      drive: 0,
+      octave: 0,
+      comp: 0,
+      mod: 0,
+      delay: 0,
+      reverb: 0,
+      low: 0.5,
+      mid: 0.5,
+      high: 0.5,
+      presence: 0.5,
+      pedals: []
+    };
+    if (amp) {
+      const g = knob2(amp, "gain", "drive", "overdrive", "preamp");
+      if (g !== null) rig.gain = unit2(g);
+      const lo = knob2(amp, "bass", "low", "lo"), mi = knob2(amp, "mid", "middle"), hi = knob2(amp, "treble", "high", "hi"), pr = knob2(amp, "pres", "presence", "bright");
+      const db = inDb2(amp);
+      if (lo !== null) rig.low = unit2(lo, db);
+      if (mi !== null) rig.mid = unit2(mi, db);
+      if (hi !== null) rig.high = unit2(hi, db);
+      if (pr !== null) rig.presence = unit2(pr, db);
+    }
+    for (const [slot, g] of gear) {
+      if (slot === "Amp" || slot === "Cabinet") continue;
+      const key = g.Key || g.PedalKey || "";
+      const what = `${key} ${g.Category || ""}`;
+      rig.pedals.push(key);
+      if (OCTAVE_RE.test(what)) {
+        const m = knob2(g, "mix", "level", "blend");
+        rig.octave = Math.max(rig.octave, m === null ? 0.5 : unit2(m));
+      } else if (DRIVE_RE.test(what)) {
+        const d = knob2(g, "gain", "drive", "dist", "distortion", "fuzz", "sustain", "overdrive");
+        rig.drive = Math.max(rig.drive, d === null ? 0.6 : unit2(d));
+      } else if (MOD_RE.test(what)) {
+        const m = knob2(g, "mix", "depth", "intensity", "level");
+        rig.mod = Math.max(rig.mod, m === null ? 0.5 : unit2(m));
+      } else if (DELAY_RE.test(what)) {
+        const m = knob2(g, "mix", "level", "blend");
+        rig.delay = Math.max(rig.delay, m === null ? 0.3 : unit2(m));
+      } else if (REVERB_RE.test(what)) {
+        const m = knob2(g, "mix", "level", "blend");
+        rig.reverb = Math.max(rig.reverb, m === null ? 0.3 : unit2(m));
+      } else if (COMP_RE.test(what)) {
+        rig.comp = 1;
+      }
+    }
+    const total = 1 - (1 - rig.gain) * (1 - rig.drive * 0.8);
+    const fromGear = rig.bass && !rig.drive && rig.gain < 0.35 ? "clean" : kindOfGain(total);
+    const kind = descriptorKind(defn) || fromGear;
+    rig.total = kind === "clean" ? Math.min(total, 0.3) : kind === "crunch" ? Math.min(Math.max(total, 0.4), 0.71) : Math.max(total, 0.75);
+    for (const k of ["gain", "drive", "octave", "mod", "delay", "reverb", "low", "mid", "high", "presence", "total"]) {
+      rig[k] = Math.round(rig[k] * 1e3) / 1e3;
+    }
+    rig.board = boardFromGear(gl, rig, kind);
+    return { kind, rig };
+  }
+
+  // js/convert.js
+  var r33 = (v) => Math.round(v * 1e3) / 1e3;
   function arrId(name, used) {
     let base = name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "arr";
     let cand = base, i = 2;
@@ -1730,7 +2078,7 @@
       } catch {
         lyric = new TextDecoder("latin1").decode(cut);
       }
-      out.push({ t: r32(time), d: r32(length), w: lyric });
+      out.push({ t: r33(time), d: r33(length), w: lyric });
       off += 60;
     }
     return out;
@@ -1747,8 +2095,8 @@
       }
       if (root.tag !== "vocals") continue;
       const toks = root.children.filter((c) => c.tag === "vocal").map((v) => ({
-        t: r32(parseFloat(v.attrs.time || "0")),
-        d: r32(parseFloat(v.attrs.length || "0")),
+        t: r33(parseFloat(v.attrs.time || "0")),
+        d: r33(parseFloat(v.attrs.length || "0")),
         w: v.attrs.lyric || ""
       }));
       if (toks.length) return { tokens: toks, source: "xml" };
@@ -1779,7 +2127,7 @@
     const lines = [];
     let cur = [], syl = [], start = null, last = 0, prevT = null;
     const flush = () => {
-      if (cur.length) lines.push({ t: r32(start), end: r32(last), text: joinWords(cur), syl });
+      if (cur.length) lines.push({ t: r33(start), end: r33(last), text: joinWords(cur), syl });
       cur = [];
       syl = [];
       start = null;
@@ -1798,7 +2146,7 @@
         if (start === null) start = t;
         const glue = !cur.length || cur[cur.length - 1][1] ? "" : " ";
         cur.push([w, cont]);
-        syl.push([r32(t), r32(d), glue + w]);
+        syl.push([r33(t), r33(d), glue + w]);
         last = Math.max(last, d > 0 ? t + d : t + 0.3);
         prevT = t;
       }
@@ -1823,12 +2171,12 @@
     }
     return "";
   }
-  var DESCRIPTOR_RE = /^\$\[\d+\]\s*/;
+  var DESCRIPTOR_RE2 = /^\$\[\d+\]\s*/;
   function toneRealName(defn, title) {
     const words = [];
     for (const d of defn.ToneDescriptors || []) {
       if (typeof d !== "string") continue;
-      const w = d.replace(DESCRIPTOR_RE, "").trim();
+      const w = d.replace(DESCRIPTOR_RE2, "").trim();
       if (w) words.push(w.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()));
     }
     if (!words.length) return "";
@@ -1836,7 +2184,7 @@
     sep = typeof sep === "string" && sep.trim() ? sep : " - ";
     return title ? `${title}${sep}${words.join(" ")}` : words.join(" ");
   }
-  function tonesForPage(tones, title) {
+  function tonesForPage(tones, title, { bass = false } = {}) {
     const out = { base: "", changes: [], names: {} };
     if (!tones || typeof tones !== "object") return out;
     const defs = (tones.definitions || []).filter((d) => d && typeof d === "object");
@@ -1844,6 +2192,11 @@
       const key = d.Key || d.Name || "";
       if (typeof key !== "string" || !key) continue;
       const entry = { raw: key, real: toneRealName(d, title) };
+      const r = toneRig(d, { bass });
+      if (r) {
+        entry.kind = r.kind;
+        entry.rig = r.rig;
+      }
       out.names[key] = entry;
       if (typeof d.Name === "string" && d.Name) {
         if (!(d.Name in out.names)) out.names[d.Name] = entry;
@@ -1855,7 +2208,7 @@
       if (!c || typeof c.name !== "string") continue;
       const tv = Number(c.t);
       if (!Number.isFinite(tv)) continue;
-      out.changes.push({ t: r32(tv), name: c.name });
+      out.changes.push({ t: r33(tv), name: c.name });
     }
     out.changes.sort((a, b) => a.t - b.t);
     return out;
@@ -1910,7 +2263,8 @@
     const song = xmlMode ? loadSong(files, true) : await loadSongFromExtract(files);
     if (!song.arrangements.length) throw new Error("no playable arrangements found");
     onProgress("Reading tones and lyrics\u2026");
-    const tonesByArr = extractTonesForSong(files, song.arrangements.map((a) => a.name));
+    const sngTones = new Map(song.arrangements.filter((a) => a.sng_tones).map((a) => [a.name, a.sng_tones]));
+    const tonesByArr = extractTonesForSong(files, song.arrangements.map((a) => a.name), sngTones);
     const centsByArr = manifestCentOffsets(files, song.arrangements.map((a) => a.name));
     const { tokens: tokens2, source } = await parseLyrics(files);
     let lines = lyricsFromTokens(tokens2);
@@ -1934,8 +2288,8 @@
       arr.tones = tonesByArr.get(arr.name) || null;
       const wire = arrangementToWire(arr);
       if (first) {
-        wire.beats = song.beats.map((b) => ({ time: r32(b.time), measure: b.measure }));
-        wire.sections = song.sections.map((s) => ({ name: s.name, number: s.number, time: r32(s.time) }));
+        wire.beats = song.beats.map((b) => ({ time: r33(b.time), measure: b.measure }));
+        wire.sections = song.sections.map((s) => ({ name: s.name, number: s.number, time: r33(s.time) }));
         first = false;
       }
       wires.push({ arr, aid, wire });
@@ -1956,7 +2310,7 @@
           end_time: p.end_time,
           max_difficulty: p.max_difficulty
         })),
-        tones: tonesForPage(wire.tones, song.title || "")
+        tones: tonesForPage(wire.tones, song.title || "", { bass: /bass/i.test(arr.name) })
       });
     }
     const firstWire = wires[0].wire;
@@ -1967,7 +2321,7 @@
         album: song.album || "",
         year: song.year || 0,
         author: "",
-        duration: r32(song.song_length || 0),
+        duration: r33(song.song_length || 0),
         pack: name,
         converted: true,
         cover: !!hasCover,
@@ -4709,7 +5063,7 @@
   };
 
   // js/feedpak.js
-  var r33 = (v) => Math.round(v * 1e3) / 1e3;
+  var r34 = (v) => Math.round(v * 1e3) / 1e3;
   var utf84 = new TextDecoder("utf-8", { fatal: false });
   var LYRIC_LINE_RE = /^\s*\[(\d+):(\d+(?:\.\d+)?)\]\s*(.*)$/;
   function lyricsFromText(text) {
@@ -4718,11 +5072,11 @@
       const m = LYRIC_LINE_RE.exec(ln);
       if (!m) continue;
       const txt = m[3].trim();
-      if (txt) out.push({ t: r33(parseInt(m[1], 10) * 60 + parseFloat(m[2])), end: 0, text: txt, syl: [] });
+      if (txt) out.push({ t: r34(parseInt(m[1], 10) * 60 + parseFloat(m[2])), end: 0, text: txt, syl: [] });
     }
     for (let i = 0; i < out.length; i++) {
       const next = i + 1 < out.length ? out[i + 1].t : out[i].t + 4;
-      out[i].end = r33(Math.min(next, out[i].t + 8));
+      out[i].end = r34(Math.min(next, out[i].t + 8));
     }
     return out;
   }
@@ -4755,7 +5109,7 @@
           end_time: p.end_time,
           max_difficulty: p.max_difficulty
         })),
-        tones: tonesForPage(wire.tones, m.title || "")
+        tones: tonesForPage(wire.tones, m.title || "", { bass: /bass/i.test(a.name || a.id || "") })
       });
     }
     if (!arrangements.length) throw new Error("the feedpak has no arrangements");
@@ -4795,7 +5149,7 @@
         album: m.album || "",
         year: m.year || 0,
         author: m.author || "",
-        duration: r33(Number(m.duration) || 0),
+        duration: r34(Number(m.duration) || 0),
         pack: name,
         converted: false,
         cover: Boolean(coverBlob),

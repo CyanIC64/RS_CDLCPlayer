@@ -126,6 +126,13 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 #hud .v.tone{text-transform:none;white-space:normal;font-size:clamp(12px,2.4vh,26px);margin-bottom:.08em}
 #hud .raw{font:600 clamp(9px,1.45vh,14px)/1.2 "Cascadia Mono",Consolas,monospace;color:#8fa6ba;
   margin-bottom:.75em;word-break:break-all}
+/* what kind of tone it is (clean / crunch / distortion), read from its gear */
+.tkind{display:inline-block;font:700 clamp(9px,1.5vh,14px)/1 "Segoe UI",system-ui,sans-serif;letter-spacing:.08em;
+  padding:.28em .55em;border-radius:3px;margin:.15em 0 .3em;color:#0b0d10;background:#9aa6b2}
+.tkind:empty{display:none}
+.tkind.clean{background:#7fd4ff}
+.tkind.crunch{background:#ffc35a}
+.tkind.distortion{background:#ff6a4f}
 
 /* ── control panel ───────────────────────────────────────────────────────
    Two rows. The seek bar has a row to itself, so every section gets as much
@@ -159,6 +166,9 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
   border-top:9px solid rgba(0,0,0,.75)}
 #tltone .tn::after{content:"";position:absolute;left:-4px;top:-8px;width:0;height:0;
   border:4px solid transparent;border-top:7px solid #ffe9a8}
+#tltone .tn.clean::after{border-top-color:#7fd4ff}
+#tltone .tn.crunch::after{border-top-color:#ffc35a}
+#tltone .tn.distortion::after{border-top-color:#ff6a4f}
 #tlhead{position:absolute;top:-3px;bottom:-3px;left:-1px;width:2px;background:#fff;border-radius:1px;
   box-shadow:0 0 6px #fffa;will-change:transform;pointer-events:none}
 #tlhint{position:fixed;transform:translate(-50%,-100%);background:#0b0d10;border:1px solid var(--line);
@@ -329,6 +339,7 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
     <div class="k">ARRANGEMENT</div><div class="v" id="hudArr">—</div>
     <div id="hudSecRow"><div class="k">SECTION</div><div class="v" id="hudSec">—</div></div>
     <div id="hudToneRow" style="display:none"><div class="k" id="hudToneK">TONE</div>
+      <div class="tkind" id="hudKind"></div>
       <div class="v tone" id="hudTone"></div><div class="raw" id="hudRaw"></div></div>
     <div id="hudHitRow" style="display:none"><div class="k">NOTES HIT</div><div class="v" id="hudHit">0 / 0</div>
       <div class="raw" id="hudHitSub"></div></div>
@@ -519,6 +530,10 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
   <div class="row"><label>Hearing</label><span class="rv" id="inNote">—</span></div>
   <div class="row"><label for="bTuner">Tuner (U)</label><button id="bTuner">Open</button></div>
   <div class="row"><label for="fInScore" title="While the song plays, every note of the chart is marked as hit or missed">Check notes against the chart</label><input id="fInScore" type="checkbox" checked></div>
+  <div class="row"><label for="fAmpOn" title="Hear the guitar through an amp simulator set like the song's tone, switching when the song switches tone. Use headphones.">Play through the song's tone (A)</label><input id="fAmpOn" type="checkbox"></div>
+  <div class="row"><label for="vAmp">Amp volume<span class="rv" id="rvAmp">70%</span></label><input id="vAmp" type="range" min="0" max="100" value="70"></div>
+  <div class="row"><label>Amp tone</label><span class="rv" id="ampNow">—</span></div>
+  <div class="row"><label for="bRig" title="The amp, cabinet and pedals of the tone in force: turn the knobs, switch pedals, move or add them">Pedalboard (P)</label><button id="bRig">Open</button></div>
   <div class="row"><label for="fInLat" title="Time from hearing a note to the sound of the guitar reaching the page. Calibrate measures it.">Input latency (ms)</label>
     <span class="offwrap"><input id="fInLat" type="number" step="1" value="60"><button id="bInCal">Calibrate</button></span></div>
   <div class="row"><label>Score</label><span class="rv" id="inScore">—</span></div>
@@ -536,7 +551,7 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
     </span>
   </div>
   <div class="hint" id="offMsg">Positive offset = chart later than the audio.</div>
-  <div class="hint">Space play/pause · ←/→ 1 s · [ ] section · L loop · R restart · M mute · C metronome · N note synth · T tab view · O options · <b>,</b> <b>.</b> nudge ±1 ms</div>
+  <div class="hint">Space play/pause · ←/→ 1 s · [ ] section · L loop · R restart · M mute · C metronome · N note synth · T tab view · P pedalboard · O options · <b>,</b> <b>.</b> nudge ±1 ms</div>
 </div>
 
 <script>
@@ -931,6 +946,7 @@ const S = {
   lyrics:[], lyrPairs:[], showLyrics:true,
   inOn:false, inDevice:"",                        // guitar input: switched on last time, and which input
   inScore:true, inLatMs:60,                       // check notes against the chart; input + output latency (ms)
+  ampOn:false, ampLevel:0.7,                      // play the guitar through the song's tone, and how loud
   camC:null, camS:4, camCv:0, camSv:0,
   fx:true, rscale:1, autoScale:false, dynScale:1, tones:{base:"", changes:[], names:{}},
   fps:0, bpm:0, loopA:0, loopB:0,
@@ -952,7 +968,7 @@ function updGeom(){
 const PREFS = { speed:[0.6, 2], zoom:[0.55, 3], camRate:[0.3, 2.5], master:[0, 1], clickLevel:[0, 1], synthLevel:[0, 1],
                 rscale:[0.2, 1], autoScale:0, showCells:0, showNums:0, showLabels:0, showLyrics:0, autoPan:0,
                 showFingers:0, invert:0, lefty:0, tabView:0, showChord:0, showDiagram:0, showHit:0, clickOn:0, synthOn:0, muted:0, fx:0,
-                inOn:0, inDevice:0, inScore:0, inLatMs:[-50, 400] };
+                inOn:0, inDevice:0, inScore:0, inLatMs:[-50, 400], ampOn:0, ampLevel:[0, 1] };
 /* Kept in this browser (localStorage): the page has one address here, so the
    browser's own storage is the right place, and nothing about a visitor is
    stored on the server. */
@@ -985,6 +1001,7 @@ function syncControls(){
   $("fFingers").checked = S.showFingers; $("fInvert").checked = S.invert; $("fLefty").checked = S.lefty;
   if (typeof TAB !== "undefined" && S.tabView !== TAB.on) setTabView(S.tabView); $("fAuto").checked = S.autoScale; $("fChord").checked = S.showChord; $("fDiag").checked = S.showDiagram; $("fHit").checked = S.showHit;
   $("fInScore").checked = S.inScore; $("fInLat").value = S.inLatMs;
+  $("fAmpOn").checked = S.ampOn; $("vAmp").value = Math.round(S.ampLevel*100); $("rvAmp").textContent = Math.round(S.ampLevel*100) + "%";
   $("fFx").checked = S.fx;
   { const sc = $("fScale"); let best = sc.options[0].value;
     for (const o of sc.options) if (Math.abs(+o.value - S.rscale) < Math.abs(+best - S.rscale)) best = o.value;
@@ -1012,6 +1029,11 @@ function idle(){ document.getElementById("msg").className = "hide"; }
 
 /* ── audio ───────────────────────────────────────────────────────────────── */
 const A = { ctx:null, buf:null, src:null, gain:null, gainClick:null, startAt:0, offset:0, playing:false };
+/* the amp simulator the guitar input can be played through (see "amp" below) */
+const AMP = { kit:null, amp:null, busy:false, key:null,
+              boards:new Map(),     // tone key -> its board (amp, cabinet, pedals), as played this session
+              edited:new Set(),     // tone keys the player changed on the pedalboard
+              ui:null, uiKey:"" };  // the pedalboard panel (P) and the tone it shows
 
 function audioInit(){
   if (A.ctx) return;
@@ -1908,6 +1930,7 @@ function selectArrangement(i){
   if (!S.keepCam) S.camC = null;                  // a new chart cuts the camera, unless it should glide over
   S.tones = a.tones || { base:"", changes:[], names:{} };
   hudToneKey = undefined;
+  ampReset();
   document.getElementById("hudArr").textContent = a.name || "—";
   showTuning(a);
   document.getElementById("bpm").textContent = S.bpm ? S.bpm.toFixed(1) : "—";
@@ -2583,7 +2606,8 @@ function renderTimeline(){
     const x = (c.t + off)/D;
     if (x < 0 || x > 1) continue;
     const el = document.createElement("div");
-    el.className = "tn"; el.style.left = (100*x) + "%";
+    const nm = S.tones.names[c.name];
+    el.className = "tn" + (nm && nm.kind ? " " + nm.kind : ""); el.style.left = (100*x) + "%";
     tb.appendChild(el);
   }
   fitTimeline();
@@ -2596,8 +2620,10 @@ function toneKeyAt(tc){
 }
 function toneLabel(key){
   const nm = S.tones.names[key];
-  return nm ? (nm.real || nm.raw) : key;
+  if (!nm) return key;
+  return (nm.real || nm.raw) + (nm.kind ? " (" + KIND_LABEL[nm.kind] + ")" : "");
 }
+const KIND_LABEL = { clean:"clean", crunch:"crunch", distortion:"distortion" };
 const secLabel = (name) => String(name || "").replace(/[_-]+/g, " ").trim();
 /* a section too narrow for its name shows no name at all (hover tells it) */
 function fitTimeline(){
@@ -3723,11 +3749,15 @@ function updateHud(){
   if (key !== hudToneKey){
     const first = hudToneKey === undefined;
     hudToneKey = key;
+    ampTone(key);
     row.style.display = key ? "" : "none";
     if (key){
       const nm = T.names[key] || { raw:key, real:"" };
       document.getElementById("hudTone").textContent = nm.real || nm.raw;
       document.getElementById("hudRaw").textContent = nm.raw;
+      const kEl = document.getElementById("hudKind");
+      kEl.textContent = nm.kind ? KIND_LABEL[nm.kind].toUpperCase() : "";
+      kEl.className = "tkind " + (nm.kind || "");
       document.getElementById("hudToneK").textContent = first ? "TONE" : "TONE SWITCH";
       row.classList.add("flash");
       hudToneUntil = performance.now() + 3500;
@@ -4420,6 +4450,7 @@ async function inputStart(){
     inputConfigure();
     S.inOn = true; savePrefs();
     inputMsg("Listening to " + (dev.label || "the audio input") + ".");
+    ampSync();
   } catch (e) {
     if (IN.link){ IN.link.close(); IN.link = null; }
     S.inOn = false; savePrefs();
@@ -4434,6 +4465,7 @@ async function inputStart(){
 
 function inputStop(){
   if (IN.cal) calEnd("Calibration stopped.");
+  ampClose();
   if (IN.link) IN.link.close();
   IN.link = null; IN.last = null; IN.level = 0; IN.peak = 0;
   S.inOn = false; savePrefs();
@@ -4445,6 +4477,7 @@ function inputStop(){
    comes back by itself when the cable is plugged in again */
 function inputLost(){
   if (!IN.link) return;
+  ampClose();
   IN.link.close(); IN.link = null; IN.last = null; IN.peak = 0;
   CABLE.lostUntil = performance.now() + 4000;
   setTimeout(cableIcon, 4100);
@@ -4636,12 +4669,161 @@ function inputFillDevices(){
   sel.value = S.inDevice;
 }
 
+/* ── amp: the guitar through the song's tone ─────────────────────────────────
+   web/amp.js (window.AmpKit) is a pedalboard: gate, the pedals before the amp,
+   the amp (preamp, tone stack, cabinet) and its effects loop, with Tuna.js's
+   effects. Each tone has a board, made by the converter from the tone's gear
+   in the manifest; the pedalboard panel (P) shows the board of the tone in
+   force and the player can change it - kept per song and tone in this browser.
+   One chain per tone; the song's tone switches crossfade between them. Loaded
+   the first time it is needed. Best heard on headphones: through speakers the
+   guitar and the song can feed back into a microphone. */
+const RIGS_KEY = "playsong.rigs";
+const ampKey = (key) => key || "(default)";
+const rigSong = () => ((S.meta && S.meta.artist) || "") + " - " + ((S.meta && S.meta.title) || "");
+function rigsRead(){
+  try { return JSON.parse(localStorage.getItem(RIGS_KEY) || "{}") || {}; } catch (e) { return {}; }
+}
+/* the player's board for a tone of this song, or null */
+let rigSaveTimer = 0;
+const rigPending = new Map();         // tone key -> board (or null: forget it), written a moment later
+function rigSaved(key){
+  if (rigPending.has(ampKey(key))) return rigPending.get(ampKey(key));
+  const song = rigsRead()[rigSong()];
+  return (song && song[ampKey(key)]) || null;
+}
+function rigStore(key, board){
+  rigPending.set(ampKey(key), board ? JSON.parse(JSON.stringify(board)) : null);
+  clearTimeout(rigSaveTimer);
+  rigSaveTimer = setTimeout(() => {
+    const all = rigsRead(), id = rigSong(), song = all[id] || {};
+    for (const [k, b] of rigPending){ if (b) song[k] = b; else delete song[k]; }
+    rigPending.clear();
+    if (Object.keys(song).length) all[id] = song; else delete all[id];
+    try { localStorage.setItem(RIGS_KEY, JSON.stringify(all)); } catch (e) {}
+  }, 300);
+}
+/* the board of a tone: the player's, else the song's, else a plain amp */
+function ampBoard(key){
+  key = key || "";
+  if (AMP.boards.has(key)) return AMP.boards.get(key);
+  const kit = AMP.kit, bass = S.nStr === 4;
+  const saved = rigSaved(key), nm = S.tones.names[key];
+  let b;
+  if (saved) b = kit.asBoard(saved, { bass });
+  else if (nm && nm.rig) b = nm.rig.board ? JSON.parse(JSON.stringify(nm.rig.board)) : kit.boardFromRig({ ...nm.rig, bass: nm.rig.bass || bass });
+  else b = kit.emptyBoard(bass);
+  if (bass && !saved && !b.amp.bassAmp){ b.amp.bassAmp = true; b.cab = "bass"; }
+  AMP.boards.set(key, b);
+  if (saved) AMP.edited.add(key); else AMP.edited.delete(key);
+  return b;
+}
+async function ampSync(){
+  if (!S.ampOn || !IN.link){ ampClose(); ampPaint(); return; }
+  if (AMP.amp || AMP.busy) return;
+  AMP.busy = true;
+  try {
+    if (!window.AmpKit) await loadScript("web/amp.js");
+    AMP.kit = window.AmpKit;
+    if (!S.ampOn || !IN.link || !IN.link.source) return;
+    AMP.amp = await AMP.kit.create(A.ctx, IN.link.source);
+    AMP.amp.setLevel(S.ampLevel);
+    AMP.key = null;
+    ampTone(hudToneKey || S.tones.base || "");
+  } catch (e) {
+    inputMsg("Could not start the amp: " + ((e && e.message) || e));
+    S.ampOn = false; savePrefs(); inEl("fAmpOn").checked = false;
+  } finally { AMP.busy = false; ampPaint(); }
+}
+function ampClose(){
+  if (AMP.amp) AMP.amp.close();
+  AMP.amp = null; AMP.key = null;
+}
+/* a new song or arrangement: its tones are other rigs */
+function ampReset(){
+  if (AMP.amp) AMP.amp.reset();
+  AMP.key = null;
+  AMP.boards.clear(); AMP.edited.clear();
+  rigFollow.song = null;                          // the open pedalboard shows the new tones
+}
+function ampTone(key){
+  key = key || "";
+  if (!AMP.amp){ ampPaint(); return; }
+  if (key === AMP.key) return;
+  AMP.key = key;
+  AMP.amp.use(ampKey(key), ampBoard(key));
+  ampPaint();
+}
+/* ── the pedalboard panel (P) ── */
+function rigToneKey(){
+  return (hudToneKey !== undefined ? hudToneKey : S.tones.base) || "";
+}
+function rigInfo(key){
+  const nm = S.tones.names[key];
+  return { title: nm ? toneLabel(key) : "plain amp (the song has no tone)", edited: AMP.edited.has(key),
+           note: !AMP.amp ? (S.ampOn ? "waiting for the guitar input" : "amp off: A to hear it") : "" };
+}
+function rigEdited(){
+  const key = AMP.uiKey;
+  rigStore(key, ampBoard(key));
+  if (!AMP.edited.has(key)){ AMP.edited.add(key); if (AMP.ui) AMP.ui.setEdited(true); }
+}
+async function rigShow(on){
+  if (!on){ if (AMP.ui) AMP.ui.hide(); return; }
+  try {
+    if (!window.AmpKit) await loadScript("web/amp.js");
+    AMP.kit = window.AmpKit;
+  } catch (e) { inputMsg("Could not load the pedalboard: " + ((e && e.message) || e)); return; }
+  if (!AMP.ui) AMP.ui = AMP.kit.mountBoard({
+    getMaster: () => S.ampLevel,
+    onMaster(v){
+      S.ampLevel = v; savePrefs();
+      inEl("vAmp").value = Math.round(v * 100); inEl("rvAmp").textContent = Math.round(v * 100) + "%";
+      if (AMP.amp) AMP.amp.setLevel(v);
+    },
+    onKnob(id, k, v){ if (AMP.amp) AMP.amp.set(ampKey(AMP.uiKey), id, k, v); rigEdited(); },
+    onToggle(id, on){ if (AMP.amp) AMP.amp.toggle(ampKey(AMP.uiKey), id, on); rigEdited(); },
+    onChange(board){ if (AMP.amp) AMP.amp.rebuild(ampKey(AMP.uiKey), board); rigEdited(); },
+    onReset(){
+      const key = AMP.uiKey;
+      rigStore(key, null);
+      AMP.boards.delete(key);
+      const fresh = ampBoard(key);
+      AMP.edited.delete(key);
+      if (AMP.amp) AMP.amp.rebuild(ampKey(key), fresh);
+      AMP.ui.update(fresh, rigInfo(key));
+    },
+    onClose(){ inEl("bRig").textContent = "Open"; },
+  });
+  AMP.uiKey = rigToneKey();
+  AMP.ui.show(ampBoard(AMP.uiKey), rigInfo(AMP.uiKey));
+  inEl("bRig").textContent = "Close";
+}
+/* the open panel follows the tone in force, and the amp coming and going */
+function rigFollow(){
+  if (!AMP.ui || !AMP.ui.open || !AMP.kit) return;
+  const key = rigToneKey();
+  if (key === AMP.uiKey && rigFollow.amp === !!AMP.amp && rigFollow.song === rigSong()) return;
+  rigFollow.amp = !!AMP.amp; rigFollow.song = rigSong();
+  AMP.uiKey = key;
+  AMP.ui.update(ampBoard(key), rigInfo(key));
+}
+
+function ampPaint(){
+  rigFollow();
+  const el = inEl("ampNow");
+  if (!AMP.amp){ el.textContent = S.ampOn && !IN.link ? "waiting for the guitar input" : "—"; return; }
+  const nm = S.tones.names[AMP.key || ""];
+  el.textContent = nm ? toneLabel(AMP.key) : "plain amp (the song has no tone)";
+}
+
 function inputSync(){
   inEl("fInOn").checked = !!IN.link || IN.busy;
   inEl("fInDev").disabled = IN.busy;
   if (!IN.link){ inEl("inLevel").style.width = "0"; inEl("inNote").textContent = "—"; IN.note = ""; }
   inputHudPaint();
   cableIcon();
+  ampPaint();
 }
 
 /* ── tuner ─────────────────────────────────────────────────────────────────
@@ -4787,6 +4969,7 @@ async function tunerRecord(){
 }
 inEl("tuRec").onclick = () => tunerRecord();
 inEl("bTuner").onclick = () => tunerShow(!TU.open);
+inEl("bRig").onclick = () => rigShow(!(AMP.ui && AMP.ui.open));
 inEl("tuClose").onclick = () => tunerShow(false);
 
 /* ── the cable icon in the control bar ─────────────────────────────────────
@@ -4880,6 +5063,16 @@ inEl("fInOn").onchange = (e) => {
   if (IN.busy){ inputSync(); return; }                    // still connecting: let it finish
   if (e.target.checked) inputStart(); else inputStop();
 };
+inEl("fAmpOn").onchange = (e) => {
+  S.ampOn = e.target.checked; savePrefs();
+  if (S.ampOn && !IN.link && !IN.busy) inputStart();      // the amp needs the input; it follows when it is up
+  else ampSync();
+};
+inEl("vAmp").oninput = (e) => {
+  S.ampLevel = (+e.target.value)/100; savePrefs();
+  inEl("rvAmp").textContent = e.target.value + "%";
+  if (AMP.amp) AMP.amp.setLevel(S.ampLevel);
+};
 inEl("fInScore").onchange = (e) => {
   S.inScore = e.target.checked; savePrefs();
   if (S.inScore) inputSeek();
@@ -4889,7 +5082,7 @@ inEl("bInCal").onclick = () => calStart();
 inEl("bInSug").onclick = () => { const v = inputSuggestedLatency(); if (v !== null) inputSetLatency(v); };
 inEl("fInDev").onchange = async (e) => {
   S.inDevice = e.target.value; savePrefs();
-  if (IN.link){ IN.link.close(); IN.link = null; await inputStart(); }
+  if (IN.link){ ampClose(); IN.link.close(); IN.link = null; await inputStart(); }
 };
 if (navigator.mediaDevices && navigator.mediaDevices.addEventListener){
   navigator.mediaDevices.addEventListener("devicechange", async () => {
@@ -4930,7 +5123,9 @@ window.addEventListener("keydown", (e) => {
   else if (k === "n" || k === "N"){ document.getElementById("bSynth").click(); }
   else if (k === "t" || k === "T"){ document.getElementById("bTab").click(); }
   else if (k === "g" || k === "G"){ document.getElementById("fInOn").click(); }
+  else if (k === "a" || k === "A"){ document.getElementById("fAmpOn").click(); }
   else if (k === "u" || k === "U"){ tunerShow(!TU.open); }
+  else if (k === "p" || k === "P"){ rigShow(!(AMP.ui && AMP.ui.open)); }
   else if (k === "Escape" && TU.open){ tunerShow(false); }
   else if (k === "ArrowLeft"){ seek(S.time - (e.shiftKey ? 5 : 1)); }
   else if (k === "ArrowRight"){ seek(S.time + (e.shiftKey ? 5 : 1)); }

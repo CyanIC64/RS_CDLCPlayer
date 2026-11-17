@@ -36,7 +36,19 @@ server, no upload and no account.
 - Loop the current section, or press, hold and drag on the difficulty bars to loop any stretch.
 - Metronome and a note synth that plays the chart's notes.
 - Karaoke-style lyrics, two lines at a time.
-- Tone changes marked on the seek bar, with the current tone shown in the corner.
+- Tone changes marked on the seek bar, with the current tone shown in the corner. Each tone is
+  labelled **clean**, **crunch** or **distortion**, from the author's tags or else from its gear
+  (amp gain, drive pedals); the seek-bar flags take the same colours. Packages without arrangement
+  XML get their tone switches from the chart (`.sng`).
+- **Play through the song's tone** (*Options → Guitar input*, or **A**): the guitar input is heard
+  through a pedalboard set from each tone's gear: the pedals before the amp, the amp (gain, EQ,
+  cabinet) and its effects loop, with drive, compressor, chorus, flanger, phaser, tremolo, wah, EQ,
+  octave, delay and reverb pedals. It switches tone when the song does. Use headphones.
+- **Pedalboard** (**P**, or *Options → Guitar input → Pedalboard*): shows the amp, cabinet and pedals
+  of the tone in force. Turn the knobs (drag around them, the wheel or the arrow keys; double-click
+  puts one back), switch pedals on and off, drag them into another order or into the effects loop, and
+  add pedals with **+**. Changes are kept in this browser per song and tone; *Song's tone* puts the
+  board back as the song has it.
 - Stem picker for `.feedpak` files that carry separated stems.
 - Note-sync offset in 1 ms and 10 ms steps.
 - Guitar input (in progress): plug in the Rocksmith Real Tone Cable, or any audio input, and
@@ -92,6 +104,7 @@ branch and folder to publish.
 | `C` | Metronome on / off |
 | `N` | Note synth on / off |
 | `G` | Guitar input on / off |
+| `A` | Play the guitar through the song's tone |
 | `U` | Tuner (`Esc` closes it) |
 | `M` | Mute |
 | `O` | Options |
@@ -107,6 +120,7 @@ web/converter.worker.js     the converter, started as a Web Worker
 web/converter.js            the same converter for the page itself (used when a Worker cannot start)
 web/ww2ogg.bundle.js        audio converter (.wem to Ogg Vorbis) for the in-page converter
 web/pitch.js                guitar input: pitch detection in an AudioWorklet (window.PitchKit)
+web/amp.js                  guitar input: the pedalboard for the song's tones (window.AmpKit)
 ```
 
 The scripts in `web/` are built from the converter sources (`src/` in the development tree)
@@ -144,6 +158,10 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 - ww2ogg-ts, a TypeScript port of ww2ogg by Adam Gashlin, under the BSD-3-Clause licence.
 - [js-yaml](https://github.com/nodeca/js-yaml) 4.1.0, under the MIT licence.
+- [Tuna.js](https://github.com/Theodeus/tuna) 1.1.3 (the pedalboard's effects, and its cabinet and
+  reverb impulse responses), by DinahMoe AB and Oskar Eriksson, under the MIT licence.
+- [JS Rocks](https://github.com/vitaliy-bobrov/js-rocks) by Vitaliy Bobrov, under the MIT licence: the
+  pedalboard's design and knob, and cabinet impulse responses.
 
 ---
 

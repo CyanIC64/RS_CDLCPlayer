@@ -7,6 +7,7 @@ import {
   arrangementToWire, hasArrangementXml, loadSong, loadSongFromExtract,
 } from "./song.js";
 import { extractTonesForSong, manifestCentOffsets } from "./tones.js";
+import { toneRig } from "./rig.js";
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -153,7 +154,7 @@ function toneRealName(defn, title) {
   return title ? `${title}${sep}${words.join(" ")}` : words.join(" ");
 }
 
-function tonesForPage(tones, title) {
+function tonesForPage(tones, title, { bass = false } = {}) {
   const out = { base: "", changes: [], names: {} };
   if (!tones || typeof tones !== "object") return out;
   const defs = (tones.definitions || []).filter((d) => d && typeof d === "object");
@@ -161,6 +162,8 @@ function tonesForPage(tones, title) {
     const key = d.Key || d.Name || "";
     if (typeof key !== "string" || !key) continue;
     const entry = { raw: key, real: toneRealName(d, title) };
+    const r = toneRig(d, { bass });
+    if (r) { entry.kind = r.kind; entry.rig = r.rig; }
     out.names[key] = entry;
     if (typeof d.Name === "string" && d.Name) if (!(d.Name in out.names)) out.names[d.Name] = entry;
   }
@@ -240,7 +243,8 @@ async function buildPayload(files, { name, hasCover, onProgress }) {
   if (!song.arrangements.length) throw new Error("no playable arrangements found");
 
   onProgress("Reading tones and lyrics…");
-  const tonesByArr = extractTonesForSong(files, song.arrangements.map((a) => a.name));
+  const sngTones = new Map(song.arrangements.filter((a) => a.sng_tones).map((a) => [a.name, a.sng_tones]));
+  const tonesByArr = extractTonesForSong(files, song.arrangements.map((a) => a.name), sngTones);
   const centsByArr = manifestCentOffsets(files, song.arrangements.map((a) => a.name));
   const { tokens, source } = await parseLyrics(files);
   let lines = lyricsFromTokens(tokens);
@@ -282,7 +286,7 @@ async function buildPayload(files, { name, hasCover, onProgress }) {
       phrases: (wire.phrases || []).map((p) => ({
         start_time: p.start_time, end_time: p.end_time, max_difficulty: p.max_difficulty,
       })),
-      tones: tonesForPage(wire.tones, song.title || ""),
+      tones: tonesForPage(wire.tones, song.title || "", { bass: /bass/i.test(arr.name) }),
     });
   }
 

@@ -50,7 +50,7 @@ export async function convertFeedpak(bytes, { name = "song.feedpak", onProgress 
       phrases: (wire.phrases || []).map((p) => ({
         start_time: p.start_time, end_time: p.end_time, max_difficulty: p.max_difficulty,
       })),
-      tones: tonesForPage(wire.tones, m.title || ""),
+      tones: tonesForPage(wire.tones, m.title || "", { bass: /bass/i.test(a.name || a.id || "") }),
     });
   }
   if (!arrangements.length) throw new Error("the feedpak has no arrangements");

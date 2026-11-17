@@ -404,6 +404,8 @@ var PitchKit = (() => {
     let lastKey = "";
     return {
       stream,
+      source: src,
+      // the input itself, for the amp simulator (web/amp.js)
       config(c) {
         node.port.postMessage({ type: "config", ...c });
       },

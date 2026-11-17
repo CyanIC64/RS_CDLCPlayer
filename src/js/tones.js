@@ -100,7 +100,7 @@ function xmlToneChanges(files, name, idName) {
   return { base, changes };
 }
 
-function extractOne(arrName, jsonNames, xmlNames, files) {
+function extractOne(arrName, jsonNames, xmlNames, files, sngTones) {
   if (NON_TONE.has((arrName || "").trim().toLowerCase())) return null;
   const { definitions, idName, jsonStem } = manifestToneData(jsonNames, files, arrName);
   let xmlName = null;
@@ -126,6 +126,12 @@ function extractOne(arrName, jsonNames, xmlNames, files) {
   }
   let base = "", changes = [];
   if (xmlName) ({ base, changes } = xmlToneChanges(files, xmlName, idName));
+  if (!changes.length && Array.isArray(sngTones)) {
+    for (const s of sngTones) {
+      const name = idName.get(s.id);
+      if (name && Number.isFinite(s.t)) changes.push({ t: s.t, name });
+    }
+  }
   if (!base && idName.has(0)) base = idName.get(0);
   if (!base && !changes.length && !definitions.length) return null;
   const result = {};
@@ -135,13 +141,13 @@ function extractOne(arrName, jsonNames, xmlNames, files) {
   return result;
 }
 
-export function extractTonesForSong(files, arrNames) {
+export function extractTonesForSong(files, arrNames, sngTones = new Map()) {
   const names = [...files.keys()].sort();
   const jsonNames = names.filter((n) => n.toLowerCase().endsWith(".json"));
   const xmlNames = names.filter((n) => n.toLowerCase().endsWith(".xml"));
   const out = new Map();
   for (const name of arrNames) {
-    const block = extractOne(name, jsonNames, xmlNames, files);
+    const block = extractOne(name, jsonNames, xmlNames, files, sngTones.get(name));
     if (block) out.set(name, block);
   }
   return out;
