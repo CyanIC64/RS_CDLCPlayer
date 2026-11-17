@@ -39,6 +39,19 @@ also works when opened from disk, and falls back to the in-page converter
 
     node build.mjs
 
+## Gear library
+
+`amp/gear/{amps,cabinets,pedals}/<Key>.json` hold one file per Rocksmith amp,
+cabinet, pedal and rack: what it is on the pedalboard (`model`, `cab`) and how
+each of its knobs maps to a pedalboard parameter (`param`, `from` -> `to`,
+optional `curve`). Edit a file to change how that piece of gear sounds, then
+rebuild. Gear missing from the library is described on the fly by the same rules.
+
+    node amp/make-gear.mjs <file.psarc | folder> ...   add the gear of these songs
+    node amp/make-gear.mjs --force <...>               write every piece again (loses hand edits)
+
+`build.mjs` gathers the files into `amp/gear/library.js` before bundling.
+
 needs `esbuild` (set `ESBUILD` to its path if it is not installed locally).
 It writes `converter.js` and `converter.worker.js` into `../deploy_ready/V1.1/web/`.
 `web/ww2ogg.bundle.js` is copied unchanged from V1.

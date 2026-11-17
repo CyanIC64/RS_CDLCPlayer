@@ -1,0 +1,12 @@
+{
+  "key": "Pedal_OctaveUp",
+  "type": "pedal",
+  "name": "OctaveUp",
+  "category": "Pitch",
+  "model": "octave",
+  "knobs": {
+    "Mix": { "param": "mix", "from": [0, 100], "to": [0, 1] },
+    "Tone": { "param": null, "from": [0, 100] }
+  },
+  "params": {}
+}

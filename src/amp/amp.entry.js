@@ -24,7 +24,7 @@ import irBass from "./ir/cab_bass.wav";
 import irRoom from "./ir/rev_room.wav";
 import irPlate from "./ir/rev_short.wav";
 
-export { FX, MODELS, CABS, GROUPS, AMP_KNOBS, makePedal, emptyBoard, boardFromRig, asBoard, knobsOf } from "./catalog.js";
+export { FX, MODELS, CABS, GROUPS, AMP_KNOBS, makePedal, emptyBoard, boardFromRig, boardFromGear, asBoard, knobsOf } from "./catalog.js";
 export { mountBoard } from "./board.ui.js";
 
 const IR_BYTES = { tuna: irTuna, c1x12: ir1x12, c2x12: ir2x12, c4x12: ir4x12, c4x12m: ir4x12m, cbass: irBass,

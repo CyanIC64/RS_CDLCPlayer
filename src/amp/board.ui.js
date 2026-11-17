@@ -10,6 +10,7 @@
 //   onToggle(id, on)           a footswitch
 //   onChange(board)            a pedal added, removed or moved, another cabinet - rebuild
 //   onMaster(value)            the master volume (the page's amp volume)
+//   onPick(key)                a tone picked on the tone bar ("" = follow the song)
 //   onReset(), onClose()
 
 import { FX, MODELS, GROUPS, CABS, AMP_KNOBS, makePedal } from "./catalog.js";
@@ -33,6 +34,19 @@ const CSS = `
 #pbRig .pb-x{background:none;border:0;color:#8b97a3;font-size:22px;line-height:1;cursor:pointer;padding:0 2px}
 #pbRig .pb-x:hover{color:#fff}
 #pbRig .pb-off{color:#e0a43f;font-size:12px;text-transform:none;letter-spacing:0}
+
+/* the song's tones */
+#pbRig .pb-tones{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 12px}
+#pbRig .pb-tcount{color:#6f7c89;font-size:10px;letter-spacing:.12em;text-transform:uppercase;margin-right:2px}
+#pbRig .pb-tab{display:flex;align-items:center;gap:6px;background:#14181d;border:1px solid #2b3138;color:#c3cdd7;
+  border-radius:14px;padding:3px 10px;font:12px "Segoe UI",system-ui,sans-serif;cursor:pointer}
+#pbRig .pb-tab:hover{border-color:#4a5560;color:#fff}
+#pbRig .pb-tab.cur{background:#1b2533;border-color:#3f8ce0;color:#fff}
+#pbRig .pb-tab.live{box-shadow:inset 0 -2px 0 #3fbf6f}
+#pbRig .pb-tab small{color:#6f7c89;font-size:10px}
+#pbRig .pb-tab em{font-style:normal;color:#d8a24a;font-size:10px}
+#pbRig .pb-kind{width:8px;height:8px;border-radius:50%;background:#6f7c89;flex:none}
+#pbRig .pb-kind.clean{background:#3f8ce0} #pbRig .pb-kind.crunch{background:#e0a43f} #pbRig .pb-kind.distortion{background:#e0453f}
 
 /* the amp head: tolex, a gold plate, chicken-head knobs */
 #pbRig .pb-amp{border-radius:10px;border:3px solid #050505;padding:10px 14px 12px;margin-bottom:14px;
@@ -242,6 +256,32 @@ export function mountBoard(cb){
     return h;
   }
 
+  /* every tone of the song, of all its arrangements: pick one to see and change it */
+  function tones(){
+    const list = info.tones || [];
+    if (!list.length) return null;
+    const bar = el("div", "pb-tones");
+    bar.appendChild(el("span", "pb-tcount", list.length === 1 ? "1 tone" : `${list.length} tones`));
+    const follow = el("button", "pb-tab pb-follow" + (info.follow ? " cur" : ""), "▶ Follow the song");
+    follow.title = "Show the tone in force as the song plays";
+    follow.setAttribute("aria-pressed", !!info.follow);
+    follow.onclick = () => { if (cb.onPick) cb.onPick(""); };
+    bar.appendChild(follow);
+    for (const t of list){
+      const b = el("button", "pb-tab" + (t.key === info.key ? " cur" : "") + (t.inForce ? " live" : ""));
+      const dot = el("i", "pb-kind " + (t.kind || ""));
+      const name = el("span", "", t.label);
+      b.append(dot, name);
+      if (t.arrs && t.arrs.length) b.appendChild(el("small", "", t.arrs.join(", ")));
+      if (t.edited) b.appendChild(el("em", "", "edited"));
+      b.title = (t.inForce ? "In force now. " : "") + (t.raw || t.key);
+      b.setAttribute("aria-pressed", t.key === info.key);
+      b.onclick = () => { if (cb.onPick) cb.onPick(t.key); };
+      bar.appendChild(b);
+    }
+    return bar;
+  }
+
   function amp(){
     const a = board.amp;
     const box = el("div", "pb-amp" + (a.bassAmp ? " bass" : ""));
@@ -404,7 +444,9 @@ export function mountBoard(cb){
     const scroll = root.scrollTop;
     root.textContent = "";
     root.classList.toggle("edited", !!info.edited);
-    root.append(head(), amp(),
+    root.append(head());
+    const tb = tones(); if (tb) root.appendChild(tb);
+    root.append(amp(),
       el("div", "pb-lab", "Pedals → amp"), row("pre"),
       el("div", "pb-lab", "Effects loop → out"), row("loop"),
       el("div", "pb-hint", "Drag a pedal to move it · turn a knob by dragging around it, with the wheel or the arrow keys · double-click a knob to put it back"));
@@ -419,7 +461,7 @@ export function mountBoard(cb){
 
   return {
     get open(){ return root.classList.contains("show"); },
-    /** show `b` (the board of the tone in force); info: {title, edited, note} */
+    /** show `b`; info: {title, edited, note, key, follow, tones: [{key, raw, label, kind, arrs, inForce, edited}]} */
     show(b, i = {}){ board = b; info = i; render(); root.classList.add("show"); },
     /** the same board, other details (or another board while open) */
     update(b, i = {}){ board = b; info = i; if (root.classList.contains("show")) render(); },

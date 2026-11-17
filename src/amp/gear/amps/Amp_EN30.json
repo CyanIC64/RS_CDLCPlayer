@@ -1,0 +1,15 @@
+{
+  "key": "Amp_EN30",
+  "type": "amp",
+  "name": "EN30",
+  "bass": false,
+  "cab": "",
+  "knobs": {
+    "Gain": { "param": "gain", "from": [0, 100], "to": [0, 1] },
+    "Pres": { "param": "presence", "from": [0, 100], "to": [-12, 12] },
+    "Bass": { "param": "bass", "from": [0, 100], "to": [-12, 12] },
+    "Mid": { "param": "mid", "from": [0, 100], "to": [-12, 12] },
+    "Bright": { "param": null, "from": [0, 100] },
+    "Treble": { "param": "treble", "from": [0, 100], "to": [-12, 12] }
+  }
+}

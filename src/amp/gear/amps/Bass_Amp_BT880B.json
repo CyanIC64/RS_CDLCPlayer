@@ -1,0 +1,18 @@
+{
+  "key": "Bass_Amp_BT880B",
+  "type": "amp",
+  "name": "BT880B",
+  "bass": true,
+  "cab": "bass",
+  "knobs": {
+    "Treble": { "param": "treble", "from": [-12, 12], "to": [-12, 12] },
+    "Gain": { "param": "gain", "from": [0, 100], "to": [0, 1] },
+    "Bass": { "param": "bass", "from": [-12, 12], "to": [-12, 12] },
+    "LoFreq": { "param": null, "from": [0, 130] },
+    "Mid": { "param": "mid", "from": [-12, 12], "to": [-12, 12] },
+    "Lo": { "param": null, "from": [-12, 12] },
+    "Hi": { "param": null, "from": [-12, 12] },
+    "HiFreq": { "param": null, "from": [0, 100] },
+    "MidFreq": { "param": null, "from": [0, 820] }
+  }
+}

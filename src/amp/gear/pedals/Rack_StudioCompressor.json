@@ -1,0 +1,14 @@
+{
+  "key": "Rack_StudioCompressor",
+  "type": "rack",
+  "name": "StudioCompressor",
+  "category": "Dynamics",
+  "model": "comp",
+  "knobs": {
+    "Threshold": { "param": "threshold", "from": [-60, 0], "to": [-60, 0] },
+    "Ratio": { "param": "ratio", "from": [1, 20], "to": [1, 20] },
+    "Attack": { "param": "attack", "from": [0, 200], "to": [0, 200] },
+    "Release": { "param": "release", "from": [10, 1000], "to": [10, 1000] }
+  },
+  "params": {}
+}

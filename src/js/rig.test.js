@@ -64,7 +64,8 @@ describe("toneRig board", () => {
   });
   it("picks the cabinet from its key, or from the kind of tone", () => {
     expect(toneRig(tone({ Amp: ca100, Cabinet: { Key: "Cab_EN212C_Ribbon_Cone" } })).rig.board.cab).toBe("2x12");
-    expect(toneRig(tone({ Amp: ca100, Cabinet: { Key: "Cab_X412_Dyn" } }, ["$[1]DISTORTION"])).rig.board.cab).toBe("4x12m");
+    expect(toneRig(tone({ Amp: ca100, Cabinet: { Key: "Cab_X412_Dyn" } }, ["$[1]DISTORTION"])).rig.board.cab).toBe("4x12");
+    expect(toneRig(tone({ Amp: ca100 }, ["$[1]DISTORTION"])).rig.board.cab).toBe("4x12m");
     expect(toneRig(tone({ Amp: amp("Amp_TW40", { Amp_TW40_Gain: 10 }) })).rig.board.cab).toBe("2x12");
     expect(toneRig(tone({ Amp: amp("Bass_Amp_BT880B", { Bass_Amp_BT880B_Gain: 1 }) }), { bass: true }).rig.board.cab).toBe("bass");
   });

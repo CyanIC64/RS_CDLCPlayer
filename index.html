@@ -1033,7 +1033,8 @@ const A = { ctx:null, buf:null, src:null, gain:null, gainClick:null, startAt:0, 
 const AMP = { kit:null, amp:null, busy:false, key:null,
               boards:new Map(),     // tone key -> its board (amp, cabinet, pedals), as played this session
               edited:new Set(),     // tone keys the player changed on the pedalboard
-              ui:null, uiKey:"" };  // the pedalboard panel (P) and the tone it shows
+              ui:null, uiKey:"",    // the pedalboard panel (P) and the tone it shows
+              uiFollow:true };      // ...the tone in force, or one the player picked
 
 function audioInit(){
   if (A.ctx) return;
@@ -4703,14 +4704,45 @@ function rigStore(key, board){
     try { localStorage.setItem(RIGS_KEY, JSON.stringify(all)); } catch (e) {}
   }, 300);
 }
-/* the board of a tone: the player's, else the song's, else a plain amp */
+/* a tone of the song, from any of its arrangements */
+function toneDef(key){
+  if (S.tones.names[key]) return S.tones.names[key];
+  for (const a of S.arrs || []){ const nm = a.tones && a.tones.names && a.tones.names[key]; if (nm) return nm; }
+  return null;
+}
+/* a tone is named by its key or its name: always the key */
+const toneCanon = (key) => { const nm = toneDef(key || ""); return (nm && nm.raw) || key || ""; };
+/* a tone's name without the song's title in front ("Song - Clean" -> "Clean") */
+function toneShort(name){
+  const title = (S.meta && S.meta.title) || "";
+  const m = title && name.startsWith(title) ? name.slice(title.length).replace(/^\s*[-:–—]\s*/, "") : "";
+  return m || name;
+}
+/* every tone of the song, all arrangements together, each once */
+function songTones(){
+  const out = new Map();
+  for (const a of S.arrs || []){
+    for (const nm of Object.values((a.tones && a.tones.names) || {})){
+      const key = nm.raw;
+      if (!key) continue;
+      const t = out.get(key) || { key, raw: key, label: toneShort(nm.real || nm.raw), kind: nm.kind || "", arrs: [] };
+      if (a.name && !t.arrs.includes(a.name)) t.arrs.push(a.name);
+      out.set(key, t);
+    }
+  }
+  return [...out.values()];
+}
+/* the board of a tone: the player's, else the song's (its gear through the gear
+   library, or what the converter made of it), else a plain amp */
 function ampBoard(key){
-  key = key || "";
+  key = toneCanon(key);
   if (AMP.boards.has(key)) return AMP.boards.get(key);
-  const kit = AMP.kit, bass = S.nStr === 4;
-  const saved = rigSaved(key), nm = S.tones.names[key];
+  const kit = AMP.kit, nm = toneDef(key);
+  const bass = nm && nm.rig ? !!nm.rig.bass || (!!S.tones.names[key] && S.nStr === 4) : S.nStr === 4;
+  const saved = rigSaved(key);
   let b;
   if (saved) b = kit.asBoard(saved, { bass });
+  else if (nm && nm.rig && nm.rig.gear) b = kit.boardFromGear(nm.rig.gear, { bass, kind: nm.kind || "" });
   else if (nm && nm.rig) b = nm.rig.board ? JSON.parse(JSON.stringify(nm.rig.board)) : kit.boardFromRig({ ...nm.rig, bass: nm.rig.bass || bass });
   else b = kit.emptyBoard(bass);
   if (bass && !saved && !b.amp.bassAmp){ b.amp.bassAmp = true; b.cab = "bass"; }
@@ -4751,17 +4783,21 @@ function ampTone(key){
   if (!AMP.amp){ ampPaint(); return; }
   if (key === AMP.key) return;
   AMP.key = key;
-  AMP.amp.use(ampKey(key), ampBoard(key));
+  AMP.amp.use(ampKey(toneCanon(key)), ampBoard(key));
   ampPaint();
 }
 /* ── the pedalboard panel (P) ── */
 function rigToneKey(){
-  return (hudToneKey !== undefined ? hudToneKey : S.tones.base) || "";
+  return toneCanon((hudToneKey !== undefined ? hudToneKey : S.tones.base) || "");
 }
 function rigInfo(key){
-  const nm = S.tones.names[key];
-  return { title: nm ? toneLabel(key) : "plain amp (the song has no tone)", edited: AMP.edited.has(key),
-           note: !AMP.amp ? (S.ampOn ? "waiting for the guitar input" : "amp off: A to hear it") : "" };
+  const nm = toneDef(key), live = rigToneKey();
+  const kindOf = (k) => (k ? " (" + KIND_LABEL[k] + ")" : "");
+  return { title: nm ? (nm.real || nm.raw) + kindOf(nm.kind) : "plain amp (the song has no tone)",
+           edited: AMP.edited.has(key), key, follow: AMP.uiFollow,
+           tones: songTones().map((t) => ({ ...t, inForce: t.key === live, edited: AMP.edited.has(t.key) || !!rigSaved(t.key) })),
+           note: !AMP.amp ? (S.ampOn ? "waiting for the guitar input" : "amp off: A to hear it")
+               : key !== live ? "not the tone in force: heard when the song gets to it" : "" };
 }
 function rigEdited(){
   const key = AMP.uiKey;
@@ -4793,20 +4829,29 @@ async function rigShow(on){
       if (AMP.amp) AMP.amp.rebuild(ampKey(key), fresh);
       AMP.ui.update(fresh, rigInfo(key));
     },
+    /* a tone of the tone bar, or "" to follow the song again */
+    onPick(key){
+      AMP.uiFollow = !key;
+      AMP.uiKey = key ? toneCanon(key) : rigToneKey();
+      rigFollow.live = rigToneKey();
+      AMP.ui.update(ampBoard(AMP.uiKey), rigInfo(AMP.uiKey));
+    },
     onClose(){ inEl("bRig").textContent = "Open"; },
   });
-  AMP.uiKey = rigToneKey();
+  if (AMP.uiFollow || !toneDef(AMP.uiKey)){ AMP.uiFollow = true; AMP.uiKey = rigToneKey(); }
+  rigFollow.live = rigToneKey(); rigFollow.amp = !!AMP.amp; rigFollow.song = rigSong();
   AMP.ui.show(ampBoard(AMP.uiKey), rigInfo(AMP.uiKey));
   inEl("bRig").textContent = "Close";
 }
 /* the open panel follows the tone in force, and the amp coming and going */
 function rigFollow(){
   if (!AMP.ui || !AMP.ui.open || !AMP.kit) return;
-  const key = rigToneKey();
-  if (key === AMP.uiKey && rigFollow.amp === !!AMP.amp && rigFollow.song === rigSong()) return;
-  rigFollow.amp = !!AMP.amp; rigFollow.song = rigSong();
-  AMP.uiKey = key;
-  AMP.ui.update(ampBoard(key), rigInfo(key));
+  const live = rigToneKey();
+  if (live === rigFollow.live && rigFollow.amp === !!AMP.amp && rigFollow.song === rigSong()) return;
+  if (rigFollow.song !== rigSong() || !toneDef(AMP.uiKey)) AMP.uiFollow = true;   // another song: back to following
+  rigFollow.live = live; rigFollow.amp = !!AMP.amp; rigFollow.song = rigSong();
+  if (AMP.uiFollow) AMP.uiKey = live;
+  AMP.ui.update(ampBoard(AMP.uiKey), rigInfo(AMP.uiKey));
 }
 
 function ampPaint(){

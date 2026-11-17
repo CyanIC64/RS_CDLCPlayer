@@ -44,8 +44,10 @@ server, no upload and no account.
   through a pedalboard set from each tone's gear: the pedals before the amp, the amp (gain, EQ,
   cabinet) and its effects loop, with drive, compressor, chorus, flanger, phaser, tremolo, wah, EQ,
   octave, delay and reverb pedals. It switches tone when the song does. Use headphones.
-- **Pedalboard** (**P**, or *Options → Guitar input → Pedalboard*): shows the amp, cabinet and pedals
-  of the tone in force. Turn the knobs (drag around them, the wheel or the arrow keys; double-click
+- **Pedalboard** (**P**, or *Options → Guitar input → Pedalboard*): every tone of the song, from all
+  its arrangements, is rebuilt from its gear and listed on a bar at the top (the tone in force is
+  underlined; *Follow the song* keeps the board on it). Pick any tone to see and change its amp,
+  cabinet and pedals, even one of another arrangement. Turn the knobs (drag around them, the wheel or the arrow keys; double-click
   puts one back), switch pedals on and off, drag them into another order or into the effects loop, and
   add pedals with **+**. Changes are kept in this browser per song and tone; *Song's tone* puts the
   board back as the song has it.

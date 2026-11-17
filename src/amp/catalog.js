@@ -86,6 +86,9 @@ export const CABS = {
   "bass":    { name:"4x10 Bass",       ir:"cbass",   gain:1.6 },
 };
 
+import { gearEntry, applyKnobs, cabOfGear } from "./gear.js";
+export { modelOfGear, cabOfGear, describeGear, gearEntry, applyKnobs } from "./gear.js";
+
 /* ── helpers ──────────────────────────────────────────────────────────────── */
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -112,150 +115,49 @@ export function emptyBoard(bass = false) {
            cab: bass ? "bass" : "2x12", pre: [], loop: [] };
 }
 
-/* ── from Rocksmith gear ─────────────────────────────────────────────────── */
-/* a knob of a piece of gear, by the end of its name ("Amp_CA100_Gain" -> gain) */
-function knob(gear, ...names) {
-  const kv = (gear && gear.KnobValues) || {};
-  for (const [k, v] of Object.entries(kv)) {
-    const tail = k.slice(k.lastIndexOf("_") + 1).toLowerCase();
-    if (names.includes(tail) && Number.isFinite(Number(v))) return Number(v);
-  }
-  return null;
-}
-/* most knobs run 0..100; some racks and bass amps work in dB, about -12..12 */
-const unit = (v) => clamp(v / 100, 0, 1);
-const inDb = (gear) => Object.values((gear && gear.KnobValues) || {}).some((v) => Number(v) < 0);
-/* an EQ knob as dB: a 0..100 knob is centred on 50 */
-const asDb = (v, db) => (v === null ? 0 : r3(clamp(db ? v : (v - 50) * 0.24, -12, 12)));
-
-const RE = {
-  octave: /octave|octaver|pitchshift|harmon/i,
-  wah: /wah/i,
-  fuzz: /fuzz|muff/i,
-  metal: /metal|highgain|hi_?gain|grind/i,
-  boost: /boost|treble|clean_?boost/i,
-  dist: /distort|dist\d?|rat\b|crunch/i,
-  od: /overdrive|screamer|drive|od\d|tube/i,
-  flanger: /flang|jet/i,
-  chorus: /chorus|ensemble|ce\d|dimension/i,
-  phaser: /phase|vibe|univibe/i,
-  tremolo: /trem|rotary|leslie|pan\b/i,
-  delay: /delay|echo/i,
-  reverb: /reverb|verb|hall|room|plate|spring|cathedral|ambien/i,
-  comp: /comp|limit|sustain|dynamics/i,
-  eq: /eq\b|graphic|equal|parametric|filter/i,
-};
-/* which model a piece of gear is, from its key and category */
-export function modelOfGear(key, category = "") {
-  const what = `${key} ${category}`;
-  if (RE.octave.test(what)) return "octave";
-  if (RE.wah.test(what)) return "wah";
-  if (RE.reverb.test(what)) return /plate|hall|cathedral/i.test(what) ? "plate" : "room";
-  if (RE.delay.test(what)) return /tape|echo|analog/i.test(what) ? "echo" : "delay";
-  if (RE.flanger.test(what)) return "flanger";
-  if (RE.chorus.test(what)) return "chorus";
-  if (RE.phaser.test(what)) return "phaser";
-  if (RE.tremolo.test(what)) return "tremolo";
-  if (RE.fuzz.test(what)) return "fuzz";
-  if (RE.metal.test(what)) return "metal";
-  if (RE.boost.test(what)) return "boost";
-  if (RE.dist.test(what)) return "dist";
-  if (RE.od.test(what)) return "od";
-  if (RE.comp.test(what)) return "comp";
-  if (RE.eq.test(what)) return "eq";
-  return "";
-}
-
-/* the gear's knobs as the model's params */
-function paramsOfGear(model, g) {
-  const fx = MODELS[model].fx, p = {}, db = inDb(g);
-  const u = (...n) => { const v = knob(g, ...n); return v === null ? null : unit(v); };
-  if (fx === "Overdrive") {
-    const d = u("gain", "drive", "dist", "distortion", "fuzz", "sustain", "overdrive", "boost");
-    const t = u("tone", "treble", "filter"), l = u("level", "volume", "output", "vol");
-    if (d !== null) p.gain = d;
-    if (t !== null) p.tone = t;
-    if (l !== null) p.level = l;
-  } else if (fx === "Compressor") {
-    const th = knob(g, "threshold", "thresh"), ra = knob(g, "ratio"), at = knob(g, "attack"), re = knob(g, "release");
-    if (th !== null) p.threshold = th <= 0 ? th : -10 - 40 * unit(th);
-    if (ra !== null) p.ratio = ra;
-    if (at !== null) p.attack = at;
-    if (re !== null) p.release = re;
-    const c = u("compress", "sustain", "comp", "amount");
-    if (th === null && c !== null) p.threshold = -10 - 40 * c;
-  } else if (fx === "Chorus" || fx === "Phaser" || fx === "Tremolo") {
-    const r = u("rate", "speed"), d = u("depth", "intensity", "width", "mix", "level"), f = u("feedback", "resonance", "regen", "res");
-    const k = FX[fx].knobs.find((x) => x.k === "rate");
-    if (r !== null) p.rate = k.min + (k.max - k.min) * r * r;
-    if (d !== null) p[fx === "Tremolo" ? "intensity" : "depth"] = d;
-    if (f !== null && fx !== "Tremolo") p.feedback = f * 0.9;
-  } else if (fx === "WahWah") {
-    const s = u("sensitivity", "sens", "range"), q = u("resonance", "q", "peak");
-    if (s !== null) p.sensitivity = s * 2 - 1;
-    if (q !== null) p.resonance = 1 + q * 59;
-  } else if (fx === "Delay") {
-    const t = knob(g, "time", "delay", "delaytime"), f = u("feedback", "repeats", "regen"), m = u("mix", "level", "blend");
-    if (t !== null) p.time = t > 20 ? t : unit(t) * 1000;
-    if (f !== null) p.feedback = f * 0.9;
-    if (m !== null) p.mix = m;
-  } else if (fx === "Reverb") {
-    const m = u("mix", "level", "blend", "verb");
-    if (m !== null) p.mix = m;
-  } else if (fx === "EQ") {
-    p.bass = asDb(knob(g, "bass", "low", "lo"), db);
-    p.mid = asDb(knob(g, "mid", "middle", "lomid", "himid"), db);
-    p.treble = asDb(knob(g, "treble", "high", "hi"), db);
-  } else if (fx === "Octave") {
-    const m = u("mix", "level", "blend", "octave");
-    if (m !== null) p.mix = m;
-  }
-  return p;
-}
-
-/* the cabinet: its key often says how many speakers ("Cab_EN212C" = 2x12) */
-export function cabOfGear(cabKey, ampKey, { bass = false, kind = "" } = {}) {
-  if (bass || /^bass_/i.test(cabKey || "") || /^bass_/i.test(ampKey || "")) return "bass";
-  const m = /_[A-Za-z]*?([124])(1[02]|15|10)/.exec(cabKey || "");
-  if (m) {
-    if (m[1] === "1") return "1x12";
-    if (m[1] === "2") return "2x12";
-    return kind === "distortion" ? "4x12m" : "4x12";
-  }
-  return kind === "clean" ? "2x12" : kind === "crunch" ? "4x12" : kind === "distortion" ? "4x12m" : "2x12";
-}
+/* ── from Rocksmith gear (through the gear library, gear.js) ─────────────── */
+const KIND_GAIN = { clean: [0, 0.3], crunch: [0.4, 0.71], distortion: [0.75, 1] };
+const ORDER = (s) => (/^PrePedal/i.test(s) ? 0 : /^LoopPedal/i.test(s) ? 1 : /^Rack/i.test(s) ? 2 : /^PostPedal/i.test(s) ? 3 : 4) * 100
+                     + (parseInt(s.replace(/\D+/g, ""), 10) || 0);
 
 /**
  * The board of a tone from its GearList.
- * @param {object} gl    Tones[].GearList
- * @param {object} rig   what src/js/rig.js read from the same gear (gain, EQ, kind...)
+ * @param {object} gl     Tones[].GearList
+ * @param {object} opts   bass: a bass arrangement's tone; kind: clean | crunch | distortion (the
+ *                        amp's gain follows it, as the author labelled the tone, unless a drive pedal does the work)
  */
-export function boardFromGear(gl, rig, kind = "") {
+export function boardFromGear(gl, { bass = false, kind = "" } = {}) {
   gl = gl && typeof gl === "object" ? gl : {};
-  const bass = !!(rig && rig.bass);
-  const amp = gl.Amp && typeof gl.Amp === "object" ? gl.Amp : null;
+  const ampG = gl.Amp && typeof gl.Amp === "object" ? gl.Amp : null;
+  const ampE = ampG ? gearEntry("Amp", ampG) : null;
+  bass = !!bass || !!(ampE && ampE.bass);
   const board = emptyBoard(bass);
-  const ampKey = amp ? amp.Key || amp.PedalKey || "" : "";
-  board.amp.name = ampKey ? ampKey.replace(/^(bass_)?amp_/i, "") : board.amp.name;
-  ampFromRig(board.amp, rig);
-  board.cab = cabOfGear(gl.Cabinet && gl.Cabinet.Key, ampKey, { bass, kind });
+  if (ampE) {
+    board.amp.name = ampE.name || board.amp.name;
+    board.amp.gear = ampE.key;
+    const p = applyKnobs(ampE, ampG.KnobValues);
+    for (const k of ["gain", "bass", "mid", "treble", "presence"]) if (Number.isFinite(p[k])) board.amp[k] = r3(p[k]);
+  }
+  const cabG = gl.Cabinet && typeof gl.Cabinet === "object" ? gl.Cabinet : null;
+  const cabE = cabG ? gearEntry("Cabinet", cabG) : null;
+  /* the cabinet's own entry; with none, one that suits the amp and the kind of tone */
+  board.cab = cabE && CABS[cabE.cab] ? cabE.cab
+            : ampE && CABS[ampE.cab] ? ampE.cab
+            : cabOfGear("", ampE ? ampE.key : "", { bass, kind });
 
   const slots = Object.keys(gl).filter((s) => s !== "Amp" && s !== "Cabinet" && gl[s] && typeof gl[s] === "object");
-  const order = (s) => (/^PrePedal/i.test(s) ? 0 : /^LoopPedal/i.test(s) ? 1 : /^Rack/i.test(s) ? 2 : /^PostPedal/i.test(s) ? 3 : 4) * 100
-                       + (parseInt(s.replace(/\D+/g, ""), 10) || 0);
-  slots.sort((a, b) => order(a) - order(b));
+  slots.sort((a, b) => ORDER(a) - ORDER(b));
   for (const s of slots) {
-    const g = gl[s], key = g.Key || g.PedalKey || "";
-    if (!key) continue;
-    const model = modelOfGear(key, g.Category || "");
-    if (!model) continue;
-    const pedal = makePedal(model, paramsOfGear(model, g), s.toLowerCase());
-    pedal.gear = key;
+    const g = gl[s], e = gearEntry(s, g);
+    if (!e || !MODELS[e.model]) continue;
+    const pedal = makePedal(e.model, applyKnobs(e, g.KnobValues), s.toLowerCase());
+    pedal.gear = e.key;
     (/^PrePedal/i.test(s) ? board.pre : board.loop).push(pedal);
   }
-  /* rig.total already counts a drive pedal: with one on the board, the amp keeps its own gain */
-  if (board.pre.some((p) => MODELS[p.model].fx === "Overdrive") && rig && Number.isFinite(rig.gain)) {
-    board.amp.gain = r3(clamp(Math.min(rig.gain, Number.isFinite(rig.total) ? rig.total : 1), 0, 1));
+  /* the author's label wins over the amp's knob, unless a drive pedal before the amp gives the dirt */
+  const range = KIND_GAIN[kind];
+  if (range && !board.pre.some((p) => MODELS[p.model].fx === "Overdrive")) {
+    board.amp.gain = r3(clamp(board.amp.gain, range[0], range[1]));
   }
   return board;
 }

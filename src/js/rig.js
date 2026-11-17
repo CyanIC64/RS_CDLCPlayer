@@ -113,6 +113,11 @@ export function toneRig(defn, { bass = false } = {}) {
   for (const k of ["gain", "drive", "octave", "mod", "delay", "reverb", "low", "mid", "high", "presence", "total"]) {
     rig[k] = Math.round(rig[k] * 1000) / 1000;
   }
-  rig.board = boardFromGear(gl, rig, kind);
+  rig.board = boardFromGear(gl, { bass: rig.bass, kind });
+  /* the gear itself, so the page can build the board again with a newer gear library */
+  rig.gear = {};
+  for (const [slot, g] of gear) {
+    rig.gear[slot] = { Key: g.Key || g.PedalKey, Type: g.Type || "", Category: g.Category || "", KnobValues: g.KnobValues || {} };
+  }
   return { kind, rig };
 }

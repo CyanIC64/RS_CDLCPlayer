@@ -10,6 +10,13 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const out = process.argv[2] || path.join(here, "..", "deploy_ready", "V1.1", "web");
 fs.mkdirSync(out, { recursive: true });
 
+// 0. the gear library: the JSON files of src/amp/gear gathered into gear/library.js,
+//    which both the converter and the pedalboard bundle
+if (fs.existsSync(path.join(here, "amp", "make-gear.mjs"))) {
+  const { writeLibrary } = await import("./amp/make-gear.mjs");
+  console.log(`gear library: ${writeLibrary()} pieces`);
+}
+
 // 1. the in-page converter (fallback when a Worker cannot be started)
 await esbuild.build({ entryPoints: [path.join(here, "converter.entry.js")], bundle: true, format: "iife",
                       outfile: path.join(out, "converter.js"), legalComments: "inline", logLevel: "warning" });

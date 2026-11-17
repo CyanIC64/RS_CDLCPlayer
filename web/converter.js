@@ -1708,6 +1708,202 @@
     return out;
   }
 
+  // amp/gear/library.js
+  var library_default = {
+    "Amp_CA100": { "key": "Amp_CA100", "type": "amp", "name": "CA100", "category": "Amp", "bass": false, "cab": "", "knobs": { "Gain": { "param": "gain", "from": [0, 100], "to": [0, 1] }, "Bass": { "param": "bass", "from": [0, 100], "to": [-12, 12] }, "Mid": { "param": "mid", "from": [0, 100], "to": [-12, 12] }, "Treble": { "param": "treble", "from": [0, 100], "to": [-12, 12] }, "Pres": { "param": "presence", "from": [0, 100], "to": [-12, 12] } } },
+    "Amp_EN30": { "key": "Amp_EN30", "type": "amp", "name": "EN30", "bass": false, "cab": "", "knobs": { "Gain": { "param": "gain", "from": [0, 100], "to": [0, 1] }, "Pres": { "param": "presence", "from": [0, 100], "to": [-12, 12] }, "Bass": { "param": "bass", "from": [0, 100], "to": [-12, 12] }, "Mid": { "param": "mid", "from": [0, 100], "to": [-12, 12] }, "Bright": { "param": null, "from": [0, 100] }, "Treble": { "param": "treble", "from": [0, 100], "to": [-12, 12] } } },
+    "Bass_Amp_BT880B": { "key": "Bass_Amp_BT880B", "type": "amp", "name": "BT880B", "bass": true, "cab": "bass", "knobs": { "Treble": { "param": "treble", "from": [-12, 12], "to": [-12, 12] }, "Gain": { "param": "gain", "from": [0, 100], "to": [0, 1] }, "Bass": { "param": "bass", "from": [-12, 12], "to": [-12, 12] }, "LoFreq": { "param": null, "from": [0, 130] }, "Mid": { "param": "mid", "from": [-12, 12], "to": [-12, 12] }, "Lo": { "param": null, "from": [-12, 12] }, "Hi": { "param": null, "from": [-12, 12] }, "HiFreq": { "param": null, "from": [0, 100] }, "MidFreq": { "param": null, "from": [0, 820] } } },
+    "Bass_Cab_BT212BC_Tube_Cone": { "key": "Bass_Cab_BT212BC_Tube_Cone", "type": "cabinet", "name": "BT212BC Tube Cone", "bass": true, "cab": "bass" },
+    "Bass_Pedal_MBComp": { "key": "Bass_Pedal_MBComp", "type": "pedal", "name": "MBComp", "model": "comp", "knobs": { "Filter": { "param": null, "from": [0, 350] }, "Compress": { "param": "threshold", "from": [0, 100], "to": [-10, -50] }, "Rate": { "param": null, "from": [0, 100] } }, "params": {} },
+    "Cab_EN212C_Ribbon_Cone": { "key": "Cab_EN212C_Ribbon_Cone", "type": "cabinet", "name": "EN212C Ribbon Cone", "bass": false, "cab": "2x12" },
+    "Cab_HG2120C_Condenser_Cone": { "key": "Cab_HG2120C_Condenser_Cone", "type": "cabinet", "name": "HG2120C Condenser Cone", "category": "Condenser_Cone", "bass": false, "cab": "2x12" },
+    "Pedal_OctaveUp": { "key": "Pedal_OctaveUp", "type": "pedal", "name": "OctaveUp", "category": "Pitch", "model": "octave", "knobs": { "Mix": { "param": "mix", "from": [0, 100], "to": [0, 1] }, "Tone": { "param": null, "from": [0, 100] } }, "params": {} },
+    "Rack_StudioCompressor": { "key": "Rack_StudioCompressor", "type": "rack", "name": "StudioCompressor", "category": "Dynamics", "model": "comp", "knobs": { "Threshold": { "param": "threshold", "from": [-60, 0], "to": [-60, 0] }, "Ratio": { "param": "ratio", "from": [1, 20], "to": [1, 20] }, "Attack": { "param": "attack", "from": [0, 200], "to": [0, 200] }, "Release": { "param": "release", "from": [10, 1e3], "to": [10, 1e3] } }, "params": {} },
+    "Rack_StudioGraphicEQ": { "key": "Rack_StudioGraphicEQ", "type": "rack", "name": "StudioGraphicEQ", "model": "eq", "knobs": { "Treble": { "param": "treble", "from": [-12, 12], "to": [-12, 12] }, "MidFreq": { "param": null, "from": [0, 100] }, "HiMid": { "param": null, "from": [0, 100] }, "Bass": { "param": "bass", "from": [-12, 12], "to": [-12, 12] }, "TrebleFreq": { "param": null, "from": [0, 100] }, "HiMidFreq": { "param": null, "from": [0, 100] }, "LoMidFreq": { "param": null, "from": [0, 800] }, "BassFreq": { "param": null, "from": [0, 120] }, "Mid": { "param": "mid", "from": [-12, 12], "to": [-12, 12] }, "LoMid": { "param": null, "from": [0, 100] } }, "params": {} }
+  };
+
+  // amp/gear.js
+  var clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  var r32 = (v) => Math.round(v * 1e3) / 1e3;
+  var MODEL_FX = {
+    od: "Overdrive",
+    boost: "Overdrive",
+    dist: "Overdrive",
+    metal: "Overdrive",
+    fuzz: "Overdrive",
+    comp: "Compressor",
+    chorus: "Chorus",
+    flanger: "Chorus",
+    phaser: "Phaser",
+    tremolo: "Tremolo",
+    wah: "WahWah",
+    eq: "EQ",
+    octave: "Octave",
+    delay: "Delay",
+    echo: "Delay",
+    room: "Reverb",
+    plate: "Reverb"
+  };
+  var RE = {
+    octave: /octave|octaver|pitchshift|harmon/i,
+    wah: /wah/i,
+    fuzz: /fuzz|muff/i,
+    metal: /metal|highgain|hi_?gain|grind/i,
+    boost: /boost|treble|clean_?boost/i,
+    dist: /distort|dist\d?|rat\b|crunch/i,
+    od: /overdrive|screamer|drive|od\d|tube/i,
+    flanger: /flang|jet/i,
+    chorus: /chorus|ensemble|ce\d|dimension/i,
+    phaser: /phase|vibe|univibe/i,
+    tremolo: /trem|rotary|leslie|pan\b/i,
+    delay: /delay|echo/i,
+    reverb: /reverb|verb|hall|room|plate|spring|cathedral|ambien/i,
+    comp: /comp|limit|sustain|dynamics/i,
+    eq: /eq\b|graphic|equal|parametric|filter/i
+  };
+  function modelOfGear(key, category = "") {
+    const what = `${key} ${category}`;
+    if (RE.octave.test(what)) return "octave";
+    if (RE.wah.test(what)) return "wah";
+    if (RE.reverb.test(what)) return /plate|hall|cathedral/i.test(what) ? "plate" : "room";
+    if (RE.delay.test(what)) return /tape|echo|analog/i.test(what) ? "echo" : "delay";
+    if (RE.flanger.test(what)) return "flanger";
+    if (RE.chorus.test(what)) return "chorus";
+    if (RE.phaser.test(what)) return "phaser";
+    if (RE.tremolo.test(what)) return "tremolo";
+    if (RE.fuzz.test(what)) return "fuzz";
+    if (RE.metal.test(what)) return "metal";
+    if (RE.boost.test(what)) return "boost";
+    if (RE.dist.test(what)) return "dist";
+    if (RE.od.test(what)) return "od";
+    if (RE.comp.test(what)) return "comp";
+    if (RE.eq.test(what)) return "eq";
+    return "";
+  }
+  function cabOfGear(cabKey, ampKey, { bass = false, kind = "" } = {}) {
+    if (bass || /^bass_/i.test(cabKey || "") || /^bass_/i.test(ampKey || "")) return "bass";
+    const m = /_[A-Za-z]*?([124])(1[02]|15|10)/.exec(cabKey || "");
+    if (m) {
+      if (m[1] === "1") return "1x12";
+      if (m[1] === "2") return "2x12";
+      return kind === "distortion" ? "4x12m" : "4x12";
+    }
+    return kind === "clean" ? "2x12" : kind === "crunch" ? "4x12" : kind === "distortion" ? "4x12m" : "2x12";
+  }
+  function knobName(gearKey, fullKey) {
+    return fullKey.startsWith(gearKey + "_") ? fullKey.slice(gearKey.length + 1) : fullKey.slice(fullKey.lastIndexOf("_") + 1);
+  }
+  var PCT = (to) => ({ from: [0, 100], to });
+  var EQ = (db) => db ? { from: [-12, 12], to: [-12, 12] } : PCT([-12, 12]);
+  var RULES = {
+    amp: [
+      ["gain", ["gain", "drive", "overdrive", "preamp"], () => PCT([0, 1])],
+      ["bass", ["bass", "low", "lo"], (s, db) => EQ(db)],
+      ["mid", ["mid", "middle"], (s, db) => EQ(db)],
+      ["treble", ["treble", "high", "hi"], (s, db) => EQ(db)],
+      ["presence", ["pres", "presence", "bright"], (s, db) => EQ(db)]
+    ],
+    Overdrive: [
+      ["gain", ["gain", "drive", "dist", "distortion", "fuzz", "sustain", "overdrive", "boost"], () => PCT([0, 1])],
+      ["tone", ["tone", "treble", "filter"], () => PCT([0, 1])],
+      ["level", ["level", "volume", "output", "vol"], () => PCT([0, 1])]
+    ],
+    Compressor: [
+      ["threshold", ["threshold", "thresh"], (s) => s[0] < 0 ? { from: [-60, 0], to: [-60, 0] } : PCT([-10, -50])],
+      ["ratio", ["ratio"], () => ({ from: [1, 20], to: [1, 20] })],
+      ["attack", ["attack"], () => ({ from: [0, 200], to: [0, 200] })],
+      ["release", ["release"], () => ({ from: [10, 1e3], to: [10, 1e3] })],
+      ["threshold", ["compress", "sustain", "comp", "amount"], () => PCT([-10, -50])]
+    ],
+    Chorus: [
+      ["rate", ["rate", "speed"], () => ({ ...PCT([0.05, 8]), curve: 2 })],
+      ["depth", ["depth", "intensity", "width", "mix", "level"], () => PCT([0, 1])],
+      ["feedback", ["feedback", "resonance", "regen", "res"], () => PCT([0, 0.9])]
+    ],
+    Phaser: [
+      ["rate", ["rate", "speed"], () => ({ ...PCT([0.05, 8]), curve: 2 })],
+      ["depth", ["depth", "intensity", "width", "mix", "level"], () => PCT([0, 1])],
+      ["feedback", ["feedback", "resonance", "regen", "res"], () => PCT([0, 0.9])]
+    ],
+    Tremolo: [
+      ["rate", ["rate", "speed"], () => ({ ...PCT([0.1, 11]), curve: 2 })],
+      ["intensity", ["depth", "intensity", "width", "mix", "level"], () => PCT([0, 1])]
+    ],
+    WahWah: [
+      ["sensitivity", ["sensitivity", "sens", "range"], () => PCT([-1, 1])],
+      ["resonance", ["resonance", "q", "peak"], () => PCT([1, 60])]
+    ],
+    Delay: [
+      ["time", ["time", "delay", "delaytime"], (s) => s[1] > 20 ? { from: [0, 1e3], to: [0, 1e3] } : PCT([0, 1e3])],
+      ["feedback", ["feedback", "repeats", "regen"], () => PCT([0, 0.9])],
+      ["mix", ["mix", "level", "blend"], () => PCT([0, 1])]
+    ],
+    Reverb: [
+      ["mix", ["mix", "level", "blend", "verb"], () => PCT([0, 1])]
+    ],
+    EQ: [
+      ["bass", ["bass", "low", "lo"], (s, db) => EQ(db)],
+      ["mid", ["mid", "middle", "lomid", "himid"], (s, db) => EQ(db)],
+      ["treble", ["treble", "high", "hi"], (s, db) => EQ(db)]
+    ],
+    Octave: [
+      ["mix", ["mix", "level", "blend", "octave"], () => PCT([0, 1])]
+    ]
+  };
+  var TYPE_OF_SLOT = (slot, type2) => {
+    const t = String(type2 || "").toLowerCase();
+    if (slot === "Amp" || t === "amps") return "amp";
+    if (slot === "Cabinet" || t === "cabinets") return "cabinet";
+    if (/^rack/i.test(slot) || t === "racks") return "rack";
+    return "pedal";
+  };
+  var prettyName = (key) => key.replace(/^(bass_)?(amp|cab|pedal|rack)_/i, "").replace(/_/g, " ");
+  function describeGear(type2, key, seen = {}, { category = "" } = {}) {
+    const bass = /^bass_/i.test(key);
+    const base = { key, type: type2, name: prettyName(key) };
+    if (category) base.category = category;
+    if (type2 === "cabinet") return { ...base, bass, cab: cabOfGear(key, "", { bass }) };
+    const model = type2 === "amp" ? "" : modelOfGear(key, category);
+    const rules = type2 === "amp" ? RULES.amp : model ? RULES[MODEL_FX[model]] : [];
+    const db = Object.values(seen).some((r) => r[0] < 0);
+    const knobs = {};
+    for (const [name, r] of Object.entries(seen)) knobs[name] = { param: null, from: r[0] < 0 ? [Math.min(-12, r[0]), Math.max(12, r[1])] : [0, Math.max(100, r[1])] };
+    const taken = /* @__PURE__ */ new Set();
+    for (const [param, names, map2] of rules) {
+      if (taken.has(param)) continue;
+      const name = names.map((n) => Object.keys(seen).find((k) => k.toLowerCase() === n)).find(Boolean);
+      if (!name || knobs[name].param) continue;
+      knobs[name] = { param, ...map2(seen[name], db) };
+      taken.add(param);
+    }
+    if (type2 === "amp") return { ...base, bass, cab: bass ? "bass" : "", knobs };
+    return { ...base, model, knobs, params: {} };
+  }
+  function gearEntry(slot, g) {
+    const key = g && (g.Key || g.PedalKey) || "";
+    if (!key) return null;
+    if (library_default[key]) return library_default[key];
+    const seen = {};
+    for (const [k, v] of Object.entries(g.KnobValues || {})) {
+      const n = Number(v);
+      if (Number.isFinite(n)) seen[knobName(key, k)] = [n, n];
+    }
+    return describeGear(TYPE_OF_SLOT(slot, g.Type), key, seen, { category: g.Category || "" });
+  }
+  function applyKnobs(entry, knobValues = {}) {
+    const out = { ...entry.params || {} };
+    for (const [k, v] of Object.entries(knobValues || {})) {
+      const m = entry.knobs && entry.knobs[knobName(entry.key, k)];
+      const n = Number(v);
+      if (!m || !m.param || !Number.isFinite(n) || !m.to) continue;
+      const [f0, f1] = m.from || [0, 100], [t0, t1] = m.to;
+      let t = f1 === f0 ? 0 : clamp((n - f0) / (f1 - f0), 0, 1);
+      if (m.curve) t = Math.pow(t, m.curve);
+      out[m.param] = r32(t0 + (t1 - t0) * t);
+    }
+    return out;
+  }
+
   // amp/catalog.js
   var FX = {
     Overdrive: { knobs: [
@@ -1780,8 +1976,16 @@
     room: { name: "Room Reverb", group: "Time", fx: "Reverb", color: "#3a7f8c", ir: "room", params: {} },
     plate: { name: "Plate Reverb", group: "Time", fx: "Reverb", color: "#26507a", ir: "plate", params: { mix: 0.35, tone: 0.75 } }
   };
-  var clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-  var r32 = (v) => Math.round(v * 1e3) / 1e3;
+  var CABS = {
+    "1x12": { name: "1x12 Combo", ir: "c1x12", gain: 1 },
+    "2x12": { name: "2x12 Combo", ir: "c2x12", gain: 1.4 },
+    "4x12": { name: "4x12 Vintage", ir: "c4x12", gain: 1 },
+    "4x12m": { name: "4x12 Modern", ir: "c4x12m", gain: 0.8 },
+    "4x12t": { name: "4x12 Classic", ir: "tuna", gain: 1 },
+    "bass": { name: "4x10 Bass", ir: "cbass", gain: 1.6 }
+  };
+  var clamp2 = (v, a, b) => Math.min(b, Math.max(a, v));
+  var r33 = (v) => Math.round(v * 1e3) / 1e3;
   var uid = 0;
   var newId = (model) => `${model}-${Date.now().toString(36)}-${(uid++).toString(36)}`;
   function makePedal(model, params = {}, id = "") {
@@ -1790,7 +1994,7 @@
     const p = {};
     for (const kn of FX[m.fx].knobs) {
       const v = Number(params[kn.k] ?? m.params[kn.k] ?? kn.def);
-      p[kn.k] = r32(clamp(Number.isFinite(v) ? v : kn.def, kn.min, kn.max));
+      p[kn.k] = r33(clamp2(Number.isFinite(v) ? v : kn.def, kn.min, kn.max));
     }
     return { id: id || newId(model), model, on: true, params: p };
   }
@@ -1802,146 +2006,37 @@
       loop: []
     };
   }
-  function knob(gear, ...names) {
-    const kv = gear && gear.KnobValues || {};
-    for (const [k, v] of Object.entries(kv)) {
-      const tail = k.slice(k.lastIndexOf("_") + 1).toLowerCase();
-      if (names.includes(tail) && Number.isFinite(Number(v))) return Number(v);
-    }
-    return null;
-  }
-  var unit = (v) => clamp(v / 100, 0, 1);
-  var inDb = (gear) => Object.values(gear && gear.KnobValues || {}).some((v) => Number(v) < 0);
-  var asDb = (v, db) => v === null ? 0 : r32(clamp(db ? v : (v - 50) * 0.24, -12, 12));
-  var RE = {
-    octave: /octave|octaver|pitchshift|harmon/i,
-    wah: /wah/i,
-    fuzz: /fuzz|muff/i,
-    metal: /metal|highgain|hi_?gain|grind/i,
-    boost: /boost|treble|clean_?boost/i,
-    dist: /distort|dist\d?|rat\b|crunch/i,
-    od: /overdrive|screamer|drive|od\d|tube/i,
-    flanger: /flang|jet/i,
-    chorus: /chorus|ensemble|ce\d|dimension/i,
-    phaser: /phase|vibe|univibe/i,
-    tremolo: /trem|rotary|leslie|pan\b/i,
-    delay: /delay|echo/i,
-    reverb: /reverb|verb|hall|room|plate|spring|cathedral|ambien/i,
-    comp: /comp|limit|sustain|dynamics/i,
-    eq: /eq\b|graphic|equal|parametric|filter/i
-  };
-  function modelOfGear(key, category = "") {
-    const what = `${key} ${category}`;
-    if (RE.octave.test(what)) return "octave";
-    if (RE.wah.test(what)) return "wah";
-    if (RE.reverb.test(what)) return /plate|hall|cathedral/i.test(what) ? "plate" : "room";
-    if (RE.delay.test(what)) return /tape|echo|analog/i.test(what) ? "echo" : "delay";
-    if (RE.flanger.test(what)) return "flanger";
-    if (RE.chorus.test(what)) return "chorus";
-    if (RE.phaser.test(what)) return "phaser";
-    if (RE.tremolo.test(what)) return "tremolo";
-    if (RE.fuzz.test(what)) return "fuzz";
-    if (RE.metal.test(what)) return "metal";
-    if (RE.boost.test(what)) return "boost";
-    if (RE.dist.test(what)) return "dist";
-    if (RE.od.test(what)) return "od";
-    if (RE.comp.test(what)) return "comp";
-    if (RE.eq.test(what)) return "eq";
-    return "";
-  }
-  function paramsOfGear(model, g) {
-    const fx = MODELS[model].fx, p = {}, db = inDb(g);
-    const u = (...n) => {
-      const v = knob(g, ...n);
-      return v === null ? null : unit(v);
-    };
-    if (fx === "Overdrive") {
-      const d = u("gain", "drive", "dist", "distortion", "fuzz", "sustain", "overdrive", "boost");
-      const t = u("tone", "treble", "filter"), l = u("level", "volume", "output", "vol");
-      if (d !== null) p.gain = d;
-      if (t !== null) p.tone = t;
-      if (l !== null) p.level = l;
-    } else if (fx === "Compressor") {
-      const th = knob(g, "threshold", "thresh"), ra = knob(g, "ratio"), at = knob(g, "attack"), re = knob(g, "release");
-      if (th !== null) p.threshold = th <= 0 ? th : -10 - 40 * unit(th);
-      if (ra !== null) p.ratio = ra;
-      if (at !== null) p.attack = at;
-      if (re !== null) p.release = re;
-      const c = u("compress", "sustain", "comp", "amount");
-      if (th === null && c !== null) p.threshold = -10 - 40 * c;
-    } else if (fx === "Chorus" || fx === "Phaser" || fx === "Tremolo") {
-      const r = u("rate", "speed"), d = u("depth", "intensity", "width", "mix", "level"), f = u("feedback", "resonance", "regen", "res");
-      const k = FX[fx].knobs.find((x) => x.k === "rate");
-      if (r !== null) p.rate = k.min + (k.max - k.min) * r * r;
-      if (d !== null) p[fx === "Tremolo" ? "intensity" : "depth"] = d;
-      if (f !== null && fx !== "Tremolo") p.feedback = f * 0.9;
-    } else if (fx === "WahWah") {
-      const s = u("sensitivity", "sens", "range"), q = u("resonance", "q", "peak");
-      if (s !== null) p.sensitivity = s * 2 - 1;
-      if (q !== null) p.resonance = 1 + q * 59;
-    } else if (fx === "Delay") {
-      const t = knob(g, "time", "delay", "delaytime"), f = u("feedback", "repeats", "regen"), m = u("mix", "level", "blend");
-      if (t !== null) p.time = t > 20 ? t : unit(t) * 1e3;
-      if (f !== null) p.feedback = f * 0.9;
-      if (m !== null) p.mix = m;
-    } else if (fx === "Reverb") {
-      const m = u("mix", "level", "blend", "verb");
-      if (m !== null) p.mix = m;
-    } else if (fx === "EQ") {
-      p.bass = asDb(knob(g, "bass", "low", "lo"), db);
-      p.mid = asDb(knob(g, "mid", "middle", "lomid", "himid"), db);
-      p.treble = asDb(knob(g, "treble", "high", "hi"), db);
-    } else if (fx === "Octave") {
-      const m = u("mix", "level", "blend", "octave");
-      if (m !== null) p.mix = m;
-    }
-    return p;
-  }
-  function cabOfGear(cabKey, ampKey, { bass = false, kind = "" } = {}) {
-    if (bass || /^bass_/i.test(cabKey || "") || /^bass_/i.test(ampKey || "")) return "bass";
-    const m = /_[A-Za-z]*?([124])(1[02]|15|10)/.exec(cabKey || "");
-    if (m) {
-      if (m[1] === "1") return "1x12";
-      if (m[1] === "2") return "2x12";
-      return kind === "distortion" ? "4x12m" : "4x12";
-    }
-    return kind === "clean" ? "2x12" : kind === "crunch" ? "4x12" : kind === "distortion" ? "4x12m" : "2x12";
-  }
-  function boardFromGear(gl, rig, kind = "") {
+  var KIND_GAIN = { clean: [0, 0.3], crunch: [0.4, 0.71], distortion: [0.75, 1] };
+  var ORDER = (s) => (/^PrePedal/i.test(s) ? 0 : /^LoopPedal/i.test(s) ? 1 : /^Rack/i.test(s) ? 2 : /^PostPedal/i.test(s) ? 3 : 4) * 100 + (parseInt(s.replace(/\D+/g, ""), 10) || 0);
+  function boardFromGear(gl, { bass = false, kind = "" } = {}) {
     gl = gl && typeof gl === "object" ? gl : {};
-    const bass = !!(rig && rig.bass);
-    const amp = gl.Amp && typeof gl.Amp === "object" ? gl.Amp : null;
+    const ampG = gl.Amp && typeof gl.Amp === "object" ? gl.Amp : null;
+    const ampE = ampG ? gearEntry("Amp", ampG) : null;
+    bass = !!bass || !!(ampE && ampE.bass);
     const board = emptyBoard(bass);
-    const ampKey = amp ? amp.Key || amp.PedalKey || "" : "";
-    board.amp.name = ampKey ? ampKey.replace(/^(bass_)?amp_/i, "") : board.amp.name;
-    ampFromRig(board.amp, rig);
-    board.cab = cabOfGear(gl.Cabinet && gl.Cabinet.Key, ampKey, { bass, kind });
+    if (ampE) {
+      board.amp.name = ampE.name || board.amp.name;
+      board.amp.gear = ampE.key;
+      const p = applyKnobs(ampE, ampG.KnobValues);
+      for (const k of ["gain", "bass", "mid", "treble", "presence"]) if (Number.isFinite(p[k])) board.amp[k] = r33(p[k]);
+    }
+    const cabG = gl.Cabinet && typeof gl.Cabinet === "object" ? gl.Cabinet : null;
+    const cabE = cabG ? gearEntry("Cabinet", cabG) : null;
+    board.cab = cabE && CABS[cabE.cab] ? cabE.cab : ampE && CABS[ampE.cab] ? ampE.cab : cabOfGear("", ampE ? ampE.key : "", { bass, kind });
     const slots = Object.keys(gl).filter((s) => s !== "Amp" && s !== "Cabinet" && gl[s] && typeof gl[s] === "object");
-    const order = (s) => (/^PrePedal/i.test(s) ? 0 : /^LoopPedal/i.test(s) ? 1 : /^Rack/i.test(s) ? 2 : /^PostPedal/i.test(s) ? 3 : 4) * 100 + (parseInt(s.replace(/\D+/g, ""), 10) || 0);
-    slots.sort((a, b) => order(a) - order(b));
+    slots.sort((a, b) => ORDER(a) - ORDER(b));
     for (const s of slots) {
-      const g = gl[s], key = g.Key || g.PedalKey || "";
-      if (!key) continue;
-      const model = modelOfGear(key, g.Category || "");
-      if (!model) continue;
-      const pedal = makePedal(model, paramsOfGear(model, g), s.toLowerCase());
-      pedal.gear = key;
+      const g = gl[s], e = gearEntry(s, g);
+      if (!e || !MODELS[e.model]) continue;
+      const pedal = makePedal(e.model, applyKnobs(e, g.KnobValues), s.toLowerCase());
+      pedal.gear = e.key;
       (/^PrePedal/i.test(s) ? board.pre : board.loop).push(pedal);
     }
-    if (board.pre.some((p) => MODELS[p.model].fx === "Overdrive") && rig && Number.isFinite(rig.gain)) {
-      board.amp.gain = r32(clamp(Math.min(rig.gain, Number.isFinite(rig.total) ? rig.total : 1), 0, 1));
+    const range = KIND_GAIN[kind];
+    if (range && !board.pre.some((p) => MODELS[p.model].fx === "Overdrive")) {
+      board.amp.gain = r33(clamp2(board.amp.gain, range[0], range[1]));
     }
     return board;
-  }
-  function ampFromRig(a, rig) {
-    if (!rig) return a;
-    const eq = (v) => Number.isFinite(v) ? r32(clamp((v - 0.5) * 24, -12, 12)) : 0;
-    a.gain = r32(clamp(Number.isFinite(rig.total) ? rig.total : Number.isFinite(rig.gain) ? rig.gain : 0.3, 0, 1));
-    a.bass = eq(rig.low);
-    a.mid = eq(rig.mid);
-    a.treble = eq(rig.high);
-    a.presence = eq(rig.presence);
-    return a;
   }
 
   // js/rig.js
@@ -1951,14 +2046,14 @@
     [/^(crunch|overdrive)$/, "crunch"],
     [/^(distortion|high gain|fuzz|metal)$/, "distortion"]
   ];
-  function unit2(v, db = false) {
+  function unit(v, db = false) {
     const n = Number(v);
     if (!Number.isFinite(n)) return null;
     if (db || n < 0) return Math.min(1, Math.max(0, 0.5 + n / 24));
     return Math.min(1, Math.max(0, n / 100));
   }
-  var inDb2 = (gear) => Object.values(gear && gear.KnobValues || {}).some((v) => Number(v) < 0);
-  function knob2(gear, ...names) {
+  var inDb = (gear) => Object.values(gear && gear.KnobValues || {}).some((v) => Number(v) < 0);
+  function knob(gear, ...names) {
     const kv = gear && gear.KnobValues || {};
     for (const [k, v] of Object.entries(kv)) {
       const tail = k.slice(k.lastIndexOf("_") + 1).toLowerCase();
@@ -2003,14 +2098,14 @@
       pedals: []
     };
     if (amp) {
-      const g = knob2(amp, "gain", "drive", "overdrive", "preamp");
-      if (g !== null) rig.gain = unit2(g);
-      const lo = knob2(amp, "bass", "low", "lo"), mi = knob2(amp, "mid", "middle"), hi = knob2(amp, "treble", "high", "hi"), pr = knob2(amp, "pres", "presence", "bright");
-      const db = inDb2(amp);
-      if (lo !== null) rig.low = unit2(lo, db);
-      if (mi !== null) rig.mid = unit2(mi, db);
-      if (hi !== null) rig.high = unit2(hi, db);
-      if (pr !== null) rig.presence = unit2(pr, db);
+      const g = knob(amp, "gain", "drive", "overdrive", "preamp");
+      if (g !== null) rig.gain = unit(g);
+      const lo = knob(amp, "bass", "low", "lo"), mi = knob(amp, "mid", "middle"), hi = knob(amp, "treble", "high", "hi"), pr = knob(amp, "pres", "presence", "bright");
+      const db = inDb(amp);
+      if (lo !== null) rig.low = unit(lo, db);
+      if (mi !== null) rig.mid = unit(mi, db);
+      if (hi !== null) rig.high = unit(hi, db);
+      if (pr !== null) rig.presence = unit(pr, db);
     }
     for (const [slot, g] of gear) {
       if (slot === "Amp" || slot === "Cabinet") continue;
@@ -2018,20 +2113,20 @@
       const what = `${key} ${g.Category || ""}`;
       rig.pedals.push(key);
       if (OCTAVE_RE.test(what)) {
-        const m = knob2(g, "mix", "level", "blend");
-        rig.octave = Math.max(rig.octave, m === null ? 0.5 : unit2(m));
+        const m = knob(g, "mix", "level", "blend");
+        rig.octave = Math.max(rig.octave, m === null ? 0.5 : unit(m));
       } else if (DRIVE_RE.test(what)) {
-        const d = knob2(g, "gain", "drive", "dist", "distortion", "fuzz", "sustain", "overdrive");
-        rig.drive = Math.max(rig.drive, d === null ? 0.6 : unit2(d));
+        const d = knob(g, "gain", "drive", "dist", "distortion", "fuzz", "sustain", "overdrive");
+        rig.drive = Math.max(rig.drive, d === null ? 0.6 : unit(d));
       } else if (MOD_RE.test(what)) {
-        const m = knob2(g, "mix", "depth", "intensity", "level");
-        rig.mod = Math.max(rig.mod, m === null ? 0.5 : unit2(m));
+        const m = knob(g, "mix", "depth", "intensity", "level");
+        rig.mod = Math.max(rig.mod, m === null ? 0.5 : unit(m));
       } else if (DELAY_RE.test(what)) {
-        const m = knob2(g, "mix", "level", "blend");
-        rig.delay = Math.max(rig.delay, m === null ? 0.3 : unit2(m));
+        const m = knob(g, "mix", "level", "blend");
+        rig.delay = Math.max(rig.delay, m === null ? 0.3 : unit(m));
       } else if (REVERB_RE.test(what)) {
-        const m = knob2(g, "mix", "level", "blend");
-        rig.reverb = Math.max(rig.reverb, m === null ? 0.3 : unit2(m));
+        const m = knob(g, "mix", "level", "blend");
+        rig.reverb = Math.max(rig.reverb, m === null ? 0.3 : unit(m));
       } else if (COMP_RE.test(what)) {
         rig.comp = 1;
       }
@@ -2043,12 +2138,16 @@
     for (const k of ["gain", "drive", "octave", "mod", "delay", "reverb", "low", "mid", "high", "presence", "total"]) {
       rig[k] = Math.round(rig[k] * 1e3) / 1e3;
     }
-    rig.board = boardFromGear(gl, rig, kind);
+    rig.board = boardFromGear(gl, { bass: rig.bass, kind });
+    rig.gear = {};
+    for (const [slot, g] of gear) {
+      rig.gear[slot] = { Key: g.Key || g.PedalKey, Type: g.Type || "", Category: g.Category || "", KnobValues: g.KnobValues || {} };
+    }
     return { kind, rig };
   }
 
   // js/convert.js
-  var r33 = (v) => Math.round(v * 1e3) / 1e3;
+  var r34 = (v) => Math.round(v * 1e3) / 1e3;
   function arrId(name, used) {
     let base = name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "arr";
     let cand = base, i = 2;
@@ -2078,7 +2177,7 @@
       } catch {
         lyric = new TextDecoder("latin1").decode(cut);
       }
-      out.push({ t: r33(time), d: r33(length), w: lyric });
+      out.push({ t: r34(time), d: r34(length), w: lyric });
       off += 60;
     }
     return out;
@@ -2095,8 +2194,8 @@
       }
       if (root.tag !== "vocals") continue;
       const toks = root.children.filter((c) => c.tag === "vocal").map((v) => ({
-        t: r33(parseFloat(v.attrs.time || "0")),
-        d: r33(parseFloat(v.attrs.length || "0")),
+        t: r34(parseFloat(v.attrs.time || "0")),
+        d: r34(parseFloat(v.attrs.length || "0")),
         w: v.attrs.lyric || ""
       }));
       if (toks.length) return { tokens: toks, source: "xml" };
@@ -2127,7 +2226,7 @@
     const lines = [];
     let cur = [], syl = [], start = null, last = 0, prevT = null;
     const flush = () => {
-      if (cur.length) lines.push({ t: r33(start), end: r33(last), text: joinWords(cur), syl });
+      if (cur.length) lines.push({ t: r34(start), end: r34(last), text: joinWords(cur), syl });
       cur = [];
       syl = [];
       start = null;
@@ -2146,7 +2245,7 @@
         if (start === null) start = t;
         const glue = !cur.length || cur[cur.length - 1][1] ? "" : " ";
         cur.push([w, cont]);
-        syl.push([r33(t), r33(d), glue + w]);
+        syl.push([r34(t), r34(d), glue + w]);
         last = Math.max(last, d > 0 ? t + d : t + 0.3);
         prevT = t;
       }
@@ -2208,7 +2307,7 @@
       if (!c || typeof c.name !== "string") continue;
       const tv = Number(c.t);
       if (!Number.isFinite(tv)) continue;
-      out.changes.push({ t: r33(tv), name: c.name });
+      out.changes.push({ t: r34(tv), name: c.name });
     }
     out.changes.sort((a, b) => a.t - b.t);
     return out;
@@ -2288,8 +2387,8 @@
       arr.tones = tonesByArr.get(arr.name) || null;
       const wire = arrangementToWire(arr);
       if (first) {
-        wire.beats = song.beats.map((b) => ({ time: r33(b.time), measure: b.measure }));
-        wire.sections = song.sections.map((s) => ({ name: s.name, number: s.number, time: r33(s.time) }));
+        wire.beats = song.beats.map((b) => ({ time: r34(b.time), measure: b.measure }));
+        wire.sections = song.sections.map((s) => ({ name: s.name, number: s.number, time: r34(s.time) }));
         first = false;
       }
       wires.push({ arr, aid, wire });
@@ -2321,7 +2420,7 @@
         album: song.album || "",
         year: song.year || 0,
         author: "",
-        duration: r33(song.song_length || 0),
+        duration: r34(song.song_length || 0),
         pack: name,
         converted: true,
         cover: !!hasCover,
@@ -5063,7 +5162,7 @@
   };
 
   // js/feedpak.js
-  var r34 = (v) => Math.round(v * 1e3) / 1e3;
+  var r35 = (v) => Math.round(v * 1e3) / 1e3;
   var utf84 = new TextDecoder("utf-8", { fatal: false });
   var LYRIC_LINE_RE = /^\s*\[(\d+):(\d+(?:\.\d+)?)\]\s*(.*)$/;
   function lyricsFromText(text) {
@@ -5072,11 +5171,11 @@
       const m = LYRIC_LINE_RE.exec(ln);
       if (!m) continue;
       const txt = m[3].trim();
-      if (txt) out.push({ t: r34(parseInt(m[1], 10) * 60 + parseFloat(m[2])), end: 0, text: txt, syl: [] });
+      if (txt) out.push({ t: r35(parseInt(m[1], 10) * 60 + parseFloat(m[2])), end: 0, text: txt, syl: [] });
     }
     for (let i = 0; i < out.length; i++) {
       const next = i + 1 < out.length ? out[i + 1].t : out[i].t + 4;
-      out[i].end = r34(Math.min(next, out[i].t + 8));
+      out[i].end = r35(Math.min(next, out[i].t + 8));
     }
     return out;
   }
@@ -5149,7 +5248,7 @@
         album: m.album || "",
         year: m.year || 0,
         author: m.author || "",
-        duration: r34(Number(m.duration) || 0),
+        duration: r35(Number(m.duration) || 0),
         pack: name,
         converted: false,
         cover: Boolean(coverBlob),

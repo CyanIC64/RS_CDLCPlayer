@@ -1,0 +1,12 @@
+{
+  "key": "Bass_Pedal_MBComp",
+  "type": "pedal",
+  "name": "MBComp",
+  "model": "comp",
+  "knobs": {
+    "Filter": { "param": null, "from": [0, 350] },
+    "Compress": { "param": "threshold", "from": [0, 100], "to": [-10, -50] },
+    "Rate": { "param": null, "from": [0, 100] }
+  },
+  "params": {}
+}
