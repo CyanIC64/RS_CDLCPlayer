@@ -1,0 +1,10 @@
+{
+  "key": "Pedal_VintageFlanger",
+  "type": "pedal",
+  "name": "VintageFlanger",
+  "real": "EHX Mistress",
+  "category": "Flanger",
+  "model": "flanger",
+  "params": {},
+  "source": "RS-to-AT5p gear map"
+}

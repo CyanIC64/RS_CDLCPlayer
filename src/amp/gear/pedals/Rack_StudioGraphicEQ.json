@@ -15,5 +15,8 @@
     "Mid": { "param": "mid", "from": [-12, 12], "to": [-12, 12] },
     "LoMid": { "param": null, "from": [0, 100] }
   },
-  "params": {}
+  "params": {},
+  "real": "7 Band Graphic EQ",
+  "category": "Reverb",
+  "source": "RS-to-AT5p gear map"
 }

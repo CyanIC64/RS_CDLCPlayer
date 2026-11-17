@@ -1,0 +1,11 @@
+{
+  "key": "Amp_CA85",
+  "type": "amp",
+  "name": "CA85",
+  "real": "Mark III (Mesa/Boogie)",
+  "family": "California (Mesa/Boogie)",
+  "voice": "mark",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map"
+}

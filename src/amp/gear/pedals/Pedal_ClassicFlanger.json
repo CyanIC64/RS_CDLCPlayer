@@ -1,0 +1,10 @@
+{
+  "key": "Pedal_ClassicFlanger",
+  "type": "pedal",
+  "name": "ClassicFlanger",
+  "real": "Boss BF-2",
+  "category": "Flanger",
+  "model": "flanger",
+  "params": {},
+  "source": "RS-to-AT5p gear map"
+}

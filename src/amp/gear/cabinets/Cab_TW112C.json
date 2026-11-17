@@ -1,0 +1,9 @@
+{
+  "key": "Cab_TW112C",
+  "type": "cabinet",
+  "name": "TW112C",
+  "real": "1x12 Fender tweed",
+  "bass": false,
+  "cab": "1x12",
+  "source": "RS-to-AT5p gear map"
+}

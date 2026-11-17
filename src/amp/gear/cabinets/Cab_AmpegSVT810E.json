@@ -1,0 +1,9 @@
+{
+  "key": "Cab_AmpegSVT810E",
+  "type": "cabinet",
+  "name": "AmpegSVT810E",
+  "real": "Cab_AmpegSVT810E",
+  "bass": false,
+  "cab": "2x12",
+  "source": "RS-to-AT5p gear map"
+}

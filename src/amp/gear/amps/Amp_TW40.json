@@ -1,0 +1,11 @@
+{
+  "key": "Amp_TW40",
+  "type": "amp",
+  "name": "TW40",
+  "real": "59 Bassman LTD (Fender)",
+  "family": "Tweed (Fender)",
+  "voice": "tweed",
+  "bass": false,
+  "cab": "bass",
+  "source": "RS-to-AT5p gear map"
+}

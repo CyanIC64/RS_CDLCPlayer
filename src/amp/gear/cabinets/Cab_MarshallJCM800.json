@@ -1,0 +1,9 @@
+{
+  "key": "Cab_MarshallJCM800",
+  "type": "cabinet",
+  "name": "MarshallJCM800",
+  "real": "4x12 Marshall",
+  "bass": false,
+  "cab": "4x12j",
+  "source": "RS-to-AT5p gear map"
+}

@@ -1710,16 +1710,303 @@
 
   // amp/gear/library.js
   var library_default = {
-    "Amp_CA100": { "key": "Amp_CA100", "type": "amp", "name": "CA100", "category": "Amp", "bass": false, "cab": "", "knobs": { "Gain": { "param": "gain", "from": [0, 100], "to": [0, 1] }, "Bass": { "param": "bass", "from": [0, 100], "to": [-12, 12] }, "Mid": { "param": "mid", "from": [0, 100], "to": [-12, 12] }, "Treble": { "param": "treble", "from": [0, 100], "to": [-12, 12] }, "Pres": { "param": "presence", "from": [0, 100], "to": [-12, 12] } } },
-    "Amp_EN30": { "key": "Amp_EN30", "type": "amp", "name": "EN30", "bass": false, "cab": "", "knobs": { "Gain": { "param": "gain", "from": [0, 100], "to": [0, 1] }, "Pres": { "param": "presence", "from": [0, 100], "to": [-12, 12] }, "Bass": { "param": "bass", "from": [0, 100], "to": [-12, 12] }, "Mid": { "param": "mid", "from": [0, 100], "to": [-12, 12] }, "Bright": { "param": null, "from": [0, 100] }, "Treble": { "param": "treble", "from": [0, 100], "to": [-12, 12] } } },
+    "Amp_AT120": { "key": "Amp_AT120", "type": "amp", "name": "AT120", "real": "Jazz Amp 120 (Fender)", "family": "American Tube (Fender)", "voice": "jazz", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Amp_AT20": { "key": "Amp_AT20", "type": "amp", "name": "AT20", "real": "65 Deluxe Reverb (Fender)", "family": "American Tube (Fender)", "voice": "american", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Amp_Acoustic360": { "key": "Amp_Acoustic360", "type": "amp", "name": "Acoustic360", "real": "360Bass Preamp", "family": "Other", "voice": "bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Amp_Aguilar": { "key": "Amp_Aguilar", "type": "amp", "name": "Aguilar", "real": "New York B750", "family": "Other", "voice": "bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Amp_Ampeg": { "key": "Amp_Ampeg", "type": "amp", "name": "Ampeg", "real": "SVX-CL", "family": "Other", "voice": "bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Amp_AmpegB15": { "key": "Amp_AmpegB15", "type": "amp", "name": "AmpegB15", "real": "SVX-15R", "family": "Other", "voice": "bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Amp_AmpegSVTVR": { "key": "Amp_AmpegSVTVR", "type": "amp", "name": "AmpegSVTVR", "real": "SVX-VR", "family": "Other", "voice": "bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Amp_BT15": { "key": "Amp_BT15", "type": "amp", "name": "BT15", "real": "JH Gold (Marshall)", "family": "British Tube (Marshall)", "voice": "plexi", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Amp_BT30": { "key": "Amp_BT30", "type": "amp", "name": "BT30", "real": "Brit 9000 (Marshall)", "family": "British Tube (Marshall)", "voice": "jcm", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map" },
+    "Amp_BT45": { "key": "Amp_BT45", "type": "amp", "name": "BT45", "real": "JH Gold (Marshall)", "family": "British Tube (Marshall)", "voice": "plexi", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Amp_BognerEcstasy": { "key": "Amp_BognerEcstasy", "type": "amp", "name": "BognerEcstasy", "real": "German 34", "family": "Other", "voice": "german", "bass": false, "cab": "4x12g", "source": "RS-to-AT5p gear map" },
+    "Amp_CA100": { "key": "Amp_CA100", "type": "amp", "name": "CA100", "category": "Amp", "bass": false, "cab": "4x12m", "knobs": { "Gain": { "param": "gain", "from": [0, 100], "to": [0, 1] }, "Bass": { "param": "bass", "from": [0, 100], "to": [-12, 12] }, "Mid": { "param": "mid", "from": [0, 100], "to": [-12, 12] }, "Treble": { "param": "treble", "from": [0, 100], "to": [-12, 12] }, "Pres": { "param": "presence", "from": [0, 100], "to": [-12, 12] } }, "real": "Dual Rectifier (Mesa/Boogie)", "family": "California (Mesa/Boogie)", "voice": "rectifier", "source": "RS-to-AT5p gear map" },
+    "Amp_CA38": { "key": "Amp_CA38", "type": "amp", "name": "CA38", "real": "American Clean MKIII (Mesa/Boogie)", "family": "California (Mesa/Boogie)", "voice": "american", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Amp_CA85": { "key": "Amp_CA85", "type": "amp", "name": "CA85", "real": "Mark III (Mesa/Boogie)", "family": "California (Mesa/Boogie)", "voice": "mark", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_CS100": { "key": "Amp_CS100", "type": "amp", "name": "CS100", "real": "Jazz Amp 120 (Fender)", "family": "Custom Shop (Fender)", "voice": "plexi", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Amp_CS120": { "key": "Amp_CS120", "type": "amp", "name": "CS120", "real": "Jazz Amp 120 (Fender)", "family": "Custom Shop (Fender)", "voice": "jazz", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Amp_CS90": { "key": "Amp_CS90", "type": "amp", "name": "CS90", "real": "Jazz Amp 120 (Fender)", "family": "Custom Shop (Fender)", "voice": "jazz", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Amp_CarvinV3M": { "key": "Amp_CarvinV3M", "type": "amp", "name": "CarvinV3M", "real": "V3M", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_DiezelVH4": { "key": "Amp_DiezelVH4", "type": "amp", "name": "DiezelVH4", "real": "VHandcraft 4", "family": "Other", "voice": "german", "bass": false, "cab": "4x12g", "source": "RS-to-AT5p gear map" },
+    "Amp_DrZMaz18": { "key": "Amp_DrZMaz18", "type": "amp", "name": "DrZMaz18", "real": "MAZ 18 Jr", "family": "Other", "voice": "vox", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Amp_DrZZWreck": { "key": "Amp_DrZZWreck", "type": "amp", "name": "DrZZWreck", "real": "Z Wreck", "family": "Other", "voice": "vox", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Amp_EN30": { "key": "Amp_EN30", "type": "amp", "name": "EN30", "bass": false, "cab": "4x12o", "knobs": { "Gain": { "param": "gain", "from": [0, 100], "to": [0, 1] }, "Pres": { "param": "presence", "from": [0, 100], "to": [-12, 12] }, "Bass": { "param": "bass", "from": [0, 100], "to": [-12, 12] }, "Mid": { "param": "mid", "from": [0, 100], "to": [-12, 12] }, "Bright": { "param": null, "from": [0, 100] }, "Treble": { "param": "treble", "from": [0, 100], "to": [-12, 12] } }, "real": "British Copper 30TB (Orange)", "family": "English (Orange)", "voice": "orange", "source": "RS-to-AT5p gear map" },
+    "Amp_EN50": { "key": "Amp_EN50", "type": "amp", "name": "EN50", "real": "RockerVerb 50 (Orange)", "family": "English (Orange)", "voice": "orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map" },
+    "Amp_EnglE650": { "key": "Amp_EnglE650", "type": "amp", "name": "EnglE650", "real": "E650", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_EnglPowerball": { "key": "Amp_EnglPowerball", "type": "amp", "name": "EnglPowerball", "real": "Powerball", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_Fender57CustomPro": { "key": "Amp_Fender57CustomPro", "type": "amp", "name": "Fender57CustomPro", "real": "Fender '57 Custom Pro-Amp", "family": "Other", "voice": "tweed", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Amp_Fender57CustomTwin": { "key": "Amp_Fender57CustomTwin", "type": "amp", "name": "Fender57CustomTwin", "real": "Fender '57 Custom Twin-Amp", "family": "Other", "voice": "tweed", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Amp_Fender59Bassman": { "key": "Amp_Fender59Bassman", "type": "amp", "name": "Fender59Bassman", "real": "Fender '59 Bassman LTD", "family": "Other", "voice": "tweed", "bass": false, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Amp_FenderBassman": { "key": "Amp_FenderBassman", "type": "amp", "name": "FenderBassman", "real": "Fender American Vintage B", "family": "Other", "voice": "tweed", "bass": false, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Amp_FenderBassman300": { "key": "Amp_FenderBassman300", "type": "amp", "name": "FenderBassman300", "real": "Fender Bassman 300", "family": "Other", "voice": "bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Amp_FenderChamp": { "key": "Amp_FenderChamp", "type": "amp", "name": "FenderChamp", "real": "Fender '57 Champ", "family": "Other", "voice": "tweed", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Amp_FenderChampion600": { "key": "Amp_FenderChampion600", "type": "amp", "name": "FenderChampion600", "real": "Fender Champion 600", "family": "Other", "voice": "american", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Amp_FenderDeluxeReverb": { "key": "Amp_FenderDeluxeReverb", "type": "amp", "name": "FenderDeluxeReverb", "real": "Fender '65 Deluxe Reverb", "family": "Other", "voice": "american", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Amp_FenderMH500": { "key": "Amp_FenderMH500", "type": "amp", "name": "FenderMH500", "real": "Fender MH-500 Metalhead", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_FenderPrinceton": { "key": "Amp_FenderPrinceton", "type": "amp", "name": "FenderPrinceton", "real": "Fender '65 Princeton", "family": "Other", "voice": "american", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Amp_FenderProJunior": { "key": "Amp_FenderProJunior", "type": "amp", "name": "FenderProJunior", "real": "Fender Pro Junior", "family": "Other", "voice": "american", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Amp_FenderSuperReverb": { "key": "Amp_FenderSuperReverb", "type": "amp", "name": "FenderSuperReverb", "real": "Fender '65 Super Reverb", "family": "Other", "voice": "american", "bass": false, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Amp_FenderSupersonic": { "key": "Amp_FenderSupersonic", "type": "amp", "name": "FenderSupersonic", "real": "Fender Super-Sonic", "family": "Other", "voice": "american", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Amp_FenderTwinReverb": { "key": "Amp_FenderTwinReverb", "type": "amp", "name": "FenderTwinReverb", "real": "Fender '65 Twin Reverb", "family": "Other", "voice": "american", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Amp_FenderVibroking": { "key": "Amp_FenderVibroking", "type": "amp", "name": "FenderVibroking", "real": "Fender Vibro-King", "family": "Other", "voice": "american", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Amp_FenderVibroverb": { "key": "Amp_FenderVibroverb", "type": "amp", "name": "FenderVibroverb", "real": "Fender '64 Vibroverb Custom", "family": "Other", "voice": "american", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Amp_GB100": { "key": "Amp_GB100", "type": "amp", "name": "GB100", "real": "VHandcraft 4", "family": "German/British (Bogner/Diezel)", "voice": "german", "bass": false, "cab": "4x12g", "source": "RS-to-AT5p gear map" },
+    "Amp_GB38": { "key": "Amp_GB38", "type": "amp", "name": "GB38", "real": "German 34", "family": "German/British (Bogner/Diezel)", "voice": "german", "bass": false, "cab": "4x12g", "source": "RS-to-AT5p gear map" },
+    "Amp_GB50": { "key": "Amp_GB50", "type": "amp", "name": "GB50", "real": "German 34", "family": "German/British (Bogner/Diezel)", "voice": "german", "bass": false, "cab": "4x12g", "source": "RS-to-AT5p gear map" },
+    "Amp_HG100": { "key": "Amp_HG100", "type": "amp", "name": "HG100", "real": "Metal Lead V (Mesa/Peavey/Soldano)", "family": "High Gain (Mesa/Peavey/Soldano)", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_HG180": { "key": "Amp_HG180", "type": "amp", "name": "HG180", "real": "SLD 100 (Mesa/Peavey/Soldano)", "family": "High Gain (Mesa/Peavey/Soldano)", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_HG500": { "key": "Amp_HG500", "type": "amp", "name": "HG500", "real": "Triple Rectifier (Mesa/Peavey/Soldano)", "family": "High Gain (Mesa/Peavey/Soldano)", "voice": "rectifier", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_Hiwatt": { "key": "Amp_Hiwatt", "type": "amp", "name": "Hiwatt", "real": "HiAmp", "family": "Other", "voice": "plexi", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Amp_JetCityJCA100H": { "key": "Amp_JetCityJCA100H", "type": "amp", "name": "JetCityJCA100H", "real": "JCA100H", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_JetCityJCA20H": { "key": "Amp_JetCityJCA20H", "type": "amp", "name": "JetCityJCA20H", "real": "JCA20H", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_Marshall1962Bluesbreaker": { "key": "Amp_Marshall1962Bluesbreaker", "type": "amp", "name": "Marshall1962Bluesbreaker", "real": "Marshall 1962 Bluesbreaker", "family": "Other", "voice": "plexi", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Amp_MarshallDSL100H": { "key": "Amp_MarshallDSL100H", "type": "amp", "name": "MarshallDSL100H", "real": "Marshall DSL100H", "family": "Other", "voice": "jcm", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map" },
+    "Amp_MarshallDSL15H": { "key": "Amp_MarshallDSL15H", "type": "amp", "name": "MarshallDSL15H", "real": "Marshall DSL15H", "family": "Other", "voice": "jcm", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map" },
+    "Amp_MarshallJCM800": { "key": "Amp_MarshallJCM800", "type": "amp", "name": "MarshallJCM800", "real": "Marshall JCM 800", "family": "Other", "voice": "jcm", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map" },
+    "Amp_MarshallJCM900": { "key": "Amp_MarshallJCM900", "type": "amp", "name": "MarshallJCM900", "real": "Marshall JCM 900", "family": "Other", "voice": "jcm", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map" },
+    "Amp_MarshallJMP": { "key": "Amp_MarshallJMP", "type": "amp", "name": "MarshallJMP", "real": "Marshall JMP", "family": "Other", "voice": "plexi", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Amp_MarshallJTM45": { "key": "Amp_MarshallJTM45", "type": "amp", "name": "MarshallJTM45", "real": "Marshall JTM 45", "family": "Other", "voice": "plexi", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Amp_MarshallJVM": { "key": "Amp_MarshallJVM", "type": "amp", "name": "MarshallJVM", "real": "Marshall JVM", "family": "Other", "voice": "jcm", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map" },
+    "Amp_MarshallJVM410H": { "key": "Amp_MarshallJVM410H", "type": "amp", "name": "MarshallJVM410H", "real": "Marshall JVM 410H", "family": "Other", "voice": "jcm", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map" },
+    "Amp_MarshallMajor": { "key": "Amp_MarshallMajor", "type": "amp", "name": "MarshallMajor", "real": "Marshall Major", "family": "Other", "voice": "plexi", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Amp_MarshallPlexi": { "key": "Amp_MarshallPlexi", "type": "amp", "name": "MarshallPlexi", "real": "Marshall Super Lead 100 (Plexi)", "family": "Other", "voice": "plexi", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Amp_MarshallSilverJubilee": { "key": "Amp_MarshallSilverJubilee", "type": "amp", "name": "MarshallSilverJubilee", "real": "Marshall Silver Jubilee", "family": "Other", "voice": "jcm", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map" },
+    "Amp_MarshallSlash": { "key": "Amp_MarshallSlash", "type": "amp", "name": "MarshallSlash", "real": "Marshall Slash AFD100", "family": "Other", "voice": "jcm", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map" },
+    "Amp_MarshallSlashGold": { "key": "Amp_MarshallSlashGold", "type": "amp", "name": "MarshallSlashGold", "real": "Marshall Slash Signature Gold", "family": "Other", "voice": "jcm", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map" },
+    "Amp_MesaBoogieMarkIIC": { "key": "Amp_MesaBoogieMarkIIC", "type": "amp", "name": "MesaBoogieMarkIIC", "real": "Mark IIC+", "family": "Other", "voice": "mark", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_MesaBoogieMarkIII": { "key": "Amp_MesaBoogieMarkIII", "type": "amp", "name": "MesaBoogieMarkIII", "real": "Mark III", "family": "Other", "voice": "mark", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_MesaBoogieMarkIV": { "key": "Amp_MesaBoogieMarkIV", "type": "amp", "name": "MesaBoogieMarkIV", "real": "Mark IV", "family": "Other", "voice": "mark", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_MesaBoogieMarkV": { "key": "Amp_MesaBoogieMarkV", "type": "amp", "name": "MesaBoogieMarkV", "real": "Mark V", "family": "Other", "voice": "mark", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_MesaCaliforniaTweed": { "key": "Amp_MesaCaliforniaTweed", "type": "amp", "name": "MesaCaliforniaTweed", "real": "California Tweed", "family": "Other", "voice": "american", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Amp_MesaCleanMKIII": { "key": "Amp_MesaCleanMKIII", "type": "amp", "name": "MesaCleanMKIII", "real": "American Clean MKIII", "family": "Other", "voice": "american", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Amp_MesaDualRectifier": { "key": "Amp_MesaDualRectifier", "type": "amp", "name": "MesaDualRectifier", "real": "Dual Rectifier", "family": "Other", "voice": "rectifier", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_MesaLeadMKIII": { "key": "Amp_MesaLeadMKIII", "type": "amp", "name": "MesaLeadMKIII", "real": "American Lead MKIII", "family": "Other", "voice": "mark", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_MesaModernTubeLead": { "key": "Amp_MesaModernTubeLead", "type": "amp", "name": "MesaModernTubeLead", "real": "Modern Tube Lead", "family": "Other", "voice": "mark", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_MesaTA30": { "key": "Amp_MesaTA30", "type": "amp", "name": "MesaTA30", "real": "TransAtlantic TA-30", "family": "Other", "voice": "mark", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_MesaTripleCrown": { "key": "Amp_MesaTripleCrown", "type": "amp", "name": "MesaTripleCrown", "real": "Triple Crown", "family": "Other", "voice": "rectifier", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_MesaTripleRectifier": { "key": "Amp_MesaTripleRectifier", "type": "amp", "name": "MesaTripleRectifier", "real": "Triple Rectifier", "family": "Other", "voice": "rectifier", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_OrangeAD200": { "key": "Amp_OrangeAD200", "type": "amp", "name": "OrangeAD200", "real": "Orange AD200 Bass", "family": "Other", "voice": "bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Amp_OrangeAD30": { "key": "Amp_OrangeAD30", "type": "amp", "name": "OrangeAD30", "real": "Orange AD30", "family": "Other", "voice": "orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map" },
+    "Amp_OrangeDualTerror": { "key": "Amp_OrangeDualTerror", "type": "amp", "name": "OrangeDualTerror", "real": "Orange Dual Terror", "family": "Other", "voice": "rectifier", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_OrangeOR120": { "key": "Amp_OrangeOR120", "type": "amp", "name": "OrangeOR120", "real": "Orange OR120", "family": "Other", "voice": "orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map" },
+    "Amp_OrangeOR50": { "key": "Amp_OrangeOR50", "type": "amp", "name": "OrangeOR50", "real": "Orange OR50", "family": "Other", "voice": "orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map" },
+    "Amp_OrangeRockerverb": { "key": "Amp_OrangeRockerverb", "type": "amp", "name": "OrangeRockerverb", "real": "Orange Rockerverb 50", "family": "Other", "voice": "orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map" },
+    "Amp_OrangeThunderverb": { "key": "Amp_OrangeThunderverb", "type": "amp", "name": "OrangeThunderverb", "real": "Orange Thunderverb 200", "family": "Other", "voice": "orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map" },
+    "Amp_OrangeTinyTerror": { "key": "Amp_OrangeTinyTerror", "type": "amp", "name": "OrangeTinyTerror", "real": "Orange Tiny Terror", "family": "Other", "voice": "orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map" },
+    "Amp_PRSArchon": { "key": "Amp_PRSArchon", "type": "amp", "name": "PRSArchon", "real": "SilverPlate 50", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_Peavey5150": { "key": "Amp_Peavey5150", "type": "amp", "name": "Peavey5150", "real": "Metal Lead V", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_Peavey5150II": { "key": "Amp_Peavey5150II", "type": "amp", "name": "Peavey5150II", "real": "SJ50", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_Randall": { "key": "Amp_Randall", "type": "amp", "name": "Randall", "real": "Darrell 100", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_RolandJC120": { "key": "Amp_RolandJC120", "type": "amp", "name": "RolandJC120", "real": "Jazz Amp 120", "family": "Other", "voice": "jazz", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Amp_Soldano": { "key": "Amp_Soldano", "type": "amp", "name": "Soldano", "real": "SLD 100", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_Sunn1200": { "key": "Amp_Sunn1200", "type": "amp", "name": "Sunn1200", "real": "JH 1200", "family": "Other", "voice": "bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Amp_Supro": { "key": "Amp_Supro", "type": "amp", "name": "Supro", "real": "Tube Vintage Combo", "family": "Other", "voice": "tweed", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Amp_THDBiValve": { "key": "Amp_THDBiValve", "type": "amp", "name": "THDBiValve", "real": "Bi-Valve", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Amp_TW22": { "key": "Amp_TW22", "type": "amp", "name": "TW22", "real": "57 Custom Deluxe (Fender)", "family": "Tweed (Fender)", "voice": "tweed", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Amp_TW26": { "key": "Amp_TW26", "type": "amp", "name": "TW26", "real": "57 Custom Pro-Amp (Fender)", "family": "Tweed (Fender)", "voice": "tweed", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Amp_TW40": { "key": "Amp_TW40", "type": "amp", "name": "TW40", "real": "59 Bassman LTD (Fender)", "family": "Tweed (Fender)", "voice": "tweed", "bass": false, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Amp_VoxAC30": { "key": "Amp_VoxAC30", "type": "amp", "name": "VoxAC30", "real": "Vox AC30", "family": "Other", "voice": "vox", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Amp_VoxAC30Blue": { "key": "Amp_VoxAC30Blue", "type": "amp", "name": "VoxAC30Blue", "real": "Vox AC30 (blue)", "family": "Other", "voice": "vox", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
     "Bass_Amp_BT880B": { "key": "Bass_Amp_BT880B", "type": "amp", "name": "BT880B", "bass": true, "cab": "bass", "knobs": { "Treble": { "param": "treble", "from": [-12, 12], "to": [-12, 12] }, "Gain": { "param": "gain", "from": [0, 100], "to": [0, 1] }, "Bass": { "param": "bass", "from": [-12, 12], "to": [-12, 12] }, "LoFreq": { "param": null, "from": [0, 130] }, "Mid": { "param": "mid", "from": [-12, 12], "to": [-12, 12] }, "Lo": { "param": null, "from": [-12, 12] }, "Hi": { "param": null, "from": [-12, 12] }, "HiFreq": { "param": null, "from": [0, 100] }, "MidFreq": { "param": null, "from": [0, 820] } } },
-    "Bass_Cab_BT212BC_Tube_Cone": { "key": "Bass_Cab_BT212BC_Tube_Cone", "type": "cabinet", "name": "BT212BC Tube Cone", "bass": true, "cab": "bass" },
+    "Bass_Cab_AT1150BC": { "key": "Bass_Cab_AT1150BC", "type": "cabinet", "name": "AT1150BC", "real": "4x12 Ampeg (bass)", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_AT810BC": { "key": "Bass_Cab_AT810BC", "type": "cabinet", "name": "AT810BC", "real": "Ampeg (bass)", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_BT115BC": { "key": "Bass_Cab_BT115BC", "type": "cabinet", "name": "BT115BC", "real": "1x15 Marshall (bass)", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_BT212BC": { "key": "Bass_Cab_BT212BC", "type": "cabinet", "name": "BT212BC", "bass": true, "cab": "bass", "real": "Marshall (bass)", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_BT410BC": { "key": "Bass_Cab_BT410BC", "type": "cabinet", "name": "BT410BC", "real": "8x10 Marshall (bass)", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_CA1510BC": { "key": "Bass_Cab_CA1510BC", "type": "cabinet", "name": "CA1510BC", "real": "Bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_CH210BC": { "key": "Bass_Cab_CH210BC", "type": "cabinet", "name": "CH210BC", "real": "Practice (bass)", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_CH310BC": { "key": "Bass_Cab_CH310BC", "type": "cabinet", "name": "CH310BC", "real": "Practice (bass)", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_CH410BC": { "key": "Bass_Cab_CH410BC", "type": "cabinet", "name": "CH410BC", "real": "Practice (bass)", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_CS15BC": { "key": "Bass_Cab_CS15BC", "type": "cabinet", "name": "CS15BC", "real": "Bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_CS410BC": { "key": "Bass_Cab_CS410BC", "type": "cabinet", "name": "CS410BC", "real": "Bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_EdenD212XLT": { "key": "Bass_Cab_EdenD212XLT", "type": "cabinet", "name": "EdenD212XLT", "real": "Bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_EdenD610XST": { "key": "Bass_Cab_EdenD610XST", "type": "cabinet", "name": "EdenD610XST", "real": "Bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_GB415BC": { "key": "Bass_Cab_GB415BC", "type": "cabinet", "name": "GB415BC", "real": "German (bass)", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_OrangeOBC810": { "key": "Bass_Cab_OrangeOBC810", "type": "cabinet", "name": "OrangeOBC810", "real": "8x10 Bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_TW215BC": { "key": "Bass_Cab_TW215BC", "type": "cabinet", "name": "TW215BC", "real": "Bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
     "Bass_Pedal_MBComp": { "key": "Bass_Pedal_MBComp", "type": "pedal", "name": "MBComp", "model": "comp", "knobs": { "Filter": { "param": null, "from": [0, 350] }, "Compress": { "param": "threshold", "from": [0, 100], "to": [-10, -50] }, "Rate": { "param": null, "from": [0, 100] } }, "params": {} },
-    "Cab_EN212C_Ribbon_Cone": { "key": "Cab_EN212C_Ribbon_Cone", "type": "cabinet", "name": "EN212C Ribbon Cone", "bass": false, "cab": "2x12" },
-    "Cab_HG2120C_Condenser_Cone": { "key": "Cab_HG2120C_Condenser_Cone", "type": "cabinet", "name": "HG2120C Condenser Cone", "category": "Condenser_Cone", "bass": false, "cab": "2x12" },
-    "Pedal_OctaveUp": { "key": "Pedal_OctaveUp", "type": "pedal", "name": "OctaveUp", "category": "Pitch", "model": "octave", "knobs": { "Mix": { "param": "mix", "from": [0, 100], "to": [0, 1] }, "Tone": { "param": null, "from": [0, 100] } }, "params": {} },
-    "Rack_StudioCompressor": { "key": "Rack_StudioCompressor", "type": "rack", "name": "StudioCompressor", "category": "Dynamics", "model": "comp", "knobs": { "Threshold": { "param": "threshold", "from": [-60, 0], "to": [-60, 0] }, "Ratio": { "param": "ratio", "from": [1, 20], "to": [1, 20] }, "Attack": { "param": "attack", "from": [0, 200], "to": [0, 200] }, "Release": { "param": "release", "from": [10, 1e3], "to": [10, 1e3] } }, "params": {} },
-    "Rack_StudioGraphicEQ": { "key": "Rack_StudioGraphicEQ", "type": "rack", "name": "StudioGraphicEQ", "model": "eq", "knobs": { "Treble": { "param": "treble", "from": [-12, 12], "to": [-12, 12] }, "MidFreq": { "param": null, "from": [0, 100] }, "HiMid": { "param": null, "from": [0, 100] }, "Bass": { "param": "bass", "from": [-12, 12], "to": [-12, 12] }, "TrebleFreq": { "param": null, "from": [0, 100] }, "HiMidFreq": { "param": null, "from": [0, 100] }, "LoMidFreq": { "param": null, "from": [0, 800] }, "BassFreq": { "param": null, "from": [0, 120] }, "Mid": { "param": "mid", "from": [-12, 12], "to": [-12, 12] }, "LoMid": { "param": null, "from": [0, 100] } }, "params": {} }
+    "Cab_AT0112C": { "key": "Cab_AT0112C", "type": "cabinet", "name": "AT0112C", "real": "1x12 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_AT1121C": { "key": "Cab_AT1121C", "type": "cabinet", "name": "AT1121C", "real": "Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_AT112C": { "key": "Cab_AT112C", "type": "cabinet", "name": "AT112C", "real": "1x12 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_AT412C": { "key": "Cab_AT412C", "type": "cabinet", "name": "AT412C", "real": "4x12 Fender", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_AmpegB15": { "key": "Cab_AmpegB15", "type": "cabinet", "name": "AmpegB15", "real": "Cab_AmpegB15", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_AmpegBA500": { "key": "Cab_AmpegBA500", "type": "cabinet", "name": "AmpegBA500", "real": "Cab_AmpegBA500", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_AmpegSVT810AV": { "key": "Cab_AmpegSVT810AV", "type": "cabinet", "name": "AmpegSVT810AV", "real": "Cab_AmpegSVT810AV", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_AmpegSVT810E": { "key": "Cab_AmpegSVT810E", "type": "cabinet", "name": "AmpegSVT810E", "real": "Cab_AmpegSVT810E", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_BT1120C": { "key": "Cab_BT1120C", "type": "cabinet", "name": "BT1120C", "real": "1x12 Marshall", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_BT1121C": { "key": "Cab_BT1121C", "type": "cabinet", "name": "BT1121C", "real": "Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_BT212C": { "key": "Cab_BT212C", "type": "cabinet", "name": "BT212C", "real": "2x12 Marshall", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_BT410C": { "key": "Cab_BT410C", "type": "cabinet", "name": "BT410C", "real": "4x10 Marshall", "bass": false, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Cab_BT412C": { "key": "Cab_BT412C", "type": "cabinet", "name": "BT412C", "real": "4x12 Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_CA112C": { "key": "Cab_CA112C", "type": "cabinet", "name": "CA112C", "real": "1x12 Mesa/Boogie", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_CA215C": { "key": "Cab_CA215C", "type": "cabinet", "name": "CA215C", "real": "2x15 Mesa/Boogie", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Cab_CA412C": { "key": "Cab_CA412C", "type": "cabinet", "name": "CA412C", "real": "4x12 Mesa/Boogie", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Cab_CS1120C": { "key": "Cab_CS1120C", "type": "cabinet", "name": "CS1120C", "real": "1x12 Fender Custom Shop", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_CS1515C": { "key": "Cab_CS1515C", "type": "cabinet", "name": "CS1515C", "real": "2x12 Fender Custom Shop", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_CS212C": { "key": "Cab_CS212C", "type": "cabinet", "name": "CS212C", "real": "2x12 Fender Custom Shop", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_DrZMaz18": { "key": "Cab_DrZMaz18", "type": "cabinet", "name": "DrZMaz18", "real": "1x8", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_DrZZWreck": { "key": "Cab_DrZZWreck", "type": "cabinet", "name": "DrZZWreck", "real": "2x12", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_EN212C": { "key": "Cab_EN212C", "type": "cabinet", "name": "EN212C", "bass": false, "cab": "2x12", "real": "2x12 Orange", "source": "RS-to-AT5p gear map" },
+    "Cab_EN4120C": { "key": "Cab_EN4120C", "type": "cabinet", "name": "EN4120C", "real": "4x12 Orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map" },
+    "Cab_EnglE412PROXXL": { "key": "Cab_EnglE412PROXXL", "type": "cabinet", "name": "EnglE412PROXXL", "real": "Orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map" },
+    "Cab_EnglE412Standard": { "key": "Cab_EnglE412Standard", "type": "cabinet", "name": "EnglE412Standard", "real": "Orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map" },
+    "Cab_Fender57Bandmaster": { "key": "Cab_Fender57Bandmaster", "type": "cabinet", "name": "Fender57Bandmaster", "real": "3x10 Fender", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Fender57Champ": { "key": "Cab_Fender57Champ", "type": "cabinet", "name": "Fender57Champ", "real": "1x8 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Fender57CustomChamp": { "key": "Cab_Fender57CustomChamp", "type": "cabinet", "name": "Fender57CustomChamp", "real": "1x8 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Fender57CustomDeluxe": { "key": "Cab_Fender57CustomDeluxe", "type": "cabinet", "name": "Fender57CustomDeluxe", "real": "1x12 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Fender57CustomPro": { "key": "Cab_Fender57CustomPro", "type": "cabinet", "name": "Fender57CustomPro", "real": "1x15 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Fender57CustomTwin": { "key": "Cab_Fender57CustomTwin", "type": "cabinet", "name": "Fender57CustomTwin", "real": "2x12 Fender", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Fender57Deluxe": { "key": "Cab_Fender57Deluxe", "type": "cabinet", "name": "Fender57Deluxe", "real": "1x12 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderBassman": { "key": "Cab_FenderBassman", "type": "cabinet", "name": "FenderBassman", "real": "4x10 Fender", "bass": false, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderChamp": { "key": "Cab_FenderChamp", "type": "cabinet", "name": "FenderChamp", "real": "1x8 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderChampion600": { "key": "Cab_FenderChampion600", "type": "cabinet", "name": "FenderChampion600", "real": "1x6 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderDeluxeReverb": { "key": "Cab_FenderDeluxeReverb", "type": "cabinet", "name": "FenderDeluxeReverb", "real": "1x12 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderPrinceton": { "key": "Cab_FenderPrinceton", "type": "cabinet", "name": "FenderPrinceton", "real": "1x10 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderProJunior": { "key": "Cab_FenderProJunior", "type": "cabinet", "name": "FenderProJunior", "real": "1x10 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderSuperReverb": { "key": "Cab_FenderSuperReverb", "type": "cabinet", "name": "FenderSuperReverb", "real": "4x10 Fender", "bass": false, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderSupersonic": { "key": "Cab_FenderSupersonic", "type": "cabinet", "name": "FenderSupersonic", "real": "1x12 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderTwinReverb": { "key": "Cab_FenderTwinReverb", "type": "cabinet", "name": "FenderTwinReverb", "real": "2x12 Fender", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderVibroking": { "key": "Cab_FenderVibroking", "type": "cabinet", "name": "FenderVibroking", "real": "3x10 Fender", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderVibroverb": { "key": "Cab_FenderVibroverb", "type": "cabinet", "name": "FenderVibroverb", "real": "1x15 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_GB412C": { "key": "Cab_GB412C", "type": "cabinet", "name": "GB412C", "real": "4x12 German (Bogner/Diezel)", "bass": false, "cab": "4x12g", "source": "RS-to-AT5p gear map" },
+    "Cab_GB412CMKI": { "key": "Cab_GB412CMKI", "type": "cabinet", "name": "GB412CMKI", "real": "4x12 German (Bogner/Diezel)", "bass": false, "cab": "4x12g", "source": "RS-to-AT5p gear map" },
+    "Cab_GB412CMKII": { "key": "Cab_GB412CMKII", "type": "cabinet", "name": "GB412CMKII", "real": "German (Bogner/Diezel)", "bass": false, "cab": "4x12g", "source": "RS-to-AT5p gear map" },
+    "Cab_GB412CMKIII": { "key": "Cab_GB412CMKIII", "type": "cabinet", "name": "GB412CMKIII", "real": "4x12 German (Bogner/Diezel)", "bass": false, "cab": "4x12g", "source": "RS-to-AT5p gear map" },
+    "Cab_HG2120C": { "key": "Cab_HG2120C", "type": "cabinet", "name": "HG2120C", "category": "Condenser_Cone", "bass": false, "cab": "4x12m", "real": "2x12 High gain (Mesa/Peavey)", "source": "RS-to-AT5p gear map" },
+    "Cab_HG212C": { "key": "Cab_HG212C", "type": "cabinet", "name": "HG212C", "real": "2x12 High gain (Mesa/Peavey)", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Cab_HG215C": { "key": "Cab_HG215C", "type": "cabinet", "name": "HG215C", "real": "2x15 High gain (Mesa/Peavey)", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Cab_HG412C": { "key": "Cab_HG412C", "type": "cabinet", "name": "HG412C", "real": "4x12 High gain (Mesa/Peavey)", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Cab_Hiwatt": { "key": "Cab_Hiwatt", "type": "cabinet", "name": "Hiwatt", "real": "4x12", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Marshall1960AV": { "key": "Cab_Marshall1960AV", "type": "cabinet", "name": "Marshall1960AV", "real": "4x12 Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Marshall1960AX": { "key": "Cab_Marshall1960AX", "type": "cabinet", "name": "Marshall1960AX", "real": "4x12 Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Marshall1960B": { "key": "Cab_Marshall1960B", "type": "cabinet", "name": "Marshall1960B", "real": "4x12 Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Marshall1960BV": { "key": "Cab_Marshall1960BV", "type": "cabinet", "name": "Marshall1960BV", "real": "4x12 Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Marshall1960SL": { "key": "Cab_Marshall1960SL", "type": "cabinet", "name": "Marshall1960SL", "real": "4x12 Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Marshall1960TV": { "key": "Cab_Marshall1960TV", "type": "cabinet", "name": "Marshall1960TV", "real": "4x12 Marshall", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map" },
+    "Cab_Marshall1960a": { "key": "Cab_Marshall1960a", "type": "cabinet", "name": "Marshall1960a", "real": "4x12 Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_MarshallJCM800": { "key": "Cab_MarshallJCM800", "type": "cabinet", "name": "MarshallJCM800", "real": "4x12 Marshall", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map" },
+    "Cab_MarshallJCM900": { "key": "Cab_MarshallJCM900", "type": "cabinet", "name": "MarshallJCM900", "real": "4x12 Marshall", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map" },
+    "Cab_MarshallMajor": { "key": "Cab_MarshallMajor", "type": "cabinet", "name": "MarshallMajor", "real": "4x12 Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_MarshallSilver": { "key": "Cab_MarshallSilver", "type": "cabinet", "name": "MarshallSilver", "real": "4x12 Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Marshall_ClosedVintage": { "key": "Cab_Marshall_ClosedVintage", "type": "cabinet", "name": "Marshall ClosedVintage", "real": "Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_MesaCaliforniaTweed": { "key": "Cab_MesaCaliforniaTweed", "type": "cabinet", "name": "MesaCaliforniaTweed", "real": "1x12 Mesa/Boogie", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_MesaDualRecto": { "key": "Cab_MesaDualRecto", "type": "cabinet", "name": "MesaDualRecto", "real": "4x12 Mesa/Boogie", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Cab_MesaMarkIII": { "key": "Cab_MesaMarkIII", "type": "cabinet", "name": "MesaMarkIII", "real": "1x12 Mesa/Boogie", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_MesaMarkIV": { "key": "Cab_MesaMarkIV", "type": "cabinet", "name": "MesaMarkIV", "real": "1x12 Mesa/Boogie", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_MesaRecto": { "key": "Cab_MesaRecto", "type": "cabinet", "name": "MesaRecto", "real": "4x12 Mesa/Boogie", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Cab_MesaRoadKing": { "key": "Cab_MesaRoadKing", "type": "cabinet", "name": "MesaRoadKing", "real": "4x12 Mesa/Boogie", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Cab_MesaTA30": { "key": "Cab_MesaTA30", "type": "cabinet", "name": "MesaTA30", "real": "2x12 Mesa/Boogie", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Cab_MesaTripleRecto": { "key": "Cab_MesaTripleRecto", "type": "cabinet", "name": "MesaTripleRecto", "real": "4x12 Mesa/Boogie", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Cab_OrangeAD30": { "key": "Cab_OrangeAD30", "type": "cabinet", "name": "OrangeAD30", "real": "2x12 Orange", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_OrangeOBC115": { "key": "Cab_OrangeOBC115", "type": "cabinet", "name": "OrangeOBC115", "real": "1x15 Orange", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_OrangeOBC410": { "key": "Cab_OrangeOBC410", "type": "cabinet", "name": "OrangeOBC410", "real": "4x10 Orange", "bass": false, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Cab_OrangeOBC810": { "key": "Cab_OrangeOBC810", "type": "cabinet", "name": "OrangeOBC810", "real": "8x10 Orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map" },
+    "Cab_OrangePPC112": { "key": "Cab_OrangePPC112", "type": "cabinet", "name": "OrangePPC112", "real": "1x12 Orange", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_OrangePPC212": { "key": "Cab_OrangePPC212", "type": "cabinet", "name": "OrangePPC212", "real": "2x12 Orange", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_OrangePPC412": { "key": "Cab_OrangePPC412", "type": "cabinet", "name": "OrangePPC412", "real": "4x12 Orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map" },
+    "Cab_OrangeTinyTerror": { "key": "Cab_OrangeTinyTerror", "type": "cabinet", "name": "OrangeTinyTerror", "real": "1x12 Orange", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_PA600C": { "key": "Cab_PA600C", "type": "cabinet", "name": "PA600C", "real": "Cab_PA600C", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_PA999C": { "key": "Cab_PA999C", "type": "cabinet", "name": "PA999C", "real": "Cab_PA999C", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_RolandJC120": { "key": "Cab_RolandJC120", "type": "cabinet", "name": "RolandJC120", "real": "2x12", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_TW110C": { "key": "Cab_TW110C", "type": "cabinet", "name": "TW110C", "real": "1x10 Fender tweed", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_TW112C": { "key": "Cab_TW112C", "type": "cabinet", "name": "TW112C", "real": "1x12 Fender tweed", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_TW410C": { "key": "Cab_TW410C", "type": "cabinet", "name": "TW410C", "real": "4x10 Fender tweed", "bass": false, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Cab_Vox": { "key": "Cab_Vox", "type": "cabinet", "name": "Vox", "real": "2x12 Vox", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_VoxAC30": { "key": "Cab_VoxAC30", "type": "cabinet", "name": "VoxAC30", "real": "2x12 Vox", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_VoxAC30Blue": { "key": "Cab_VoxAC30Blue", "type": "cabinet", "name": "VoxAC30Blue", "real": "2x12 Vox", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "DI_Amp_BassDriver": { "key": "DI_Amp_BassDriver", "type": "amp", "name": "BassDriver", "real": "Bass DI \u2014 same muted placeholder", "family": "DI / Direct", "voice": "bassdi", "bass": true, "cab": "none", "source": "RS-to-AT5p gear map" },
+    "DI_Amp_TubePre": { "key": "DI_Amp_TubePre", "type": "amp", "name": "TubePre", "real": "American Tube Clean 1", "family": "DI / Direct", "voice": "di", "bass": false, "cab": "none", "source": "RS-to-AT5p gear map" },
+    "IBEX_Cab_MesaBoogie1x12Widebody": { "key": "IBEX_Cab_MesaBoogie1x12Widebody", "type": "cabinet", "name": "MesaBoogie1x12Widebody", "real": "Mesa/Boogie", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "IBEX_Cab_OrangePrPro412_RSD20_OffAxis_Cone": { "key": "IBEX_Cab_OrangePrPro412_RSD20_OffAxis_Cone", "type": "cabinet", "name": "OrangePrPro412 RSD20 OffAxis Cone", "real": "4x12 Mesa/Boogie", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map" },
+    "IBEX_Cab_OrangeRV50_212_RSC67_OffAxis_Cap": { "key": "IBEX_Cab_OrangeRV50_212_RSC67_OffAxis_Cap", "type": "cabinet", "name": "OrangeRV50 212 RSC67 OffAxis Cap", "real": "Mesa/Boogie", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map" },
+    "Pedal_80sFlanger": { "key": "Pedal_80sFlanger", "type": "pedal", "name": "80sFlanger", "real": "MXR 117", "category": "Flanger", "model": "flanger", "params": { "feedback": 0.85 }, "source": "RS-to-AT5p gear map" },
+    "Pedal_AcousticEmulator": { "key": "Pedal_AcousticEmulator", "type": "pedal", "name": "AcousticEmulator", "real": "Acoustic Sim", "category": "Other", "model": "eq", "params": { "bass": -6, "mid": -3, "treble": 6 }, "source": "RS-to-AT5p gear map" },
+    "Pedal_AmpTrem": { "key": "Pedal_AmpTrem", "type": "pedal", "name": "AmpTrem", "real": "Opto Tremolo", "category": "Tremolo / Vibrato", "model": "tremolo", "params": { "rate": 4, "intensity": 0.5 }, "source": "RS-to-AT5p gear map" },
+    "Pedal_AmpVibe": { "key": "Pedal_AmpVibe", "type": "pedal", "name": "AmpVibe", "real": "Univibe", "category": "Tremolo / Vibrato", "model": "phaser", "params": { "rate": 2, "depth": 0.8, "feedback": 0.3 }, "source": "RS-to-AT5p gear map" },
+    "Pedal_AnalogueDelay": { "key": "Pedal_AnalogueDelay", "type": "pedal", "name": "AnalogueDelay", "real": "Analog Delay", "category": "Delay / Echo", "model": "echo", "params": { "tone": 0.35 }, "source": "RS-to-AT5p gear map" },
+    "Pedal_AutoFilter": { "key": "Pedal_AutoFilter", "type": "pedal", "name": "AutoFilter", "real": "Envelope Filter", "category": "Wah / Filter", "model": "wah", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_BakedRotatoe": { "key": "Pedal_BakedRotatoe", "type": "pedal", "name": "BakedRotatoe", "real": "Univibe", "category": "Other", "model": "chorus", "params": { "rate": 5, "depth": 0.9, "feedback": 0.1 }, "source": "RS-to-AT5p gear map" },
+    "Pedal_BitCruncher": { "key": "Pedal_BitCruncher", "type": "pedal", "name": "BitCruncher", "real": "Tape Cassette", "category": "Special / Synth", "model": "", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_BobFilter": { "key": "Pedal_BobFilter", "type": "pedal", "name": "BobFilter", "real": "Envelope Filter", "category": "Wah / Filter", "model": "wah", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_BuzzOne": { "key": "Pedal_BuzzOne", "type": "pedal", "name": "BuzzOne", "real": "Maestro FuzzTone", "category": "Distortion / Overdrive", "model": "fuzz", "params": { "tone": 0.65, "gain": 0.8 }, "source": "RS-to-AT5p gear map" },
+    "Pedal_BuzzToo": { "key": "Pedal_BuzzToo", "type": "pedal", "name": "BuzzToo", "real": "Big Muff", "category": "Distortion / Overdrive", "model": "fuzz", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_CaptFuzzle": { "key": "Pedal_CaptFuzzle", "type": "pedal", "name": "CaptFuzzle", "real": "Big Muff", "category": "Distortion / Overdrive", "model": "fuzz", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_Chorus": { "key": "Pedal_Chorus", "type": "pedal", "name": "Chorus", "real": "Chorus", "category": "Chorus", "model": "chorus", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_Chorus20": { "key": "Pedal_Chorus20", "type": "pedal", "name": "Chorus20", "real": "Roland CE-1", "category": "Chorus", "model": "chorus", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_ClassicFlanger": { "key": "Pedal_ClassicFlanger", "type": "pedal", "name": "ClassicFlanger", "real": "Boss BF-2", "category": "Flanger", "model": "flanger", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_Compression": { "key": "Pedal_Compression", "type": "pedal", "name": "Compression", "real": "Compressor", "category": "Dynamics", "model": "comp", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_CosmicEcho": { "key": "Pedal_CosmicEcho", "type": "pedal", "name": "CosmicEcho", "real": "Memory Man", "category": "Delay / Echo", "model": "echo", "params": { "tone": 0.45, "feedback": 0.4 }, "source": "RS-to-AT5p gear map" },
+    "Pedal_CustomDrive": { "key": "Pedal_CustomDrive", "type": "pedal", "name": "CustomDrive", "real": "Boss SD-1", "category": "Distortion / Overdrive", "model": "od", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_DigitalVerb": { "key": "Pedal_DigitalVerb", "type": "pedal", "name": "DigitalVerb", "real": "Digital Reverb", "category": "Reverb", "model": "room", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_Distortion": { "key": "Pedal_Distortion", "type": "pedal", "name": "Distortion", "real": "Boss DS-1", "category": "Distortion / Overdrive", "model": "dist", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_EQ5": { "key": "Pedal_EQ5", "type": "pedal", "name": "EQ5", "real": "7 Band Graphic EQ", "category": "EQ", "model": "eq", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_EQ8": { "key": "Pedal_EQ8", "type": "pedal", "name": "EQ8", "real": "10 Band Graphic", "category": "EQ", "model": "eq", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_FuzzWasHe": { "key": "Pedal_FuzzWasHe", "type": "pedal", "name": "FuzzWasHe", "real": "Si Fuzz Face", "category": "Distortion / Overdrive", "model": "fuzz", "params": { "tone": 0.55 }, "source": "RS-to-AT5p gear map" },
+    "Pedal_GermaniumDrive": { "key": "Pedal_GermaniumDrive", "type": "pedal", "name": "GermaniumDrive", "real": "Germanium Fuzz Face", "category": "Distortion / Overdrive", "model": "fuzz", "params": { "tone": 0.4 }, "source": "RS-to-AT5p gear map" },
+    "Pedal_Limiter": { "key": "Pedal_Limiter", "type": "pedal", "name": "Limiter", "real": "closest to limiter", "category": "Dynamics", "model": "comp", "params": { "ratio": 20, "threshold": -12, "attack": 2 }, "source": "RS-to-AT5p gear map" },
+    "Pedal_LineDrive": { "key": "Pedal_LineDrive", "type": "pedal", "name": "LineDrive", "real": "Booster", "category": "Distortion / Overdrive", "model": "boost", "params": { "gain": 0.25, "tone": 0.6 }, "source": "RS-to-AT5p gear map" },
+    "Pedal_LoFiFilter": { "key": "Pedal_LoFiFilter", "type": "pedal", "name": "LoFiFilter", "real": "Tape Cassette", "category": "Wah / Filter", "model": "", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_MetalDistortion": { "key": "Pedal_MetalDistortion", "type": "pedal", "name": "MetalDistortion", "real": "Boss MT-2", "category": "Distortion / Overdrive", "model": "metal", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_ModDelay": { "key": "Pedal_ModDelay", "type": "pedal", "name": "ModDelay", "real": "mod delay", "category": "Delay / Echo", "model": "delay", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_ModernFlanger": { "key": "Pedal_ModernFlanger", "type": "pedal", "name": "ModernFlanger", "real": "Flanger", "category": "Flanger", "model": "flanger", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_ModernWah": { "key": "Pedal_ModernWah", "type": "pedal", "name": "ModernWah", "real": "Cry Baby", "category": "Wah / Filter", "model": "wah", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_MultiPitch": { "key": "Pedal_MultiPitch", "type": "pedal", "name": "MultiPitch", "real": "Whammy", "category": "Pitch / Octave", "model": "octave", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_MultiTrem": { "key": "Pedal_MultiTrem", "type": "pedal", "name": "MultiTrem", "real": "Tremolo", "category": "Tremolo / Vibrato", "model": "tremolo", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_NPNDelay": { "key": "Pedal_NPNDelay", "type": "pedal", "name": "NPNDelay", "real": "Delay", "category": "Delay / Echo", "model": "delay", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_NoFiEcho": { "key": "Pedal_NoFiEcho", "type": "pedal", "name": "NoFiEcho", "real": "lo-fi", "category": "Delay / Echo", "model": "echo", "params": { "tone": 0.15 }, "source": "RS-to-AT5p gear map" },
+    "Pedal_NoiseGate": { "key": "Pedal_NoiseGate", "type": "pedal", "name": "NoiseGate", "real": "Noise Gate", "category": "Dynamics", "model": "", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_OctaveUp": { "key": "Pedal_OctaveUp", "type": "pedal", "name": "OctaveUp", "category": "Pitch / Octave", "model": "octave", "knobs": { "Mix": { "param": "mix", "from": [0, 100], "to": [0, 1] }, "Tone": { "param": null, "from": [0, 100] } }, "params": {}, "real": "Roger Mayer Octavia", "source": "RS-to-AT5p gear map" },
+    "Pedal_Octavius": { "key": "Pedal_Octavius", "type": "pedal", "name": "Octavius", "real": "Boss OC-2", "category": "Other", "model": "octave", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_OilCanEcho": { "key": "Pedal_OilCanEcho", "type": "pedal", "name": "OilCanEcho", "real": "Tape Echo", "category": "Delay / Echo", "model": "echo", "params": { "tone": 0.3 }, "source": "RS-to-AT5p gear map" },
+    "Pedal_OmniMod": { "key": "Pedal_OmniMod", "type": "pedal", "name": "OmniMod", "real": "X-VIBE", "category": "Other", "model": "chorus", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_Phaser": { "key": "Pedal_Phaser", "type": "pedal", "name": "Phaser", "real": "Phase 90", "category": "Phaser", "model": "phaser", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_PlateVerb": { "key": "Pedal_PlateVerb", "type": "pedal", "name": "PlateVerb", "real": "Plate Reverb", "category": "Reverb", "model": "plate", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_RangeBooster": { "key": "Pedal_RangeBooster", "type": "pedal", "name": "RangeBooster", "real": "Treble Booster", "category": "Distortion / Overdrive", "model": "boost", "params": { "gain": 0.35, "tone": 0.95 }, "source": "RS-to-AT5p gear map" },
+    "Pedal_ShaverPhaser": { "key": "Pedal_ShaverPhaser", "type": "pedal", "name": "ShaverPhaser", "real": "EHX Small Stone", "category": "Phaser", "model": "phaser", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_ShredZone": { "key": "Pedal_ShredZone", "type": "pedal", "name": "ShredZone", "real": "Boss DS-1", "category": "Distortion / Overdrive", "model": "dist", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_SpringReverb": { "key": "Pedal_SpringReverb", "type": "pedal", "name": "SpringReverb", "real": "Fender spring", "category": "Reverb", "model": "room", "params": { "tone": 0.55 }, "source": "RS-to-AT5p gear map" },
+    "Pedal_Swole": { "key": "Pedal_Swole", "type": "pedal", "name": "Swole", "real": "Compressor", "category": "Dynamics", "model": "comp", "params": { "ratio": 8, "threshold": -30 }, "source": "RS-to-AT5p gear map" },
+    "Pedal_Tremolo": { "key": "Pedal_Tremolo", "type": "pedal", "name": "Tremolo", "real": "Tremolo", "category": "Tremolo / Vibrato", "model": "tremolo", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_TubeSpring": { "key": "Pedal_TubeSpring", "type": "pedal", "name": "TubeSpring", "real": "spring", "category": "Reverb", "model": "room", "params": { "tone": 0.5 }, "source": "RS-to-AT5p gear map" },
+    "Pedal_UKWah": { "key": "Pedal_UKWah", "type": "pedal", "name": "UKWah", "real": "Vox V847", "category": "Wah / Filter", "model": "wah", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_USWah": { "key": "Pedal_USWah", "type": "pedal", "name": "USWah", "real": "Cry Baby", "category": "Wah / Filter", "model": "wah", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_ValveEcho": { "key": "Pedal_ValveEcho", "type": "pedal", "name": "ValveEcho", "real": "Tape Echo", "category": "Delay / Echo", "model": "echo", "params": { "tone": 0.4 }, "source": "RS-to-AT5p gear map" },
+    "Pedal_VintageFlanger": { "key": "Pedal_VintageFlanger", "type": "pedal", "name": "VintageFlanger", "real": "EHX Mistress", "category": "Flanger", "model": "flanger", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StereoPhaser": { "key": "Rack_StereoPhaser", "type": "rack", "name": "StereoPhaser", "real": "Filter Phaser", "category": "Phaser", "model": "phaser", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioBoost": { "key": "Rack_StudioBoost", "type": "rack", "name": "StudioBoost", "real": "MXR", "category": "Distortion / Overdrive", "model": "boost", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioChamber": { "key": "Rack_StudioChamber", "type": "rack", "name": "StudioChamber", "real": "spring reverb", "category": "Reverb", "model": "room", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioChorus": { "key": "Rack_StudioChorus", "type": "rack", "name": "StudioChorus", "real": "Chorus", "category": "Reverb", "model": "chorus", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioComp": { "key": "Rack_StudioComp", "type": "rack", "name": "StudioComp", "real": "Compressor", "category": "Reverb", "model": "comp", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioCompressor": { "key": "Rack_StudioCompressor", "type": "rack", "name": "StudioCompressor", "category": "Reverb", "model": "comp", "knobs": { "Threshold": { "param": "threshold", "from": [-60, 0], "to": [-60, 0] }, "Ratio": { "param": "ratio", "from": [1, 20], "to": [1, 20] }, "Attack": { "param": "attack", "from": [0, 200], "to": [0, 200] }, "Release": { "param": "release", "from": [10, 1e3], "to": [10, 1e3] } }, "params": {}, "real": "Tube Compressor", "source": "RS-to-AT5p gear map" },
+    "Rack_StudioDelay": { "key": "Rack_StudioDelay", "type": "rack", "name": "StudioDelay", "real": "Delay", "category": "Delay / Echo", "model": "delay", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioDist": { "key": "Rack_StudioDist", "type": "rack", "name": "StudioDist", "real": "Boss DS-1", "category": "Distortion / Overdrive", "model": "dist", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioEQ": { "key": "Rack_StudioEQ", "type": "rack", "name": "StudioEQ", "real": "7 Band Graphic EQ", "category": "Reverb", "model": "eq", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioFlanger": { "key": "Rack_StudioFlanger", "type": "rack", "name": "StudioFlanger", "real": "Flanger", "category": "Reverb", "model": "flanger", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioFuzz": { "key": "Rack_StudioFuzz", "type": "rack", "name": "StudioFuzz", "real": "Big Muff", "category": "Distortion / Overdrive", "model": "fuzz", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioGate": { "key": "Rack_StudioGate", "type": "rack", "name": "StudioGate", "real": "Noise Gate", "category": "Reverb", "model": "", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioGraphicEQ": { "key": "Rack_StudioGraphicEQ", "type": "rack", "name": "StudioGraphicEQ", "model": "eq", "knobs": { "Treble": { "param": "treble", "from": [-12, 12], "to": [-12, 12] }, "MidFreq": { "param": null, "from": [0, 100] }, "HiMid": { "param": null, "from": [0, 100] }, "Bass": { "param": "bass", "from": [-12, 12], "to": [-12, 12] }, "TrebleFreq": { "param": null, "from": [0, 100] }, "HiMidFreq": { "param": null, "from": [0, 100] }, "LoMidFreq": { "param": null, "from": [0, 800] }, "BassFreq": { "param": null, "from": [0, 120] }, "Mid": { "param": "mid", "from": [-12, 12], "to": [-12, 12] }, "LoMid": { "param": null, "from": [0, 100] } }, "params": {}, "real": "7 Band Graphic EQ", "category": "Reverb", "source": "RS-to-AT5p gear map" },
+    "Rack_StudioHallReverb": { "key": "Rack_StudioHallReverb", "type": "rack", "name": "StudioHallReverb", "real": "rack", "category": "Reverb", "model": "plate", "params": { "mix": 0.35 }, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioModChorus": { "key": "Rack_StudioModChorus", "type": "rack", "name": "StudioModChorus", "real": "Chorus", "category": "Reverb", "model": "chorus", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioModFlange": { "key": "Rack_StudioModFlange", "type": "rack", "name": "StudioModFlange", "real": "Flanger", "category": "Reverb", "model": "flanger", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioModPhase": { "key": "Rack_StudioModPhase", "type": "rack", "name": "StudioModPhase", "real": "Phaze Nine", "category": "Reverb", "model": "phaser", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioNoise": { "key": "Rack_StudioNoise", "type": "rack", "name": "StudioNoise", "real": "Noise Gate", "category": "Reverb", "model": "", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioOD": { "key": "Rack_StudioOD", "type": "rack", "name": "StudioOD", "real": "Boss SD-1", "category": "Reverb", "model": "od", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioParametricEQ": { "key": "Rack_StudioParametricEQ", "type": "rack", "name": "StudioParametricEQ", "real": "rack", "category": "Reverb", "model": "eq", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioPhaser": { "key": "Rack_StudioPhaser", "type": "rack", "name": "StudioPhaser", "real": "MXR Phase 90", "category": "Reverb", "model": "phaser", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioPitch": { "key": "Rack_StudioPitch", "type": "rack", "name": "StudioPitch", "real": "Pitch Shifter", "category": "Reverb", "model": "octave", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioPlate": { "key": "Rack_StudioPlate", "type": "rack", "name": "StudioPlate", "real": "Plate Reverb", "category": "Reverb", "model": "plate", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioPlateReverb": { "key": "Rack_StudioPlateReverb", "type": "rack", "name": "StudioPlateReverb", "real": "rack", "category": "Reverb", "model": "plate", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioReverb": { "key": "Rack_StudioReverb", "type": "rack", "name": "StudioReverb", "real": "'63 Reverb", "category": "Reverb", "model": "room", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioRoomReverb": { "key": "Rack_StudioRoomReverb", "type": "rack", "name": "StudioRoomReverb", "real": "rack", "category": "Reverb", "model": "room", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioTapDelay": { "key": "Rack_StudioTapDelay", "type": "rack", "name": "StudioTapDelay", "real": "TapDelay", "category": "Delay / Echo", "model": "delay", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioTapeDelay": { "key": "Rack_StudioTapeDelay", "type": "rack", "name": "StudioTapeDelay", "real": "Tape Echo", "category": "Delay / Echo", "model": "echo", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioTremolo": { "key": "Rack_StudioTremolo", "type": "rack", "name": "StudioTremolo", "real": "Opto Tremolo", "category": "Reverb", "model": "tremolo", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioVerb": { "key": "Rack_StudioVerb", "type": "rack", "name": "StudioVerb", "real": "Digital Reverb", "category": "Reverb", "model": "room", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioVibrato": { "key": "Rack_StudioVibrato", "type": "rack", "name": "StudioVibrato", "real": "Univibe", "category": "Reverb", "model": "phaser", "params": { "rate": 2, "depth": 0.8, "feedback": 0.3 }, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioWah": { "key": "Rack_StudioWah", "type": "rack", "name": "StudioWah", "real": "Cry Baby", "category": "Reverb", "model": "wah", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_SynthFilter": { "key": "Rack_SynthFilter", "type": "rack", "name": "SynthFilter", "real": "Filter Formant", "category": "Wah / Filter", "model": "wah", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_TapeEcho": { "key": "Rack_TapeEcho", "type": "rack", "name": "TapeEcho", "real": "Tape Echo", "category": "Delay / Echo", "model": "echo", "params": {}, "source": "RS-to-AT5p gear map" }
   };
 
   // amp/gear.js
@@ -1780,16 +2067,30 @@
     if (RE.eq.test(what)) return "eq";
     return "";
   }
-  function cabOfGear(cabKey, ampKey, { bass = false, kind = "" } = {}) {
-    if (bass || /^bass_/i.test(cabKey || "") || /^bass_/i.test(ampKey || "")) return "bass";
-    const m = /_[A-Za-z]*?([124])(1[02]|15|10)/.exec(cabKey || "");
-    if (m) {
-      if (m[1] === "1") return "1x12";
-      if (m[1] === "2") return "2x12";
-      return kind === "distortion" ? "4x12m" : "4x12";
+  function cabSize(cabKey) {
+    const m = /_[A-Za-z]+?0?([1-8])(12|10|15|8|6)0?C?(?:_|$)/.exec(cabKey || "");
+    return m ? [Number(m[1]), Number(m[2])] : null;
+  }
+  function cabOfGear(cabKey, ampKey, { bass = false, kind = "", size = null } = {}) {
+    const k = cabKey || "";
+    if (bass || /^bass_/i.test(k) || /^bass_/i.test(ampKey || "")) return "bass";
+    const sz = size || cabSize(k);
+    const n = sz ? sz[0] : 0, d = sz ? sz[1] : 0;
+    if (k) {
+      if (n === 4 && d === 10) return "bass";
+      if (sz && n <= 1) return "1x12";
+      if (/_(EN|Orange)/i.test(k)) return n === 2 ? "2x12" : "4x12o";
+      if (/_(GB|ENGL|Diezel|Bogner)/i.test(k)) return "4x12g";
+      if (/_(CA|HG|Mesa|Peavey|IBEX)/i.test(k) || /^IBEX/i.test(k)) return n === 1 ? "1x12" : "4x12m";
+      if (/_Marshall(JCM|DSL|JVM|1960TV)/i.test(k)) return "4x12j";
+      if (/_(BT|Marshall)/i.test(k)) return n === 2 ? "2x12" : "4x12";
+      if (/_(Vox|CS)/i.test(k) || n === 2 || n === 3) return "2x12";
+      if (/_(TW|AT|Fender)/i.test(k)) return n >= 4 ? "4x12" : "1x12";
+      if (n >= 4) return kind === "distortion" ? "4x12m" : "4x12";
     }
     return kind === "clean" ? "2x12" : kind === "crunch" ? "4x12" : kind === "distortion" ? "4x12m" : "2x12";
   }
+  var cabBase = (key) => String(key || "").replace(/_(57|Ribbon|Condenser|Tube)_(Cone|Edge|OffAxis)$/i, "");
   function knobName(gearKey, fullKey) {
     return fullKey.startsWith(gearKey + "_") ? fullKey.slice(gearKey.length + 1) : fullKey.slice(fullKey.lastIndexOf("_") + 1);
   }
@@ -1797,7 +2098,7 @@
   var EQ = (db) => db ? { from: [-12, 12], to: [-12, 12] } : PCT([-12, 12]);
   var RULES = {
     amp: [
-      ["gain", ["gain", "drive", "overdrive", "preamp"], () => PCT([0, 1])],
+      ["gain", ["gain", "drive", "overdrive", "preamp", "sensitivity"], () => PCT([0, 1])],
       ["bass", ["bass", "low", "lo"], (s, db) => EQ(db)],
       ["mid", ["mid", "middle"], (s, db) => EQ(db)],
       ["treble", ["treble", "high", "hi"], (s, db) => EQ(db)],
@@ -1858,12 +2159,12 @@
     return "pedal";
   };
   var prettyName = (key) => key.replace(/^(bass_)?(amp|cab|pedal|rack)_/i, "").replace(/_/g, " ");
-  function describeGear(type2, key, seen = {}, { category = "" } = {}) {
+  function describeGear(type2, key, seen = {}, { category = "", model: forced } = {}) {
     const bass = /^bass_/i.test(key);
     const base = { key, type: type2, name: prettyName(key) };
     if (category) base.category = category;
     if (type2 === "cabinet") return { ...base, bass, cab: cabOfGear(key, "", { bass }) };
-    const model = type2 === "amp" ? "" : modelOfGear(key, category);
+    const model = type2 === "amp" ? "" : forced !== void 0 ? forced : modelOfGear(key, category);
     const rules = type2 === "amp" ? RULES.amp : model ? RULES[MODEL_FX[model]] : [];
     const db = Object.values(seen).some((r) => r[0] < 0);
     const knobs = {};
@@ -1883,6 +2184,7 @@
     const key = g && (g.Key || g.PedalKey) || "";
     if (!key) return null;
     if (library_default[key]) return library_default[key];
+    if (TYPE_OF_SLOT(slot, g.Type) === "cabinet" && library_default[cabBase(key)]) return library_default[cabBase(key)];
     const seen = {};
     for (const [k, v] of Object.entries(g.KnobValues || {})) {
       const n = Number(v);
@@ -1892,8 +2194,17 @@
   }
   function applyKnobs(entry, knobValues = {}) {
     const out = { ...entry.params || {} };
+    const seen = {};
     for (const [k, v] of Object.entries(knobValues || {})) {
-      const m = entry.knobs && entry.knobs[knobName(entry.key, k)];
+      const n = Number(v);
+      if (Number.isFinite(n)) seen[knobName(entry.key, k)] = [n, n];
+    }
+    const auto = entry.type === "cabinet" ? {} : describeGear(entry.type, entry.key, seen, { model: entry.model || "" }).knobs || {};
+    const knobs = { ...auto, ...entry.knobs || {} };
+    const mine = new Set(Object.values(entry.knobs || {}).map((m) => m && m.param).filter(Boolean));
+    for (const name of Object.keys(auto)) if (!(entry.knobs || {})[name] && mine.has(auto[name].param)) delete knobs[name];
+    for (const [k, v] of Object.entries(knobValues || {})) {
+      const m = knobs[knobName(entry.key, k)];
       const n = Number(v);
       if (!m || !m.param || !Number.isFinite(n) || !m.to) continue;
       const [f0, f1] = m.from || [0, 100], [t0, t1] = m.to;
@@ -1977,12 +2288,45 @@
     plate: { name: "Plate Reverb", group: "Time", fx: "Reverb", color: "#26507a", ir: "plate", params: { mix: 0.35, tone: 0.75 } }
   };
   var CABS = {
-    "1x12": { name: "1x12 Combo", ir: "c1x12", gain: 1 },
-    "2x12": { name: "2x12 Combo", ir: "c2x12", gain: 1.4 },
-    "4x12": { name: "4x12 Vintage", ir: "c4x12", gain: 1 },
-    "4x12m": { name: "4x12 Modern", ir: "c4x12m", gain: 0.8 },
-    "4x12t": { name: "4x12 Classic", ir: "tuna", gain: 1 },
-    "bass": { name: "4x10 Bass", ir: "cbass", gain: 1.6 }
+    "1x12": { name: "1x12 Open back (American)", ir: "c1x12", gain: 2.6 },
+    "2x12": { name: "2x12 Open back (British)", ir: "c2x12", gain: 1.7 },
+    "4x12": { name: "4x12 Vintage (British)", ir: "c4x12", gain: 0.8 },
+    "4x12j": { name: "4x12 Lead (British, 80s)", ir: "c4x12j", gain: 0.76 },
+    "4x12o": { name: "4x12 Closed (English)", ir: "c4x12o", gain: 13.7 },
+    "4x12m": { name: "4x12 Modern (American)", ir: "c4x12m", gain: 0.39 },
+    "4x12g": { name: "4x12 Modern (German)", ir: "c4x12g", gain: 0.89 },
+    "4x12t": { name: "4x12 Classic", ir: "tuna", gain: 1.6 },
+    "bass": { name: "4x10 Tweed / Bass", ir: "cbass", gain: 4.6 },
+    "none": { name: "No cabinet (DI)", ir: "", gain: 0.22 }
+  };
+  var MIC_TYPES = { "57": { hi: 0, lo: 0 }, Ribbon: { hi: -2.5, lo: 1.5 }, Condenser: { hi: 1.5, lo: 0.5 }, Tube: { hi: -0.5, lo: 1.5 } };
+  var MIC_POS = { Cone: 1.5, Edge: -1.5, OffAxis: -3 };
+  var MICS = Object.keys(MIC_TYPES).flatMap((t) => Object.keys(MIC_POS).map((p) => `${t}_${p}`));
+  var VOICES = {
+    generic: { name: "Generic", drive: [0, 1], tight: 70, mid: [750, 0, 0.7], bright: 0, low: 0, fizz: 9e3, cab: "2x12", level: 1 },
+    tweed: { name: "Tweed (50s American)", drive: [0.05, 0.72], tight: 60, mid: [700, 1.5, 0.7], bright: 0.5, low: 1, fizz: 6500, cab: "1x12", level: 1 },
+    american: { name: "American clean", drive: [0.02, 0.45], tight: 60, mid: [500, -4, 0.7], bright: 2.5, low: 1.5, fizz: 8500, cab: "1x12", level: 1.6 },
+    plexi: { name: "British vintage (Plexi)", drive: [0.08, 0.8], tight: 90, mid: [900, 2.5, 0.8], bright: 1.5, low: 0, fizz: 7e3, cab: "4x12", level: 1.15 },
+    jcm: { name: "British lead (JCM)", drive: [0.15, 0.92], tight: 110, mid: [800, 3, 0.9], bright: 1, low: -0.5, fizz: 7e3, cab: "4x12j", level: 1.8 },
+    vox: { name: "British chime (AC)", drive: [0.05, 0.75], tight: 85, mid: [1200, 3, 0.7], bright: 3, low: -1, fizz: 7500, cab: "2x12", level: 1.2 },
+    orange: { name: "English (Orange)", drive: [0.12, 0.92], tight: 90, mid: [600, 2.5, 0.8], bright: -1, low: 1.5, fizz: 6e3, cab: "4x12o", level: 1 },
+    rectifier: { name: "Rectified (Mesa Rect.)", drive: [0.12, 1], tight: 130, mid: [750, -4, 0.7], bright: 1, low: 2, fizz: 6500, cab: "4x12m", level: 2.2 },
+    mark: { name: "Californian lead (Mark)", drive: [0.1, 0.95], tight: 150, mid: [650, 1.5, 0.8], bright: 1.5, low: -1, fizz: 7e3, cab: "4x12m", level: 2.1 },
+    highgain: { name: "Modern high gain", drive: [0.15, 1], tight: 150, mid: [700, -2, 0.8], bright: 0.5, low: 1, fizz: 6e3, cab: "4x12m", level: 2.4 },
+    german: { name: "German (Diezel, ENGL)", drive: [0.12, 1], tight: 140, mid: [850, 1, 0.8], bright: 1, low: 1, fizz: 6500, cab: "4x12g", level: 2 },
+    jazz: { name: "Solid-state clean (JC)", drive: [0, 0.2], tight: 50, mid: [600, -1, 0.7], bright: 2, low: 0, fizz: 9500, cab: "2x12", level: 3.2 },
+    bass: { name: "Bass tube", drive: [0.02, 0.5], tight: 25, mid: [500, 1, 0.7], bright: 0, low: 2, fizz: 5e3, cab: "bass", level: 4, bass: true },
+    bassdi: { name: "Bass DI", drive: [0, 0.15], tight: 25, mid: [800, 0, 0.7], bright: 0, low: 0, fizz: 12e3, cab: "none", level: 6, bass: true },
+    di: { name: "Direct (DI)", drive: [0, 0.1], tight: 40, mid: [800, 0, 0.7], bright: 0, low: 0, fizz: 12e3, cab: "none", level: 3 }
+  };
+  var voiceOf = (id) => VOICES[id] || VOICES.generic;
+  var driveOf = (voice, gain) => {
+    const [a, b] = voiceOf(voice).drive;
+    return a + (b - a) * clamp2(gain, 0, 1);
+  };
+  var gainFor = (voice, t) => {
+    const [a, b] = voiceOf(voice).drive;
+    return b === a ? 0 : clamp2((t - a) / (b - a), 0, 1);
   };
   var clamp2 = (v, a, b) => Math.min(b, Math.max(a, v));
   var r33 = (v) => Math.round(v * 1e3) / 1e3;
@@ -2000,8 +2344,19 @@
   }
   function emptyBoard(bass = false) {
     return {
-      amp: { name: bass ? "Bass amp" : "Amp", bassAmp: !!bass, on: true, gain: 0.3, bass: 0, mid: 0, treble: 0, presence: 0 },
+      amp: {
+        name: bass ? "Bass amp" : "Amp",
+        bassAmp: !!bass,
+        on: true,
+        voice: bass ? "bass" : "generic",
+        gain: 0.3,
+        bass: 0,
+        mid: 0,
+        treble: 0,
+        presence: 0
+      },
       cab: bass ? "bass" : "2x12",
+      mic: "",
       pre: [],
       loop: []
     };
@@ -2017,12 +2372,20 @@
     if (ampE) {
       board.amp.name = ampE.name || board.amp.name;
       board.amp.gear = ampE.key;
+      if (ampE.real) board.amp.real = ampE.real;
+      if (VOICES[ampE.voice]) board.amp.voice = ampE.voice;
       const p = applyKnobs(ampE, ampG.KnobValues);
       for (const k of ["gain", "bass", "mid", "treble", "presence"]) if (Number.isFinite(p[k])) board.amp[k] = r33(p[k]);
     }
     const cabG = gl.Cabinet && typeof gl.Cabinet === "object" ? gl.Cabinet : null;
     const cabE = cabG ? gearEntry("Cabinet", cabG) : null;
-    board.cab = cabE && CABS[cabE.cab] ? cabE.cab : ampE && CABS[ampE.cab] ? ampE.cab : cabOfGear("", ampE ? ampE.key : "", { bass, kind });
+    board.cab = cabE && CABS[cabE.cab] ? cabE.cab : ampE && CABS[ampE.cab] ? ampE.cab : ampE && VOICES[ampE.voice] ? VOICES[ampE.voice].cab : cabOfGear("", ampE ? ampE.key : "", { bass, kind });
+    if (cabE) {
+      board.cabGear = cabG.Key;
+      if (cabE.real) board.cabReal = cabE.real;
+    }
+    const mic = /_((?:57|Ribbon|Condenser|Tube)_(?:Cone|Edge|OffAxis))$/i.exec(cabG && cabG.Key || "");
+    board.mic = mic ? mic[1] : cabE && cabE.mic || "";
     const slots = Object.keys(gl).filter((s) => s !== "Amp" && s !== "Cabinet" && gl[s] && typeof gl[s] === "object");
     slots.sort((a, b) => ORDER(a) - ORDER(b));
     for (const s of slots) {
@@ -2030,11 +2393,13 @@
       if (!e || !MODELS[e.model]) continue;
       const pedal = makePedal(e.model, applyKnobs(e, g.KnobValues), s.toLowerCase());
       pedal.gear = e.key;
+      if (e.real) pedal.real = e.real;
       (/^PrePedal/i.test(s) ? board.pre : board.loop).push(pedal);
     }
     const range = KIND_GAIN[kind];
     if (range && !board.pre.some((p) => MODELS[p.model].fx === "Overdrive")) {
-      board.amp.gain = r33(clamp2(board.amp.gain, range[0], range[1]));
+      const v = board.amp.voice, t = clamp2(driveOf(v, board.amp.gain), range[0], range[1]);
+      board.amp.gain = r33(gainFor(v, t));
     }
     return board;
   }

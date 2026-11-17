@@ -1,0 +1,10 @@
+{
+  "key": "Pedal_EQ8",
+  "type": "pedal",
+  "name": "EQ8",
+  "real": "10 Band Graphic",
+  "category": "EQ",
+  "model": "eq",
+  "params": {},
+  "source": "RS-to-AT5p gear map"
+}

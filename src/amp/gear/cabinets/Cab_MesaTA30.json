@@ -1,0 +1,9 @@
+{
+  "key": "Cab_MesaTA30",
+  "type": "cabinet",
+  "name": "MesaTA30",
+  "real": "2x12 Mesa/Boogie",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map"
+}

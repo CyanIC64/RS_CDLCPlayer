@@ -1,0 +1,11 @@
+{
+  "key": "Amp_CS100",
+  "type": "amp",
+  "name": "CS100",
+  "real": "Jazz Amp 120 (Fender)",
+  "family": "Custom Shop (Fender)",
+  "voice": "plexi",
+  "bass": false,
+  "cab": "2x12",
+  "source": "RS-to-AT5p gear map"
+}

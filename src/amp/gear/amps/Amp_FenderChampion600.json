@@ -1,0 +1,11 @@
+{
+  "key": "Amp_FenderChampion600",
+  "type": "amp",
+  "name": "FenderChampion600",
+  "real": "Fender Champion 600",
+  "family": "Other",
+  "voice": "american",
+  "bass": false,
+  "cab": "1x12",
+  "source": "RS-to-AT5p gear map"
+}

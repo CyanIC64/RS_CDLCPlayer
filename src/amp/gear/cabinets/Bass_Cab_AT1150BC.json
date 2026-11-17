@@ -1,0 +1,9 @@
+{
+  "key": "Bass_Cab_AT1150BC",
+  "type": "cabinet",
+  "name": "AT1150BC",
+  "real": "4x12 Ampeg (bass)",
+  "bass": true,
+  "cab": "bass",
+  "source": "RS-to-AT5p gear map"
+}

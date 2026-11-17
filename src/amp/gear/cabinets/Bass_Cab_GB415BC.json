@@ -1,0 +1,9 @@
+{
+  "key": "Bass_Cab_GB415BC",
+  "type": "cabinet",
+  "name": "GB415BC",
+  "real": "German (bass)",
+  "bass": true,
+  "cab": "bass",
+  "source": "RS-to-AT5p gear map"
+}

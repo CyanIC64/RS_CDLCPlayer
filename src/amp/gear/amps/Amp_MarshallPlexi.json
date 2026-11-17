@@ -1,0 +1,11 @@
+{
+  "key": "Amp_MarshallPlexi",
+  "type": "amp",
+  "name": "MarshallPlexi",
+  "real": "Marshall Super Lead 100 (Plexi)",
+  "family": "Other",
+  "voice": "plexi",
+  "bass": false,
+  "cab": "4x12",
+  "source": "RS-to-AT5p gear map"
+}

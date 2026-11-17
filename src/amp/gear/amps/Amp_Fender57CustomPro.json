@@ -1,0 +1,11 @@
+{
+  "key": "Amp_Fender57CustomPro",
+  "type": "amp",
+  "name": "Fender57CustomPro",
+  "real": "Fender '57 Custom Pro-Amp",
+  "family": "Other",
+  "voice": "tweed",
+  "bass": false,
+  "cab": "1x12",
+  "source": "RS-to-AT5p gear map"
+}

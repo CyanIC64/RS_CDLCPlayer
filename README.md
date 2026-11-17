@@ -47,7 +47,10 @@ server, no upload and no account.
 - **Pedalboard** (**P**, or *Options → Guitar input → Pedalboard*): every tone of the song, from all
   its arrangements, is rebuilt from its gear and listed on a bar at the top (the tone in force is
   underlined; *Follow the song* keeps the board on it). Pick any tone to see and change its amp,
-  cabinet and pedals, even one of another arrangement. Turn the knobs (drag around them, the wheel or the arrow keys; double-click
+  cabinet and pedals, even one of another arrangement. Every amp, effect and cabinet of Rocksmith 2014
+  and Rocksmith+ is recognised by its key (from the RS-to-AT5p gear map) and played as the real gear it
+  stands for: the amp's voice (tweed, American clean, Plexi, JCM, AC, Orange, Rectifier, Mark, high
+  gain, German, JC, bass, DI), its cabinet and the microphone on it. Turn the knobs (drag around them, the wheel or the arrow keys; double-click
   puts one back), switch pedals on and off, drag them into another order or into the effects loop, and
   add pedals with **+**. Changes are kept in this browser per song and tone; *Song's tone* puts the
   board back as the song has it.
@@ -164,6 +167,8 @@ changed. The only data the page stores is your settings, in your browser's `loca
   reverb impulse responses), by DinahMoe AB and Oskar Eriksson, under the MIT licence.
 - [JS Rocks](https://github.com/vitaliy-bobrov/js-rocks) by Vitaliy Bobrov, under the MIT licence: the
   pedalboard's design and knob, and cabinet impulse responses.
+- Which real amp, effect and cabinet each Rocksmith gear key stands for: the gear map of
+  [RS-to-AT5p](https://github.com/zagatozee/RS-to-AT5p) (`gear_mapping_reference.md`).
 
 ---
 

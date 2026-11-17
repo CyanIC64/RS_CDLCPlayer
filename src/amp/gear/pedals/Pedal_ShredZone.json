@@ -1,0 +1,10 @@
+{
+  "key": "Pedal_ShredZone",
+  "type": "pedal",
+  "name": "ShredZone",
+  "real": "Boss DS-1",
+  "category": "Distortion / Overdrive",
+  "model": "dist",
+  "params": {},
+  "source": "RS-to-AT5p gear map"
+}

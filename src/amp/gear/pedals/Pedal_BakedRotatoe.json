@@ -1,0 +1,10 @@
+{
+  "key": "Pedal_BakedRotatoe",
+  "type": "pedal",
+  "name": "BakedRotatoe",
+  "real": "Univibe",
+  "category": "Other",
+  "model": "chorus",
+  "params": { "rate": 5, "depth": 0.9, "feedback": 0.1 },
+  "source": "RS-to-AT5p gear map"
+}

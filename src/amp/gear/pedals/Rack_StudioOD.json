@@ -1,0 +1,10 @@
+{
+  "key": "Rack_StudioOD",
+  "type": "rack",
+  "name": "StudioOD",
+  "real": "Boss SD-1",
+  "category": "Reverb",
+  "model": "od",
+  "params": {},
+  "source": "RS-to-AT5p gear map"
+}

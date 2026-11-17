@@ -1,0 +1,10 @@
+{
+  "key": "Pedal_NoFiEcho",
+  "type": "pedal",
+  "name": "NoFiEcho",
+  "real": "lo-fi",
+  "category": "Delay / Echo",
+  "model": "echo",
+  "params": { "tone": 0.15 },
+  "source": "RS-to-AT5p gear map"
+}

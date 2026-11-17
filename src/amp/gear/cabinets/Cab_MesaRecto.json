@@ -1,0 +1,9 @@
+{
+  "key": "Cab_MesaRecto",
+  "type": "cabinet",
+  "name": "MesaRecto",
+  "real": "4x12 Mesa/Boogie",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map"
+}

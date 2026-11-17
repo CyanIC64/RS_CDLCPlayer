@@ -1,0 +1,11 @@
+{
+  "key": "Amp_JetCityJCA100H",
+  "type": "amp",
+  "name": "JetCityJCA100H",
+  "real": "JCA100H",
+  "family": "Other",
+  "voice": "highgain",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map"
+}

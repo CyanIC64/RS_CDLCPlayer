@@ -1,0 +1,9 @@
+{
+  "key": "Cab_FenderBassman",
+  "type": "cabinet",
+  "name": "FenderBassman",
+  "real": "4x10 Fender",
+  "bass": false,
+  "cab": "bass",
+  "source": "RS-to-AT5p gear map"
+}

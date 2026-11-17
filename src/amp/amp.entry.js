@@ -14,20 +14,24 @@
 // adding, removing or moving a pedal builds the chain again and crossfades.
 
 import Tuna from "tunajs";
-import { FX, MODELS, CABS, asBoard, emptyBoard, boardFromRig } from "./catalog.js";
+import { FX, MODELS, CABS, asBoard, emptyBoard, boardFromRig, voiceOf, driveOf, micTilt } from "./catalog.js";
 import irTuna from "./ir/tuna_guitar.wav";
 import ir1x12 from "./ir/cab_1x12.wav";
 import ir2x12 from "./ir/cab_2x12.wav";
 import ir4x12 from "./ir/cab_4x12.wav";
 import ir4x12m from "./ir/cab_4x12_modern.wav";
 import irBass from "./ir/cab_bass.wav";
+import ir4x12j from "./ir/cab_4x12_jcm.wav";
+import ir4x12o from "./ir/cab_4x12_orange.wav";
+import ir4x12g from "./ir/cab_4x12_engl.wav";
 import irRoom from "./ir/rev_room.wav";
 import irPlate from "./ir/rev_short.wav";
 
-export { FX, MODELS, CABS, GROUPS, AMP_KNOBS, makePedal, emptyBoard, boardFromRig, boardFromGear, asBoard, knobsOf } from "./catalog.js";
+export { FX, MODELS, CABS, GROUPS, AMP_KNOBS, VOICES, MICS, makePedal, emptyBoard, boardFromRig, boardFromGear, asBoard, knobsOf } from "./catalog.js";
 export { mountBoard } from "./board.ui.js";
 
 const IR_BYTES = { tuna: irTuna, c1x12: ir1x12, c2x12: ir2x12, c4x12: ir4x12, c4x12m: ir4x12m, cbass: irBass,
+                   c4x12j: ir4x12j, c4x12o: ir4x12o, c4x12g: ir4x12g,
                    room: irRoom, plate: irPlate };
 
 /* noise gate: high gain makes the cable's hiss loud. An AudioWorklet loaded from
@@ -234,28 +238,34 @@ const BUILD = {
 };
 
 /* the amp: preamp (Tuna's soft clipper, tightened in the lows as high-gain amps
-   are), a tone stack and the cabinet */
+   are), the voice of the amp (its own mids, brightness and lows), a tone stack,
+   the cabinet and its microphone */
 function buildAmp(ctx, S, board){
-  const a = board.amp, bass = !!a.bassAmp;
-  const cab = CABS[board.cab] || CABS[bass ? "bass" : "2x12"];
+  const a = board.amp, V = voiceOf(a.voice), bass = !!a.bassAmp || !!V.bass;
+  const cab = CABS[board.cab] || CABS[bass ? "bass" : V.cab] || CABS["2x12"];
+  const mic = micTilt(board.mic);
   return part(ctx, (N) => {
-    const tight = N.bq("highpass", 80);
+    const tight = N.bq("highpass", V.tight);
     const od = new S.tuna.Overdrive({ drive: 1, outputGain: 0, curveAmount: 0.5, algorithmIndex: 0 });
     const post = N.g(1);
+    const vLow = N.bq("lowshelf", 100, V.low), vMid = N.bq("peaking", V.mid[0], V.mid[1], V.mid[2]),
+          vBright = N.bq("highshelf", 2500, V.bright);
     const lo = N.bq("lowshelf", bass ? 90 : 140), mid = N.bq("peaking", bass ? 600 : 750, 0, 0.8),
           hi = N.bq("highshelf", bass ? 2500 : 3000), pres = N.bq("peaking", 4500, 0, 1);
-    const cv = N.conv(S.irs[cab.ir]), cabGain = N.g(cab.gain);
-    const fizz = N.bq("lowpass", bass ? 6000 : 9000, 0, 0.6);
+    const cv = N.conv(cab.ir ? S.irs[cab.ir] : null), cabGain = N.g(cab.gain);
+    const micLo = N.bq("lowshelf", 150, cv.buffer ? mic.lo : 0), micHi = N.bq("highshelf", 3500, cv.buffer ? mic.hi : 0);
+    const fizz = N.bq("lowpass", V.fizz, 0, 0.6);
     tight.connect(od.input); od.output.connect(post);
-    post.connect(lo); lo.connect(mid); mid.connect(hi); hi.connect(pres);
+    post.connect(vLow); vLow.connect(vMid); vMid.connect(vBright);
+    vBright.connect(lo); lo.connect(mid); mid.connect(hi); hi.connect(pres);
     if (cv.buffer){ pres.connect(cv); cv.connect(cabGain); } else { pres.connect(cabGain); }
-    cabGain.connect(fizz);
+    cabGain.connect(micLo); micLo.connect(micHi); micHi.connect(fizz);
     const set = (k, v) => {
       if (k === "gain"){
-        const t = clamp(v, 0, 1);
+        const t = driveOf(a.voice, v);                      // the knob, through the voice's range
         od.curveAmount = curveFor(bass ? 0.2 + 8 * t * t : 0.2 + 260 * t * t * t + 20 * t);
-        N.ramp(tight.frequency, bass ? 25 : 70 + 90 * t);
-        N.ramp(post.gain, 0.75 / (1 + 1.4 * t));
+        N.ramp(tight.frequency, bass ? V.tight : V.tight * (1 + 1.3 * t));
+        N.ramp(post.gain, (V.level || 1) * 0.75 / (1 + 1.4 * t));
       }
       else if (k === "bass") N.ramp(lo.gain, v * 0.75);
       else if (k === "mid") N.ramp(mid.gain, v * 0.6);

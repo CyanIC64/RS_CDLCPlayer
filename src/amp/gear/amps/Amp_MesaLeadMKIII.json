@@ -1,0 +1,11 @@
+{
+  "key": "Amp_MesaLeadMKIII",
+  "type": "amp",
+  "name": "MesaLeadMKIII",
+  "real": "American Lead MKIII",
+  "family": "Other",
+  "voice": "mark",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map"
+}

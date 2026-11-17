@@ -1,0 +1,10 @@
+{
+  "key": "Pedal_RangeBooster",
+  "type": "pedal",
+  "name": "RangeBooster",
+  "real": "Treble Booster",
+  "category": "Distortion / Overdrive",
+  "model": "boost",
+  "params": { "gain": 0.35, "tone": 0.95 },
+  "source": "RS-to-AT5p gear map"
+}

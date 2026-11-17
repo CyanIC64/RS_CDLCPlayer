@@ -1,0 +1,11 @@
+{
+  "key": "Amp_MarshallJVM",
+  "type": "amp",
+  "name": "MarshallJVM",
+  "real": "Marshall JVM",
+  "family": "Other",
+  "voice": "jcm",
+  "bass": false,
+  "cab": "4x12j",
+  "source": "RS-to-AT5p gear map"
+}

@@ -1,0 +1,10 @@
+{
+  "key": "Rack_StudioPhaser",
+  "type": "rack",
+  "name": "StudioPhaser",
+  "real": "MXR Phase 90",
+  "category": "Reverb",
+  "model": "phaser",
+  "params": {},
+  "source": "RS-to-AT5p gear map"
+}

@@ -1,0 +1,11 @@
+{
+  "key": "Amp_FenderTwinReverb",
+  "type": "amp",
+  "name": "FenderTwinReverb",
+  "real": "Fender '65 Twin Reverb",
+  "family": "Other",
+  "voice": "american",
+  "bass": false,
+  "cab": "2x12",
+  "source": "RS-to-AT5p gear map"
+}

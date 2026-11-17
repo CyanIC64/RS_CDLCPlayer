@@ -1,0 +1,11 @@
+{
+  "key": "Amp_FenderBassman",
+  "type": "amp",
+  "name": "FenderBassman",
+  "real": "Fender American Vintage B",
+  "family": "Other",
+  "voice": "tweed",
+  "bass": false,
+  "cab": "bass",
+  "source": "RS-to-AT5p gear map"
+}

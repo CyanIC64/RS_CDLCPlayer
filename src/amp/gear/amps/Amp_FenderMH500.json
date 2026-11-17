@@ -1,0 +1,11 @@
+{
+  "key": "Amp_FenderMH500",
+  "type": "amp",
+  "name": "FenderMH500",
+  "real": "Fender MH-500 Metalhead",
+  "family": "Other",
+  "voice": "highgain",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map"
+}

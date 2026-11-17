@@ -1,0 +1,11 @@
+{
+  "key": "Amp_MesaTA30",
+  "type": "amp",
+  "name": "MesaTA30",
+  "real": "TransAtlantic TA-30",
+  "family": "Other",
+  "voice": "mark",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map"
+}

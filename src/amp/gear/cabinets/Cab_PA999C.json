@@ -1,0 +1,9 @@
+{
+  "key": "Cab_PA999C",
+  "type": "cabinet",
+  "name": "PA999C",
+  "real": "Cab_PA999C",
+  "bass": false,
+  "cab": "2x12",
+  "source": "RS-to-AT5p gear map"
+}

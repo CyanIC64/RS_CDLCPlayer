@@ -1,0 +1,11 @@
+{
+  "key": "Amp_HG100",
+  "type": "amp",
+  "name": "HG100",
+  "real": "Metal Lead V (Mesa/Peavey/Soldano)",
+  "family": "High Gain (Mesa/Peavey/Soldano)",
+  "voice": "highgain",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map"
+}

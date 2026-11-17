@@ -1,0 +1,11 @@
+{
+  "key": "Amp_Sunn1200",
+  "type": "amp",
+  "name": "Sunn1200",
+  "real": "JH 1200",
+  "family": "Other",
+  "voice": "bass",
+  "bass": true,
+  "cab": "bass",
+  "source": "RS-to-AT5p gear map"
+}

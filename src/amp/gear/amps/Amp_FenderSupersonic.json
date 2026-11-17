@@ -1,0 +1,11 @@
+{
+  "key": "Amp_FenderSupersonic",
+  "type": "amp",
+  "name": "FenderSupersonic",
+  "real": "Fender Super-Sonic",
+  "family": "Other",
+  "voice": "american",
+  "bass": false,
+  "cab": "1x12",
+  "source": "RS-to-AT5p gear map"
+}

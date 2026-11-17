@@ -1,0 +1,11 @@
+{
+  "key": "Amp_MesaBoogieMarkIIC",
+  "type": "amp",
+  "name": "MesaBoogieMarkIIC",
+  "real": "Mark IIC+",
+  "family": "Other",
+  "voice": "mark",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map"
+}

@@ -1,0 +1,11 @@
+{
+  "key": "Amp_MesaTripleCrown",
+  "type": "amp",
+  "name": "MesaTripleCrown",
+  "real": "Triple Crown",
+  "family": "Other",
+  "voice": "rectifier",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map"
+}

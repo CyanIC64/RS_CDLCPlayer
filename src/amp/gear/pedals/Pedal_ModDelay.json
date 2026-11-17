@@ -1,0 +1,10 @@
+{
+  "key": "Pedal_ModDelay",
+  "type": "pedal",
+  "name": "ModDelay",
+  "real": "mod delay",
+  "category": "Delay / Echo",
+  "model": "delay",
+  "params": {},
+  "source": "RS-to-AT5p gear map"
+}

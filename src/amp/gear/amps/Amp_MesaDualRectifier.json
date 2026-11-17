@@ -1,0 +1,11 @@
+{
+  "key": "Amp_MesaDualRectifier",
+  "type": "amp",
+  "name": "MesaDualRectifier",
+  "real": "Dual Rectifier",
+  "family": "Other",
+  "voice": "rectifier",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map"
+}

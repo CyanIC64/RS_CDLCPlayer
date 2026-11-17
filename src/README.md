@@ -49,6 +49,16 @@ rebuild. Gear missing from the library is described on the fly by the same rules
 
     node amp/make-gear.mjs <file.psarc | folder> ...   add the gear of these songs
     node amp/make-gear.mjs --force <...>               write every piece again (loses hand edits)
+    node amp/gear-from-map.mjs <gear_mapping_reference.md> [rs_to_at5.py]
+
+The library holds every amp, effect and cabinet enclosure of the RS-to-AT5p gear
+map (github.com/zagatozee/RS-to-AT5p): a tone's gear is linked to its file by its
+Rocksmith key (RS2014 or RS+). An amp says what it really is (`real`), its
+`voice` (an amp type of `catalog.js` VOICES: tweed, American clean, Plexi, JCM,
+AC, Orange, Rectifier, Mark, high gain, German, JC, bass, DI) and the `cab` it
+drives; an effect, its pedalboard `model` and starting `params`; a cabinet file is
+the enclosure ("Cab_CA412C"), and the microphone at the end of the tone's key
+("_57_Edge") colours it. `gear-from-map.mjs` keeps the knob maps already in a file.
 
 `build.mjs` gathers the files into `amp/gear/library.js` before bundling.
 

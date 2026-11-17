@@ -1,0 +1,11 @@
+{
+  "key": "Amp_Marshall1962Bluesbreaker",
+  "type": "amp",
+  "name": "Marshall1962Bluesbreaker",
+  "real": "Marshall 1962 Bluesbreaker",
+  "family": "Other",
+  "voice": "plexi",
+  "bass": false,
+  "cab": "4x12",
+  "source": "RS-to-AT5p gear map"
+}

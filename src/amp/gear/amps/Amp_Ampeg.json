@@ -1,0 +1,11 @@
+{
+  "key": "Amp_Ampeg",
+  "type": "amp",
+  "name": "Ampeg",
+  "real": "SVX-CL",
+  "family": "Other",
+  "voice": "bass",
+  "bass": true,
+  "cab": "bass",
+  "source": "RS-to-AT5p gear map"
+}

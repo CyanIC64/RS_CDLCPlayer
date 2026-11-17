@@ -1,0 +1,11 @@
+{
+  "key": "Amp_MarshallDSL100H",
+  "type": "amp",
+  "name": "MarshallDSL100H",
+  "real": "Marshall DSL100H",
+  "family": "Other",
+  "voice": "jcm",
+  "bass": false,
+  "cab": "4x12j",
+  "source": "RS-to-AT5p gear map"
+}

@@ -3,7 +3,7 @@
   "type": "amp",
   "name": "EN30",
   "bass": false,
-  "cab": "",
+  "cab": "4x12o",
   "knobs": {
     "Gain": { "param": "gain", "from": [0, 100], "to": [0, 1] },
     "Pres": { "param": "presence", "from": [0, 100], "to": [-12, 12] },
@@ -11,5 +11,9 @@
     "Mid": { "param": "mid", "from": [0, 100], "to": [-12, 12] },
     "Bright": { "param": null, "from": [0, 100] },
     "Treble": { "param": "treble", "from": [0, 100], "to": [-12, 12] }
-  }
+  },
+  "real": "British Copper 30TB (Orange)",
+  "family": "English (Orange)",
+  "voice": "orange",
+  "source": "RS-to-AT5p gear map"
 }

@@ -1,0 +1,11 @@
+{
+  "key": "Amp_TW26",
+  "type": "amp",
+  "name": "TW26",
+  "real": "57 Custom Pro-Amp (Fender)",
+  "family": "Tweed (Fender)",
+  "voice": "tweed",
+  "bass": false,
+  "cab": "1x12",
+  "source": "RS-to-AT5p gear map"
+}

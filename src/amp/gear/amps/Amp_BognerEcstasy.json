@@ -1,0 +1,11 @@
+{
+  "key": "Amp_BognerEcstasy",
+  "type": "amp",
+  "name": "BognerEcstasy",
+  "real": "German 34",
+  "family": "Other",
+  "voice": "german",
+  "bass": false,
+  "cab": "4x12g",
+  "source": "RS-to-AT5p gear map"
+}

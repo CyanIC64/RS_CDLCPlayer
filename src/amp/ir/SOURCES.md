@@ -12,3 +12,6 @@ Carried inside `web/amp.js` (a `file://` page cannot fetch them). All under the 
 | cab_4x12.wav | JS Rocks `assets/impulses/cabinet/captain_1960.wav` |
 | cab_4x12_modern.wav | JS Rocks `assets/impulses/cabinet/mega_storm.wav` |
 | cab_bass.wav | JS Rocks `assets/impulses/cabinet/friender_bassman.wav` |
+| cab_4x12_jcm.wav | JS Rocks `assets/impulses/cabinet/sandman_2204.wav` |
+| cab_4x12_orange.wav | JS Rocks `assets/impulses/cabinet/yellow.wav` |
+| cab_4x12_engl.wav | JS Rocks `assets/impulses/cabinet/eagle_pro.wav` |

@@ -1,0 +1,9 @@
+{
+  "key": "IBEX_Cab_OrangeRV50_212_RSC67_OffAxis_Cap",
+  "type": "cabinet",
+  "name": "OrangeRV50 212 RSC67 OffAxis Cap",
+  "real": "Mesa/Boogie",
+  "bass": false,
+  "cab": "4x12o",
+  "source": "RS-to-AT5p gear map"
+}

@@ -1,0 +1,11 @@
+{
+  "key": "Amp_AmpegSVTVR",
+  "type": "amp",
+  "name": "AmpegSVTVR",
+  "real": "SVX-VR",
+  "family": "Other",
+  "voice": "bass",
+  "bass": true,
+  "cab": "bass",
+  "source": "RS-to-AT5p gear map"
+}

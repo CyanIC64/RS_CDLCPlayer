@@ -1,0 +1,11 @@
+{
+  "key": "Amp_MarshallMajor",
+  "type": "amp",
+  "name": "MarshallMajor",
+  "real": "Marshall Major",
+  "family": "Other",
+  "voice": "plexi",
+  "bass": false,
+  "cab": "4x12",
+  "source": "RS-to-AT5p gear map"
+}

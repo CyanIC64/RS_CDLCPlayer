@@ -1,0 +1,10 @@
+{
+  "key": "Rack_StudioTremolo",
+  "type": "rack",
+  "name": "StudioTremolo",
+  "real": "Opto Tremolo",
+  "category": "Reverb",
+  "model": "tremolo",
+  "params": {},
+  "source": "RS-to-AT5p gear map"
+}

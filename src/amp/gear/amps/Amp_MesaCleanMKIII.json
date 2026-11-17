@@ -1,0 +1,11 @@
+{
+  "key": "Amp_MesaCleanMKIII",
+  "type": "amp",
+  "name": "MesaCleanMKIII",
+  "real": "American Clean MKIII",
+  "family": "Other",
+  "voice": "american",
+  "bass": false,
+  "cab": "1x12",
+  "source": "RS-to-AT5p gear map"
+}

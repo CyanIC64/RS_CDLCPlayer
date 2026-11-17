@@ -1,0 +1,11 @@
+{
+  "key": "Amp_MarshallJVM410H",
+  "type": "amp",
+  "name": "MarshallJVM410H",
+  "real": "Marshall JVM 410H",
+  "family": "Other",
+  "voice": "jcm",
+  "bass": false,
+  "cab": "4x12j",
+  "source": "RS-to-AT5p gear map"
+}

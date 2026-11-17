@@ -1,0 +1,10 @@
+{
+  "key": "Pedal_BobFilter",
+  "type": "pedal",
+  "name": "BobFilter",
+  "real": "Envelope Filter",
+  "category": "Wah / Filter",
+  "model": "wah",
+  "params": {},
+  "source": "RS-to-AT5p gear map"
+}

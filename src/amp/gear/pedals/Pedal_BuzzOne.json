@@ -1,0 +1,10 @@
+{
+  "key": "Pedal_BuzzOne",
+  "type": "pedal",
+  "name": "BuzzOne",
+  "real": "Maestro FuzzTone",
+  "category": "Distortion / Overdrive",
+  "model": "fuzz",
+  "params": { "tone": 0.65, "gain": 0.8 },
+  "source": "RS-to-AT5p gear map"
+}

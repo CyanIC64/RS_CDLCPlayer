@@ -1,0 +1,11 @@
+{
+  "key": "Amp_HG180",
+  "type": "amp",
+  "name": "HG180",
+  "real": "SLD 100 (Mesa/Peavey/Soldano)",
+  "family": "High Gain (Mesa/Peavey/Soldano)",
+  "voice": "highgain",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map"
+}

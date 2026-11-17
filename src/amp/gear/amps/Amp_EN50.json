@@ -1,0 +1,11 @@
+{
+  "key": "Amp_EN50",
+  "type": "amp",
+  "name": "EN50",
+  "real": "RockerVerb 50 (Orange)",
+  "family": "English (Orange)",
+  "voice": "orange",
+  "bass": false,
+  "cab": "4x12o",
+  "source": "RS-to-AT5p gear map"
+}

@@ -1,0 +1,9 @@
+{
+  "key": "Cab_Fender57CustomTwin",
+  "type": "cabinet",
+  "name": "Fender57CustomTwin",
+  "real": "2x12 Fender",
+  "bass": false,
+  "cab": "2x12",
+  "source": "RS-to-AT5p gear map"
+}

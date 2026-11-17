@@ -1,0 +1,9 @@
+{
+  "key": "Bass_Cab_CH310BC",
+  "type": "cabinet",
+  "name": "CH310BC",
+  "real": "Practice (bass)",
+  "bass": true,
+  "cab": "bass",
+  "source": "RS-to-AT5p gear map"
+}

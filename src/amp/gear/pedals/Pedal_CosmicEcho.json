@@ -1,0 +1,10 @@
+{
+  "key": "Pedal_CosmicEcho",
+  "type": "pedal",
+  "name": "CosmicEcho",
+  "real": "Memory Man",
+  "category": "Delay / Echo",
+  "model": "echo",
+  "params": { "tone": 0.45, "feedback": 0.4 },
+  "source": "RS-to-AT5p gear map"
+}

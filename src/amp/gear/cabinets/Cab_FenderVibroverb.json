@@ -1,0 +1,9 @@
+{
+  "key": "Cab_FenderVibroverb",
+  "type": "cabinet",
+  "name": "FenderVibroverb",
+  "real": "1x15 Fender",
+  "bass": false,
+  "cab": "1x12",
+  "source": "RS-to-AT5p gear map"
+}

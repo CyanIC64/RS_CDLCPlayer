@@ -1,0 +1,9 @@
+{
+  "key": "Cab_BT412C",
+  "type": "cabinet",
+  "name": "BT412C",
+  "real": "4x12 Marshall",
+  "bass": false,
+  "cab": "4x12",
+  "source": "RS-to-AT5p gear map"
+}

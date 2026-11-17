@@ -1,0 +1,9 @@
+{
+  "key": "Cab_OrangeAD30",
+  "type": "cabinet",
+  "name": "OrangeAD30",
+  "real": "2x12 Orange",
+  "bass": false,
+  "cab": "2x12",
+  "source": "RS-to-AT5p gear map"
+}

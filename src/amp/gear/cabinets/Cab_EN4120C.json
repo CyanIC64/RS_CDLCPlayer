@@ -1,0 +1,9 @@
+{
+  "key": "Cab_EN4120C",
+  "type": "cabinet",
+  "name": "EN4120C",
+  "real": "4x12 Orange",
+  "bass": false,
+  "cab": "4x12o",
+  "source": "RS-to-AT5p gear map"
+}

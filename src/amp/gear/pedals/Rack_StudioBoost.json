@@ -1,0 +1,10 @@
+{
+  "key": "Rack_StudioBoost",
+  "type": "rack",
+  "name": "StudioBoost",
+  "real": "MXR",
+  "category": "Distortion / Overdrive",
+  "model": "boost",
+  "params": {},
+  "source": "RS-to-AT5p gear map"
+}

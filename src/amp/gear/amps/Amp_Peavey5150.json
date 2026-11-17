@@ -1,0 +1,11 @@
+{
+  "key": "Amp_Peavey5150",
+  "type": "amp",
+  "name": "Peavey5150",
+  "real": "Metal Lead V",
+  "family": "Other",
+  "voice": "highgain",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map"
+}

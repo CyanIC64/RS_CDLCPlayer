@@ -1,0 +1,9 @@
+{
+  "key": "Cab_Hiwatt",
+  "type": "cabinet",
+  "name": "Hiwatt",
+  "real": "4x12",
+  "bass": false,
+  "cab": "4x12",
+  "source": "RS-to-AT5p gear map"
+}

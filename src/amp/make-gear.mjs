@@ -52,7 +52,7 @@ function psarcsIn(p) {
 
 async function scan(files) {
   const { Psarc } = await import("../psarc.js");
-  const { knobName, TYPE_OF_SLOT } = await import("./gear.js");
+  const { knobName, TYPE_OF_SLOT, cabBase } = await import("./gear.js");
   const found = new Map();                       // key -> { type, category, seen }
   for (const f of files) {
     let arc;
@@ -64,9 +64,11 @@ async function scan(files) {
       for (const ent of Object.values(j.Entries || {})) {
         for (const t of (ent.Attributes && ent.Attributes.Tones) || []) {
           for (const [slot, g] of Object.entries(t.GearList || {})) {
-            const key = g && (g.Key || g.PedalKey);
+            const type = TYPE_OF_SLOT(slot, g.Type);
+            /* a cabinet's file is its enclosure's: the microphone is in the tone, not in the cabinet */
+            const key = g && (g.Key || g.PedalKey) && (type === "cabinet" ? cabBase(g.Key || g.PedalKey) : g.Key || g.PedalKey);
             if (!key) continue;
-            const it = found.get(key) || { type: TYPE_OF_SLOT(slot, g.Type), category: g.Category || "", seen: {} };
+            const it = found.get(key) || { type, category: g.Category || "", seen: {} };
             for (const [k, v] of Object.entries(g.KnobValues || {})) {
               const name = knobName(key, k), x = Number(v);
               if (!Number.isFinite(x)) continue;

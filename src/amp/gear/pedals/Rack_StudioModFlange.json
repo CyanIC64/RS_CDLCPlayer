@@ -1,0 +1,10 @@
+{
+  "key": "Rack_StudioModFlange",
+  "type": "rack",
+  "name": "StudioModFlange",
+  "real": "Flanger",
+  "category": "Reverb",
+  "model": "flanger",
+  "params": {},
+  "source": "RS-to-AT5p gear map"
+}

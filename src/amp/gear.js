@@ -70,17 +70,34 @@ export function modelOfGear(key, category = "") {
   return "";
 }
 
-/** the cabinet for a cabinet key ("Cab_EN212C" = 2x12), else from the amp and the kind of tone */
-export function cabOfGear(cabKey, ampKey, { bass = false, kind = "" } = {}) {
-  if (bass || /^bass_/i.test(cabKey || "") || /^bass_/i.test(ampKey || "")) return "bass";
-  const m = /_[A-Za-z]*?([124])(1[02]|15|10)/.exec(cabKey || "");
-  if (m) {
-    if (m[1] === "1") return "1x12";
-    if (m[1] === "2") return "2x12";
-    return kind === "distortion" ? "4x12m" : "4x12";
+/* the speakers in a cabinet key: "Cab_EN4120C" -> [4, 12], "Cab_TW410C" -> [4, 10] */
+export function cabSize(cabKey){
+  const m = /_[A-Za-z]+?0?([1-8])(12|10|15|8|6)0?C?(?:_|$)/.exec(cabKey || "");
+  return m ? [Number(m[1]), Number(m[2])] : null;
+}
+/** the cabinet for a cabinet key, by its family and size ("Cab_EN4120C" = English 4x12),
+    else from the amp and the kind of tone */
+export function cabOfGear(cabKey, ampKey, { bass = false, kind = "", size = null } = {}) {
+  const k = cabKey || "";
+  if (bass || /^bass_/i.test(k) || /^bass_/i.test(ampKey || "")) return "bass";
+  const sz = size || cabSize(k);
+  const n = sz ? sz[0] : 0, d = sz ? sz[1] : 0;
+  if (k) {
+    if (n === 4 && d === 10) return "bass";                        // tweed 4x10 (Bassman, Super Reverb)
+    if (sz && n <= 1) return "1x12";                               // 1x6 .. 1x15 combos
+    if (/_(EN|Orange)/i.test(k)) return n === 2 ? "2x12" : "4x12o";
+    if (/_(GB|ENGL|Diezel|Bogner)/i.test(k)) return "4x12g";
+    if (/_(CA|HG|Mesa|Peavey|IBEX)/i.test(k) || /^IBEX/i.test(k)) return n === 1 ? "1x12" : "4x12m";
+    if (/_Marshall(JCM|DSL|JVM|1960TV)/i.test(k)) return "4x12j";
+    if (/_(BT|Marshall)/i.test(k)) return n === 2 ? "2x12" : "4x12";
+    if (/_(Vox|CS)/i.test(k) || n === 2 || n === 3) return "2x12";
+    if (/_(TW|AT|Fender)/i.test(k)) return n >= 4 ? "4x12" : "1x12";
+    if (n >= 4) return kind === "distortion" ? "4x12m" : "4x12";
   }
   return kind === "clean" ? "2x12" : kind === "crunch" ? "4x12" : kind === "distortion" ? "4x12m" : "2x12";
 }
+/** a cabinet key without its microphone: "Cab_CA412C_57_Edge" -> "Cab_CA412C" */
+export const cabBase = (key) => String(key || "").replace(/_(57|Ribbon|Condenser|Tube)_(Cone|Edge|OffAxis)$/i, "");
 
 /** a knob's short name: "Amp_CA100_Gain" of Amp_CA100 -> "Gain" */
 export function knobName(gearKey, fullKey) {
@@ -94,7 +111,7 @@ const PCT = (to) => ({ from: [0, 100], to });
 const EQ = (db) => (db ? { from: [-12, 12], to: [-12, 12] } : PCT([-12, 12]));
 const RULES = {
   amp: [
-    ["gain",     ["gain", "drive", "overdrive", "preamp"], () => PCT([0, 1])],
+    ["gain",     ["gain", "drive", "overdrive", "preamp", "sensitivity"], () => PCT([0, 1])],
     ["bass",     ["bass", "low", "lo"],                    (s, db) => EQ(db)],
     ["mid",      ["mid", "middle"],                        (s, db) => EQ(db)],
     ["treble",   ["treble", "high", "hi"],                 (s, db) => EQ(db)],
@@ -163,12 +180,12 @@ const prettyName = (key) => key.replace(/^(bass_)?(amp|cab|pedal|rack)_/i, "").r
  * @param {string} key    the gear key ("Amp_CA100")
  * @param {object} seen   its knobs and the values they were seen holding: { Gain: [lo, hi], ... }
  */
-export function describeGear(type, key, seen = {}, { category = "" } = {}) {
+export function describeGear(type, key, seen = {}, { category = "", model: forced } = {}) {
   const bass = /^bass_/i.test(key);
   const base = { key, type, name: prettyName(key) };
   if (category) base.category = category;
   if (type === "cabinet") return { ...base, bass, cab: cabOfGear(key, "", { bass }) };
-  const model = type === "amp" ? "" : modelOfGear(key, category);
+  const model = type === "amp" ? "" : forced !== undefined ? forced : modelOfGear(key, category);
   const rules = type === "amp" ? RULES.amp : model ? RULES[MODEL_FX[model]] : [];
   const db = Object.values(seen).some((r) => r[0] < 0);
   const knobs = {};
@@ -190,6 +207,8 @@ export function gearEntry(slot, g) {
   const key = (g && (g.Key || g.PedalKey)) || "";
   if (!key) return null;
   if (LIBRARY[key]) return LIBRARY[key];
+  /* a cabinet is one enclosure with several microphone placements: the enclosure's file */
+  if (TYPE_OF_SLOT(slot, g.Type) === "cabinet" && LIBRARY[cabBase(key)]) return LIBRARY[cabBase(key)];
   const seen = {};
   for (const [k, v] of Object.entries(g.KnobValues || {})) {
     const n = Number(v);
@@ -198,11 +217,19 @@ export function gearEntry(slot, g) {
   return describeGear(TYPE_OF_SLOT(slot, g.Type), key, seen, { category: g.Category || "" });
 }
 
-/** a piece's knob values as pedalboard parameters, through its entry's knob map */
+/** a piece's knob values as pedalboard parameters, through its entry's knob map
+    (a knob the entry does not list goes by the rules, for the entry's model) */
 export function applyKnobs(entry, knobValues = {}) {
   const out = { ...(entry.params || {}) };
+  const seen = {};
+  for (const [k, v] of Object.entries(knobValues || {})) { const n = Number(v); if (Number.isFinite(n)) seen[knobName(entry.key, k)] = [n, n]; }
+  const auto = entry.type === "cabinet" ? {} : describeGear(entry.type, entry.key, seen, { model: entry.model || "" }).knobs || {};
+  const knobs = { ...auto, ...(entry.knobs || {}) };
+  /* a parameter one of the entry's own knobs sets is not set again by a rule */
+  const mine = new Set(Object.values(entry.knobs || {}).map((m) => m && m.param).filter(Boolean));
+  for (const name of Object.keys(auto)) if (!(entry.knobs || {})[name] && mine.has(auto[name].param)) delete knobs[name];
   for (const [k, v] of Object.entries(knobValues || {})) {
-    const m = entry.knobs && entry.knobs[knobName(entry.key, k)];
+    const m = knobs[knobName(entry.key, k)];
     const n = Number(v);
     if (!m || !m.param || !Number.isFinite(n) || !m.to) continue;
     const [f0, f1] = m.from || [0, 100], [t0, t1] = m.to;

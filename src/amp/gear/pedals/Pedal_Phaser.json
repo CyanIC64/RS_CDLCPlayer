@@ -1,0 +1,10 @@
+{
+  "key": "Pedal_Phaser",
+  "type": "pedal",
+  "name": "Phaser",
+  "real": "Phase 90",
+  "category": "Phaser",
+  "model": "phaser",
+  "params": {},
+  "source": "RS-to-AT5p gear map"
+}

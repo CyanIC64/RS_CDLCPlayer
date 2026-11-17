@@ -1,0 +1,10 @@
+{
+  "key": "Pedal_AmpTrem",
+  "type": "pedal",
+  "name": "AmpTrem",
+  "real": "Opto Tremolo",
+  "category": "Tremolo / Vibrato",
+  "model": "tremolo",
+  "params": { "rate": 4, "intensity": 0.5 },
+  "source": "RS-to-AT5p gear map"
+}

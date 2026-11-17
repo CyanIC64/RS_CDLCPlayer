@@ -1,0 +1,10 @@
+{
+  "key": "Pedal_MultiTrem",
+  "type": "pedal",
+  "name": "MultiTrem",
+  "real": "Tremolo",
+  "category": "Tremolo / Vibrato",
+  "model": "tremolo",
+  "params": {},
+  "source": "RS-to-AT5p gear map"
+}

@@ -13,7 +13,7 @@
 //   onPick(key)                a tone picked on the tone bar ("" = follow the song)
 //   onReset(), onClose()
 
-import { FX, MODELS, GROUPS, CABS, AMP_KNOBS, makePedal } from "./catalog.js";
+import { FX, MODELS, GROUPS, CABS, AMP_KNOBS, VOICES, MICS, makePedal } from "./catalog.js";
 
 const CSS = `
 #pbRig{position:fixed;left:50%;top:6%;transform:translateX(-50%);width:min(1020px,calc(100vw - 16px));
@@ -56,7 +56,9 @@ const CSS = `
 #pbRig .pb-brand{font:italic 700 24px Georgia,"Times New Roman",serif;color:#efe6cf;text-shadow:0 2px 0 #000;letter-spacing:.02em}
 #pbRig .pb-brand small{font:600 10px "Segoe UI",system-ui,sans-serif;color:#8b8578;letter-spacing:.12em;margin-left:8px;
   text-transform:uppercase;font-style:normal}
-#pbRig .pb-cab{margin-left:auto;display:flex;align-items:center;gap:6px;color:#8b8578;font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+#pbRig .pb-real{font:600 11px "Segoe UI",system-ui,sans-serif;color:#b8ae95;font-style:normal;letter-spacing:.02em;text-shadow:none;margin-top:2px}
+#pbRig .pb-sels{margin-left:auto;display:flex;flex-wrap:wrap;gap:6px 12px;justify-content:flex-end}
+#pbRig .pb-cab{display:flex;align-items:center;gap:6px;color:#8b8578;font-size:10px;letter-spacing:.1em;text-transform:uppercase}
 #pbRig .pb-cab select{background:#0c0c0c;color:#efe6cf;border:1px solid #3a3a3a;border-radius:4px;padding:3px 6px;font:12px inherit}
 #pbRig .pb-plate{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;padding:10px 14px 8px;border-radius:6px;
   background:linear-gradient(#e0cd93,#b39a56);box-shadow:inset 0 1px 0 #fff8,inset 0 -2px 0 #0003;color:#2a2416}
@@ -288,16 +290,27 @@ export function mountBoard(cb){
     const top = el("div", "pb-amptop");
     const brand = el("div", "pb-brand", a.name || "Amp");
     brand.appendChild(el("small", "", a.bassAmp ? "bass amp" : "amplifier"));
-    const cab = el("label", "pb-cab", "Cabinet");
-    const sel = el("select");
-    for (const [id, c] of Object.entries(CABS)){
-      const o = el("option", "", c.name); o.value = id; sel.appendChild(o);
-    }
-    sel.value = CABS[board.cab] ? board.cab : (a.bassAmp ? "bass" : "2x12");
-    sel.onchange = () => { board.cab = sel.value; changed(); };
-    sel.addEventListener("keydown", (e) => e.stopPropagation());
-    cab.appendChild(sel);
-    top.append(brand, cab);
+    if (a.real){ const r = el("div", "pb-real", a.real); r.title = a.gear ? `From the song's tone: ${a.gear}` : ""; brand.appendChild(r); }
+    /* a select of the amp head: the amp's voice, the cabinet, the microphone (each builds the chain again) */
+    const pick = (label, options, value, onPick, title) => {
+      const l = el("label", "pb-cab", label), sel = el("select");
+      for (const [id, name] of options){ const o = el("option", "", name); o.value = id; sel.appendChild(o); }
+      sel.value = value;
+      sel.onchange = () => { onPick(sel.value); changed(); };
+      sel.addEventListener("keydown", (e) => e.stopPropagation());
+      if (title) sel.title = title;
+      l.appendChild(sel);
+      return l;
+    };
+    const sels = el("div", "pb-sels");
+    sels.append(
+      pick("Voice", Object.entries(VOICES).map(([id, v]) => [id, v.name]), VOICES[a.voice] ? a.voice : "generic",
+           (v) => { a.voice = v; }, "What kind of amp this head is"),
+      pick("Cabinet", Object.entries(CABS).map(([id, c]) => [id, c.name]), CABS[board.cab] ? board.cab : (a.bassAmp ? "bass" : "2x12"),
+           (v) => { board.cab = v; }, [board.cabReal, board.cabGear].filter(Boolean).join(" - ")),
+      pick("Mic", [["", "none"], ...MICS.map((m) => [m, m.replace("_", " ").replace("OffAxis", "off axis")])], MICS.includes(board.mic) ? board.mic : "",
+           (v) => { board.mic = v; }, "The microphone on the cabinet, and where it points"));
+    top.append(brand, sels);
 
     const plate = el("div", "pb-plate");
     const master = { k:"master", label:"MASTER", min:0, max:1, step:0.01 };
@@ -333,8 +346,8 @@ export function mountBoard(cb){
       kw.appendChild(k);
     }
     const name = el("div", "pb-name", m.name);
-    const gear = el("div", "pb-gear", p.gear ? p.gear.replace(/^(Bass_)?(Pedal|Rack)_/i, "") : m.group);
-    if (p.gear) gear.title = `From the song's tone: ${p.gear}`;
+    const gear = el("div", "pb-gear", p.real || (p.gear ? p.gear.replace(/^(Bass_)?(Pedal|Rack)_/i, "") : m.group));
+    if (p.gear) gear.title = `From the song's tone: ${p.gear}` + (p.real ? ` (${p.real})` : "");
     const foot = el("button", "pb-foot");
     foot.title = "On / off"; foot.setAttribute("aria-label", `${m.name} on or off`); foot.setAttribute("aria-pressed", p.on !== false);
     foot.onclick = () => {

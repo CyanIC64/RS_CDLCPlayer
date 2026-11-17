@@ -1,0 +1,9 @@
+{
+  "key": "Cab_OrangePPC412",
+  "type": "cabinet",
+  "name": "OrangePPC412",
+  "real": "4x12 Orange",
+  "bass": false,
+  "cab": "4x12o",
+  "source": "RS-to-AT5p gear map"
+}

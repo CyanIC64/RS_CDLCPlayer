@@ -1,0 +1,9 @@
+{
+  "key": "Cab_AmpegB15",
+  "type": "cabinet",
+  "name": "AmpegB15",
+  "real": "Cab_AmpegB15",
+  "bass": false,
+  "cab": "2x12",
+  "source": "RS-to-AT5p gear map"
+}

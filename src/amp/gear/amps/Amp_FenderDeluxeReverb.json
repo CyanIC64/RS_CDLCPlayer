@@ -1,0 +1,11 @@
+{
+  "key": "Amp_FenderDeluxeReverb",
+  "type": "amp",
+  "name": "FenderDeluxeReverb",
+  "real": "Fender '65 Deluxe Reverb",
+  "family": "Other",
+  "voice": "american",
+  "bass": false,
+  "cab": "1x12",
+  "source": "RS-to-AT5p gear map"
+}

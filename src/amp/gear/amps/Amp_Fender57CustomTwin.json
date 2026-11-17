@@ -1,0 +1,11 @@
+{
+  "key": "Amp_Fender57CustomTwin",
+  "type": "amp",
+  "name": "Fender57CustomTwin",
+  "real": "Fender '57 Custom Twin-Amp",
+  "family": "Other",
+  "voice": "tweed",
+  "bass": false,
+  "cab": "2x12",
+  "source": "RS-to-AT5p gear map"
+}

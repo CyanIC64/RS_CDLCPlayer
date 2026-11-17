@@ -1,0 +1,11 @@
+{
+  "key": "DI_Amp_BassDriver",
+  "type": "amp",
+  "name": "BassDriver",
+  "real": "Bass DI — same muted placeholder",
+  "family": "DI / Direct",
+  "voice": "bassdi",
+  "bass": true,
+  "cab": "none",
+  "source": "RS-to-AT5p gear map"
+}

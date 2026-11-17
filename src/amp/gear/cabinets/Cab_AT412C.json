@@ -1,0 +1,9 @@
+{
+  "key": "Cab_AT412C",
+  "type": "cabinet",
+  "name": "AT412C",
+  "real": "4x12 Fender",
+  "bass": false,
+  "cab": "4x12",
+  "source": "RS-to-AT5p gear map"
+}

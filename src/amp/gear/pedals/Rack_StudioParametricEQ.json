@@ -1,0 +1,10 @@
+{
+  "key": "Rack_StudioParametricEQ",
+  "type": "rack",
+  "name": "StudioParametricEQ",
+  "real": "rack",
+  "category": "Reverb",
+  "model": "eq",
+  "params": {},
+  "source": "RS-to-AT5p gear map"
+}

@@ -1,0 +1,11 @@
+{
+  "key": "DI_Amp_TubePre",
+  "type": "amp",
+  "name": "TubePre",
+  "real": "American Tube Clean 1",
+  "family": "DI / Direct",
+  "voice": "di",
+  "bass": false,
+  "cab": "none",
+  "source": "RS-to-AT5p gear map"
+}

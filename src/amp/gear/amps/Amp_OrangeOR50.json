@@ -1,0 +1,11 @@
+{
+  "key": "Amp_OrangeOR50",
+  "type": "amp",
+  "name": "OrangeOR50",
+  "real": "Orange OR50",
+  "family": "Other",
+  "voice": "orange",
+  "bass": false,
+  "cab": "4x12o",
+  "source": "RS-to-AT5p gear map"
+}

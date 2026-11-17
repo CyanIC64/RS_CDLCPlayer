@@ -1,0 +1,11 @@
+{
+  "key": "Amp_Hiwatt",
+  "type": "amp",
+  "name": "Hiwatt",
+  "real": "HiAmp",
+  "family": "Other",
+  "voice": "plexi",
+  "bass": false,
+  "cab": "4x12",
+  "source": "RS-to-AT5p gear map"
+}

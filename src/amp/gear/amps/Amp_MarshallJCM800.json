@@ -1,0 +1,11 @@
+{
+  "key": "Amp_MarshallJCM800",
+  "type": "amp",
+  "name": "MarshallJCM800",
+  "real": "Marshall JCM 800",
+  "family": "Other",
+  "voice": "jcm",
+  "bass": false,
+  "cab": "4x12j",
+  "source": "RS-to-AT5p gear map"
+}

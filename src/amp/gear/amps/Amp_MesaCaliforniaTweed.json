@@ -1,0 +1,11 @@
+{
+  "key": "Amp_MesaCaliforniaTweed",
+  "type": "amp",
+  "name": "MesaCaliforniaTweed",
+  "real": "California Tweed",
+  "family": "Other",
+  "voice": "american",
+  "bass": false,
+  "cab": "1x12",
+  "source": "RS-to-AT5p gear map"
+}

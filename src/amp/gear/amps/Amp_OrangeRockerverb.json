@@ -1,0 +1,11 @@
+{
+  "key": "Amp_OrangeRockerverb",
+  "type": "amp",
+  "name": "OrangeRockerverb",
+  "real": "Orange Rockerverb 50",
+  "family": "Other",
+  "voice": "orange",
+  "bass": false,
+  "cab": "4x12o",
+  "source": "RS-to-AT5p gear map"
+}

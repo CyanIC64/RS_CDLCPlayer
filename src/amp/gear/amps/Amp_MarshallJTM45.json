@@ -1,0 +1,11 @@
+{
+  "key": "Amp_MarshallJTM45",
+  "type": "amp",
+  "name": "MarshallJTM45",
+  "real": "Marshall JTM 45",
+  "family": "Other",
+  "voice": "plexi",
+  "bass": false,
+  "cab": "4x12",
+  "source": "RS-to-AT5p gear map"
+}

@@ -1,0 +1,10 @@
+{
+  "key": "Rack_StudioWah",
+  "type": "rack",
+  "name": "StudioWah",
+  "real": "Cry Baby",
+  "category": "Reverb",
+  "model": "wah",
+  "params": {},
+  "source": "RS-to-AT5p gear map"
+}

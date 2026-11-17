@@ -1,0 +1,10 @@
+{
+  "key": "Rack_StudioVerb",
+  "type": "rack",
+  "name": "StudioVerb",
+  "real": "Digital Reverb",
+  "category": "Reverb",
+  "model": "room",
+  "params": {},
+  "source": "RS-to-AT5p gear map"
+}

@@ -1,0 +1,11 @@
+{
+  "key": "Amp_AT20",
+  "type": "amp",
+  "name": "AT20",
+  "real": "65 Deluxe Reverb (Fender)",
+  "family": "American Tube (Fender)",
+  "voice": "american",
+  "bass": false,
+  "cab": "1x12",
+  "source": "RS-to-AT5p gear map"
+}

@@ -1,0 +1,10 @@
+{
+  "key": "Rack_StudioTapDelay",
+  "type": "rack",
+  "name": "StudioTapDelay",
+  "real": "TapDelay",
+  "category": "Delay / Echo",
+  "model": "delay",
+  "params": {},
+  "source": "RS-to-AT5p gear map"
+}

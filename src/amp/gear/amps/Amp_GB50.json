@@ -1,0 +1,11 @@
+{
+  "key": "Amp_GB50",
+  "type": "amp",
+  "name": "GB50",
+  "real": "German 34",
+  "family": "German/British (Bogner/Diezel)",
+  "voice": "german",
+  "bass": false,
+  "cab": "4x12g",
+  "source": "RS-to-AT5p gear map"
+}

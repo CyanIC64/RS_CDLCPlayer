@@ -1,0 +1,9 @@
+{
+  "key": "Cab_GB412CMKI",
+  "type": "cabinet",
+  "name": "GB412CMKI",
+  "real": "4x12 German (Bogner/Diezel)",
+  "bass": false,
+  "cab": "4x12g",
+  "source": "RS-to-AT5p gear map"
+}

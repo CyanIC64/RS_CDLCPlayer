@@ -1,0 +1,11 @@
+{
+  "key": "Amp_TW22",
+  "type": "amp",
+  "name": "TW22",
+  "real": "57 Custom Deluxe (Fender)",
+  "family": "Tweed (Fender)",
+  "voice": "tweed",
+  "bass": false,
+  "cab": "1x12",
+  "source": "RS-to-AT5p gear map"
+}

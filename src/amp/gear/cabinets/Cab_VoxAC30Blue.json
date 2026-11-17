@@ -1,0 +1,9 @@
+{
+  "key": "Cab_VoxAC30Blue",
+  "type": "cabinet",
+  "name": "VoxAC30Blue",
+  "real": "2x12 Vox",
+  "bass": false,
+  "cab": "2x12",
+  "source": "RS-to-AT5p gear map"
+}

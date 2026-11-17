@@ -1,0 +1,9 @@
+{
+  "key": "Bass_Cab_BT212BC",
+  "type": "cabinet",
+  "name": "BT212BC",
+  "bass": true,
+  "cab": "bass",
+  "real": "Marshall (bass)",
+  "source": "RS-to-AT5p gear map"
+}

@@ -1,0 +1,11 @@
+{
+  "key": "Amp_MesaBoogieMarkIV",
+  "type": "amp",
+  "name": "MesaBoogieMarkIV",
+  "real": "Mark IV",
+  "family": "Other",
+  "voice": "mark",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map"
+}

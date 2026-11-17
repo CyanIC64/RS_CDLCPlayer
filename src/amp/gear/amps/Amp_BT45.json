@@ -1,0 +1,11 @@
+{
+  "key": "Amp_BT45",
+  "type": "amp",
+  "name": "BT45",
+  "real": "JH Gold (Marshall)",
+  "family": "British Tube (Marshall)",
+  "voice": "plexi",
+  "bass": false,
+  "cab": "4x12",
+  "source": "RS-to-AT5p gear map"
+}

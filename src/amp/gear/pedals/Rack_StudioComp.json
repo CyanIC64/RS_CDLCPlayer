@@ -1,0 +1,10 @@
+{
+  "key": "Rack_StudioComp",
+  "type": "rack",
+  "name": "StudioComp",
+  "real": "Compressor",
+  "category": "Reverb",
+  "model": "comp",
+  "params": {},
+  "source": "RS-to-AT5p gear map"
+}

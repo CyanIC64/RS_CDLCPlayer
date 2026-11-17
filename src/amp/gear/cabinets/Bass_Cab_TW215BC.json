@@ -1,0 +1,9 @@
+{
+  "key": "Bass_Cab_TW215BC",
+  "type": "cabinet",
+  "name": "TW215BC",
+  "real": "Bass",
+  "bass": true,
+  "cab": "bass",
+  "source": "RS-to-AT5p gear map"
+}

@@ -76,15 +76,59 @@ export const MODELS = {
 };
 export const GROUPS = ["Drive", "Dynamics", "Modulation", "Filter", "Pitch", "Time"];
 
-/* cabinets: an impulse response each (src/amp/ir), and a make-up gain */
+/* cabinets: an impulse response each (src/amp/ir), and a make-up gain that
+   brings them to about the same loudness (measured with the generic voice) */
 export const CABS = {
-  "1x12":    { name:"1x12 Combo",      ir:"c1x12",   gain:1.0 },
-  "2x12":    { name:"2x12 Combo",      ir:"c2x12",   gain:1.4 },
-  "4x12":    { name:"4x12 Vintage",    ir:"c4x12",   gain:1.0 },
-  "4x12m":   { name:"4x12 Modern",     ir:"c4x12m",  gain:0.8 },
-  "4x12t":   { name:"4x12 Classic",    ir:"tuna",    gain:1.0 },
-  "bass":    { name:"4x10 Bass",       ir:"cbass",   gain:1.6 },
+  "1x12":    { name:"1x12 Open back (American)",  ir:"c1x12",   gain:2.6 },
+  "2x12":    { name:"2x12 Open back (British)",   ir:"c2x12",   gain:1.7 },
+  "4x12":    { name:"4x12 Vintage (British)",     ir:"c4x12",   gain:0.8 },
+  "4x12j":   { name:"4x12 Lead (British, 80s)",   ir:"c4x12j",  gain:0.76 },
+  "4x12o":   { name:"4x12 Closed (English)",      ir:"c4x12o",  gain:13.7 },
+  "4x12m":   { name:"4x12 Modern (American)",     ir:"c4x12m",  gain:0.39 },
+  "4x12g":   { name:"4x12 Modern (German)",       ir:"c4x12g",  gain:0.89 },
+  "4x12t":   { name:"4x12 Classic",               ir:"tuna",    gain:1.6 },
+  "bass":    { name:"4x10 Tweed / Bass",          ir:"cbass",   gain:4.6 },
+  "none":    { name:"No cabinet (DI)",            ir:"",        gain:0.22 },
 };
+
+/* microphones on the cabinet (the end of a Rocksmith cabinet key: "_57_Cone"):
+   how much brighter (hi, dB at 3.5 kHz) and fuller (lo, dB at 150 Hz) each makes it */
+export const MIC_TYPES = { "57": { hi: 0, lo: 0 }, Ribbon: { hi: -2.5, lo: 1.5 }, Condenser: { hi: 1.5, lo: 0.5 }, Tube: { hi: -0.5, lo: 1.5 } };
+export const MIC_POS = { Cone: 1.5, Edge: -1.5, OffAxis: -3 };
+export const MICS = Object.keys(MIC_TYPES).flatMap((t) => Object.keys(MIC_POS).map((p) => `${t}_${p}`));
+export function micTilt(mic){
+  const [t, p] = String(mic || "").split("_");
+  const T = MIC_TYPES[t], P = MIC_POS[p];
+  return T && P !== undefined ? { hi: T.hi + P, lo: T.lo } : { hi: 0, lo: 0 };
+}
+
+/* amp voices: what kind of amp the head is. drive: the range the GAIN knob
+   sweeps (0..1 of the preamp's clipping); tight: Hz cut before the clipping
+   (more = tighter lows); mid: [Hz, dB, Q] the voice's own midrange; bright and
+   low: dB shelves at 2.5 kHz and 100 Hz; fizz: Hz the speaker rolls off from;
+   cab: the cabinet it usually drives; level: make-up, so that voices sound about
+   as loud as each other (measured, like the cabinets' gains). */
+export const VOICES = {
+  generic:  { name:"Generic",                 drive:[0, 1],       tight:70,  mid:[750, 0, 0.7],   bright:0,   low:0,    fizz:9000,  cab:"2x12", level:1 },
+  tweed:    { name:"Tweed (50s American)",    drive:[0.05, 0.72], tight:60,  mid:[700, 1.5, 0.7], bright:0.5, low:1,    fizz:6500,  cab:"1x12", level:1.0 },
+  american: { name:"American clean",          drive:[0.02, 0.45], tight:60,  mid:[500, -4, 0.7],  bright:2.5, low:1.5,  fizz:8500,  cab:"1x12", level:1.6 },
+  plexi:    { name:"British vintage (Plexi)", drive:[0.08, 0.8],  tight:90,  mid:[900, 2.5, 0.8], bright:1.5, low:0,    fizz:7000,  cab:"4x12", level:1.15 },
+  jcm:      { name:"British lead (JCM)",      drive:[0.15, 0.92], tight:110, mid:[800, 3, 0.9],   bright:1,   low:-0.5, fizz:7000,  cab:"4x12j", level:1.8 },
+  vox:      { name:"British chime (AC)",      drive:[0.05, 0.75], tight:85,  mid:[1200, 3, 0.7],  bright:3,   low:-1,   fizz:7500,  cab:"2x12", level:1.2 },
+  orange:   { name:"English (Orange)",        drive:[0.12, 0.92], tight:90,  mid:[600, 2.5, 0.8], bright:-1,  low:1.5,  fizz:6000,  cab:"4x12o", level:1.0 },
+  rectifier:{ name:"Rectified (Mesa Rect.)",  drive:[0.12, 1],    tight:130, mid:[750, -4, 0.7],  bright:1,   low:2,    fizz:6500,  cab:"4x12m", level:2.2 },
+  mark:     { name:"Californian lead (Mark)", drive:[0.1, 0.95],  tight:150, mid:[650, 1.5, 0.8], bright:1.5, low:-1,   fizz:7000,  cab:"4x12m", level:2.1 },
+  highgain: { name:"Modern high gain",        drive:[0.15, 1],    tight:150, mid:[700, -2, 0.8],  bright:0.5, low:1,    fizz:6000,  cab:"4x12m", level:2.4 },
+  german:   { name:"German (Diezel, ENGL)",   drive:[0.12, 1],    tight:140, mid:[850, 1, 0.8],   bright:1,   low:1,    fizz:6500,  cab:"4x12g", level:2.0 },
+  jazz:     { name:"Solid-state clean (JC)",  drive:[0, 0.2],     tight:50,  mid:[600, -1, 0.7],  bright:2,   low:0,    fizz:9500,  cab:"2x12", level:3.2 },
+  bass:     { name:"Bass tube",               drive:[0.02, 0.5],  tight:25,  mid:[500, 1, 0.7],   bright:0,   low:2,    fizz:5000,  cab:"bass", level:4, bass:true },
+  bassdi:   { name:"Bass DI",                 drive:[0, 0.15],    tight:25,  mid:[800, 0, 0.7],   bright:0,   low:0,    fizz:12000, cab:"none", level:6, bass:true },
+  di:       { name:"Direct (DI)",             drive:[0, 0.1],     tight:40,  mid:[800, 0, 0.7],   bright:0,   low:0,    fizz:12000, cab:"none", level:3 },
+};
+export const voiceOf = (id) => VOICES[id] || VOICES.generic;
+/* the knob position that gives the preamp `t` (0..1) on a voice, and back */
+export const driveOf = (voice, gain) => { const [a, b] = voiceOf(voice).drive; return a + (b - a) * clamp(gain, 0, 1); };
+export const gainFor = (voice, t) => { const [a, b] = voiceOf(voice).drive; return b === a ? 0 : clamp((t - a) / (b - a), 0, 1); };
 
 import { gearEntry, applyKnobs, cabOfGear } from "./gear.js";
 export { modelOfGear, cabOfGear, describeGear, gearEntry, applyKnobs } from "./gear.js";
@@ -111,8 +155,9 @@ export function makePedal(model, params = {}, id = "") {
   return { id: id || newId(model), model, on: true, params: p };
 }
 export function emptyBoard(bass = false) {
-  return { amp: { name: bass ? "Bass amp" : "Amp", bassAmp: !!bass, on: true, gain: 0.3, bass: 0, mid: 0, treble: 0, presence: 0 },
-           cab: bass ? "bass" : "2x12", pre: [], loop: [] };
+  return { amp: { name: bass ? "Bass amp" : "Amp", bassAmp: !!bass, on: true, voice: bass ? "bass" : "generic",
+                  gain: 0.3, bass: 0, mid: 0, treble: 0, presence: 0 },
+           cab: bass ? "bass" : "2x12", mic: "", pre: [], loop: [] };
 }
 
 /* ── from Rocksmith gear (through the gear library, gear.js) ─────────────── */
@@ -135,6 +180,8 @@ export function boardFromGear(gl, { bass = false, kind = "" } = {}) {
   if (ampE) {
     board.amp.name = ampE.name || board.amp.name;
     board.amp.gear = ampE.key;
+    if (ampE.real) board.amp.real = ampE.real;
+    if (VOICES[ampE.voice]) board.amp.voice = ampE.voice;
     const p = applyKnobs(ampE, ampG.KnobValues);
     for (const k of ["gain", "bass", "mid", "treble", "presence"]) if (Number.isFinite(p[k])) board.amp[k] = r3(p[k]);
   }
@@ -143,7 +190,11 @@ export function boardFromGear(gl, { bass = false, kind = "" } = {}) {
   /* the cabinet's own entry; with none, one that suits the amp and the kind of tone */
   board.cab = cabE && CABS[cabE.cab] ? cabE.cab
             : ampE && CABS[ampE.cab] ? ampE.cab
+            : ampE && VOICES[ampE.voice] ? VOICES[ampE.voice].cab
             : cabOfGear("", ampE ? ampE.key : "", { bass, kind });
+  if (cabE) { board.cabGear = cabG.Key; if (cabE.real) board.cabReal = cabE.real; }
+  const mic = /_((?:57|Ribbon|Condenser|Tube)_(?:Cone|Edge|OffAxis))$/i.exec((cabG && cabG.Key) || "");
+  board.mic = mic ? mic[1] : (cabE && cabE.mic) || "";
 
   const slots = Object.keys(gl).filter((s) => s !== "Amp" && s !== "Cabinet" && gl[s] && typeof gl[s] === "object");
   slots.sort((a, b) => ORDER(a) - ORDER(b));
@@ -152,12 +203,15 @@ export function boardFromGear(gl, { bass = false, kind = "" } = {}) {
     if (!e || !MODELS[e.model]) continue;
     const pedal = makePedal(e.model, applyKnobs(e, g.KnobValues), s.toLowerCase());
     pedal.gear = e.key;
+    if (e.real) pedal.real = e.real;
     (/^PrePedal/i.test(s) ? board.pre : board.loop).push(pedal);
   }
   /* the author's label wins over the amp's knob, unless a drive pedal before the amp gives the dirt */
+  /* (in the preamp's terms: a clean voice has little to give, a high-gain one never gets quite clean) */
   const range = KIND_GAIN[kind];
   if (range && !board.pre.some((p) => MODELS[p.model].fx === "Overdrive")) {
-    board.amp.gain = r3(clamp(board.amp.gain, range[0], range[1]));
+    const v = board.amp.voice, t = clamp(driveOf(v, board.amp.gain), range[0], range[1]);
+    board.amp.gain = r3(gainFor(v, t));
   }
   return board;
 }

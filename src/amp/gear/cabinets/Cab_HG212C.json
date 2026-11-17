@@ -1,0 +1,9 @@
+{
+  "key": "Cab_HG212C",
+  "type": "cabinet",
+  "name": "HG212C",
+  "real": "2x12 High gain (Mesa/Peavey)",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map"
+}

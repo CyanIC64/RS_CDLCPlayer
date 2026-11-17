@@ -1,0 +1,10 @@
+{
+  "key": "Pedal_80sFlanger",
+  "type": "pedal",
+  "name": "80sFlanger",
+  "real": "MXR 117",
+  "category": "Flanger",
+  "model": "flanger",
+  "params": { "feedback": 0.85 },
+  "source": "RS-to-AT5p gear map"
+}

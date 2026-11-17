@@ -1,0 +1,11 @@
+{
+  "key": "Amp_OrangeDualTerror",
+  "type": "amp",
+  "name": "OrangeDualTerror",
+  "real": "Orange Dual Terror",
+  "family": "Other",
+  "voice": "rectifier",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map"
+}

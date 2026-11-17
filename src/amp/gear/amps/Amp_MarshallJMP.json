@@ -1,0 +1,11 @@
+{
+  "key": "Amp_MarshallJMP",
+  "type": "amp",
+  "name": "MarshallJMP",
+  "real": "Marshall JMP",
+  "family": "Other",
+  "voice": "plexi",
+  "bass": false,
+  "cab": "4x12",
+  "source": "RS-to-AT5p gear map"
+}

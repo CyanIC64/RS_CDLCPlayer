@@ -1,0 +1,11 @@
+{
+  "key": "Amp_FenderPrinceton",
+  "type": "amp",
+  "name": "FenderPrinceton",
+  "real": "Fender '65 Princeton",
+  "family": "Other",
+  "voice": "american",
+  "bass": false,
+  "cab": "1x12",
+  "source": "RS-to-AT5p gear map"
+}

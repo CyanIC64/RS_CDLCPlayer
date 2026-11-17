@@ -1,0 +1,10 @@
+{
+  "key": "Pedal_TubeSpring",
+  "type": "pedal",
+  "name": "TubeSpring",
+  "real": "spring",
+  "category": "Reverb",
+  "model": "room",
+  "params": { "tone": 0.5 },
+  "source": "RS-to-AT5p gear map"
+}

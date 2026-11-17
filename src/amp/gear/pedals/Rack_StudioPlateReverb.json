@@ -1,0 +1,10 @@
+{
+  "key": "Rack_StudioPlateReverb",
+  "type": "rack",
+  "name": "StudioPlateReverb",
+  "real": "rack",
+  "category": "Reverb",
+  "model": "plate",
+  "params": {},
+  "source": "RS-to-AT5p gear map"
+}

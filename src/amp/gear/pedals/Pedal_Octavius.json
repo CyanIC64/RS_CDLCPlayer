@@ -1,0 +1,10 @@
+{
+  "key": "Pedal_Octavius",
+  "type": "pedal",
+  "name": "Octavius",
+  "real": "Boss OC-2",
+  "category": "Other",
+  "model": "octave",
+  "params": {},
+  "source": "RS-to-AT5p gear map"
+}

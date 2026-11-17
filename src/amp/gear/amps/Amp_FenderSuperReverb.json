@@ -1,0 +1,11 @@
+{
+  "key": "Amp_FenderSuperReverb",
+  "type": "amp",
+  "name": "FenderSuperReverb",
+  "real": "Fender '65 Super Reverb",
+  "family": "Other",
+  "voice": "american",
+  "bass": false,
+  "cab": "bass",
+  "source": "RS-to-AT5p gear map"
+}

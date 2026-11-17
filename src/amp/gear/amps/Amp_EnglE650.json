@@ -1,0 +1,11 @@
+{
+  "key": "Amp_EnglE650",
+  "type": "amp",
+  "name": "EnglE650",
+  "real": "E650",
+  "family": "Other",
+  "voice": "highgain",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map"
+}

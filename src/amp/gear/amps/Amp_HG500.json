@@ -1,0 +1,11 @@
+{
+  "key": "Amp_HG500",
+  "type": "amp",
+  "name": "HG500",
+  "real": "Triple Rectifier (Mesa/Peavey/Soldano)",
+  "family": "High Gain (Mesa/Peavey/Soldano)",
+  "voice": "rectifier",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map"
+}

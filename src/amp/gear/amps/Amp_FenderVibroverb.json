@@ -1,0 +1,11 @@
+{
+  "key": "Amp_FenderVibroverb",
+  "type": "amp",
+  "name": "FenderVibroverb",
+  "real": "Fender '64 Vibroverb Custom",
+  "family": "Other",
+  "voice": "american",
+  "bass": false,
+  "cab": "2x12",
+  "source": "RS-to-AT5p gear map"
+}

@@ -1,0 +1,9 @@
+{
+  "key": "Cab_EN212C",
+  "type": "cabinet",
+  "name": "EN212C",
+  "bass": false,
+  "cab": "2x12",
+  "real": "2x12 Orange",
+  "source": "RS-to-AT5p gear map"
+}

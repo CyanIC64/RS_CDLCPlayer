@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { describeGear, applyKnobs, gearEntry, knobName, LIBRARY } from "./gear.js";
-import { MODELS, CABS, boardFromGear } from "./catalog.js";
+import { MODELS, CABS, VOICES, boardFromGear } from "./catalog.js";
 import { pretty } from "./make-gear.mjs";
 
 describe("gear library", () => {
@@ -64,5 +64,42 @@ describe("gear library", () => {
     const txt = pretty({ key: "K", knobs: { Mix: { param: "mix", from: [0, 100], to: [0, 1] } } });
     expect(txt).toContain('"Mix": { "param": "mix", "from": [0, 100], "to": [0, 1] }');
     expect(JSON.parse(txt).knobs.Mix.to).toEqual([0, 1]);
+  });
+});
+
+describe("gear from the RS-to-AT5p map", () => {
+  it("links an amp by its key to what it really is, its voice and its cabinet", () => {
+    const b = boardFromGear({ Amp: { Key: "Amp_MarshallJCM800", KnobValues: { Amp_MarshallJCM800_Gain: 70, Amp_MarshallJCM800_Treble: 60 } } });
+    expect(b.amp).toMatchObject({ voice: "jcm", real: "Marshall JCM 800", gain: 0.7, treble: 2.4 });
+    expect(b.cab).toBe("4x12j");
+    expect(boardFromGear({ Amp: { Key: "Amp_TW22", KnobValues: {} } }).amp.voice).toBe("tweed");
+    expect(boardFromGear({ Amp: { Key: "Amp_CA100", KnobValues: {} } }).cab).toBe("4x12m");
+  });
+  it("links a cabinet key with its microphone to the enclosure, and keeps the microphone", () => {
+    const b = boardFromGear({ Amp: { Key: "Amp_CA100", KnobValues: {} }, Cabinet: { Key: "Cab_EN4120C_Ribbon_Edge" } });
+    expect(b.cab).toBe("4x12o");
+    expect(b.mic).toBe("Ribbon_Edge");
+    expect(b.cabGear).toBe("Cab_EN4120C_Ribbon_Edge");
+    expect(gearEntry("Cabinet", { Key: "Cab_TW410C_57_Edge" }).key).toBe("Cab_TW410C");
+  });
+  it("gives a pedal its own colour, and the tone's knobs over it", () => {
+    const b = boardFromGear({ Amp: { Key: "Amp_TW22", KnobValues: {} },
+                              PrePedal1: { Key: "Pedal_RangeBooster", KnobValues: { Pedal_RangeBooster_Gain: 80 } } });
+    expect(b.pre[0]).toMatchObject({ model: "boost", real: "Treble Booster" });
+    expect(b.pre[0].params).toMatchObject({ gain: 0.8, tone: 0.95 });
+  });
+  it("turns the gain for the author's label in the voice's terms", () => {
+    /* a Rectifier labelled clean: as clean as it gets, not the knob's 0.3 */
+    const clean = boardFromGear({ Amp: { Key: "Amp_CA100", KnobValues: { Amp_CA100_Gain: 90 } } }, { kind: "clean" });
+    expect(clean.amp.gain).toBeCloseTo((0.3 - 0.12) / 0.88, 2);
+    /* a Deluxe Reverb labelled distortion: flat out */
+    expect(boardFromGear({ Amp: { Key: "Amp_AT20", KnobValues: { Amp_AT20_Gain: 30 } } }, { kind: "distortion" }).amp.gain).toBe(1);
+  });
+  it("has an entry for every amp, effect and cabinet family of the map", () => {
+    const types = Object.values(LIBRARY).reduce((n, e) => ({ ...n, [e.type]: (n[e.type] || 0) + 1 }), {});
+    expect(types.amp).toBeGreaterThanOrEqual(100);
+    expect((types.pedal || 0) + (types.rack || 0)).toBeGreaterThanOrEqual(87);
+    expect(types.cabinet).toBeGreaterThanOrEqual(100);
+    for (const e of Object.values(LIBRARY)) if (e.type === "amp" && e.source) expect(VOICES[e.voice], e.key).toBeTruthy();
   });
 });

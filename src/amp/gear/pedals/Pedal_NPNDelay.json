@@ -1,0 +1,10 @@
+{
+  "key": "Pedal_NPNDelay",
+  "type": "pedal",
+  "name": "NPNDelay",
+  "real": "Delay",
+  "category": "Delay / Echo",
+  "model": "delay",
+  "params": {},
+  "source": "RS-to-AT5p gear map"
+}

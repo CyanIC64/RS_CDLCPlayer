@@ -1,0 +1,9 @@
+{
+  "key": "Cab_FenderDeluxeReverb",
+  "type": "cabinet",
+  "name": "FenderDeluxeReverb",
+  "real": "1x12 Fender",
+  "bass": false,
+  "cab": "1x12",
+  "source": "RS-to-AT5p gear map"
+}

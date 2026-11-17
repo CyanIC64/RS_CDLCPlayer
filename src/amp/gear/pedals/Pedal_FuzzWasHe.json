@@ -1,0 +1,10 @@
+{
+  "key": "Pedal_FuzzWasHe",
+  "type": "pedal",
+  "name": "FuzzWasHe",
+  "real": "Si Fuzz Face",
+  "category": "Distortion / Overdrive",
+  "model": "fuzz",
+  "params": { "tone": 0.55 },
+  "source": "RS-to-AT5p gear map"
+}

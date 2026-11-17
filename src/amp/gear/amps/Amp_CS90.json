@@ -1,0 +1,11 @@
+{
+  "key": "Amp_CS90",
+  "type": "amp",
+  "name": "CS90",
+  "real": "Jazz Amp 120 (Fender)",
+  "family": "Custom Shop (Fender)",
+  "voice": "jazz",
+  "bass": false,
+  "cab": "2x12",
+  "source": "RS-to-AT5p gear map"
+}

@@ -1,0 +1,11 @@
+{
+  "key": "Amp_FenderVibroking",
+  "type": "amp",
+  "name": "FenderVibroking",
+  "real": "Fender Vibro-King",
+  "family": "Other",
+  "voice": "american",
+  "bass": false,
+  "cab": "2x12",
+  "source": "RS-to-AT5p gear map"
+}

@@ -1,0 +1,11 @@
+{
+  "key": "Amp_Fender59Bassman",
+  "type": "amp",
+  "name": "Fender59Bassman",
+  "real": "Fender '59 Bassman LTD",
+  "family": "Other",
+  "voice": "tweed",
+  "bass": false,
+  "cab": "bass",
+  "source": "RS-to-AT5p gear map"
+}
