@@ -790,6 +790,7 @@
     used.add(cand);
     return cand;
   }
+  var GAME_LYRIC_LEAD = 0.1;
   async function parseLyrics(files) {
     const names = [...files.keys()].sort();
     for (const n of names) {
@@ -931,7 +932,8 @@
     if (!song.arrangements.length) throw new Error("no playable arrangements found");
     onProgress("Reading tones and lyrics\u2026");
     const tonesByArr = extractTonesForSong(files, song.arrangements.map((a) => a.name));
-    const { tokens: tokens2, source } = await parseLyrics(files);
+    const parsed = await parseLyrics(files), source = parsed.source;
+    const tokens2 = parsed.tokens.map((tk) => ({ ...tk, t: r32(Math.max(0, (tk.t || 0) - GAME_LYRIC_LEAD)) }));
     let lines = lyricsFromTokens(tokens2);
     let lyricError = "";
     if (lines.length) {

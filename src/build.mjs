@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const esbuild = require(process.env.ESBUILD || "esbuild");
 const here = path.dirname(fileURLToPath(import.meta.url));
-// V1.2's web/ scripts
-const out = process.argv[2] || path.join(here, "..", "deploy_ready", "V1.2", "web");
+// V1.2.1's web/ scripts
+const out = process.argv[2] || path.join(here, "..", "deploy_ready", "V1.2.1", "web");
 const define = {};
 fs.mkdirSync(out, { recursive: true });
 

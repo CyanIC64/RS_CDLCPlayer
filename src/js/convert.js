@@ -17,6 +17,12 @@ function arrId(name, used) {
   return cand;
 }
 
+/* The game shows each lyric syllable this long BEFORE its timestamp, so a
+   vocals XML - written for the game - has every syllable this much later than
+   it is sung. Reading one takes it off, so the lyrics match the singing. (A
+   .feedpak / .sloppak keeps the sung time and is read as it is.) */
+const GAME_LYRIC_LEAD = 0.100;
+
 // ── lyrics: vocals XML or lyric tokens -> lines (play_song._lyrics_from_tokens) ──
 const decodeText = (b) => new TextDecoder("utf-8", { fatal: false }).decode(b);
 
@@ -171,7 +177,9 @@ async function buildPayload(files, { name, hasCover, onProgress }) {
 
   onProgress("Reading tones and lyrics…");
   const tonesByArr = extractTonesForSong(files, song.arrangements.map((a) => a.name));
-  const { tokens, source } = await parseLyrics(files);
+  /* back on the sung time: a vocals XML is written GAME_LYRIC_LEAD later */
+  const parsed = await parseLyrics(files), source = parsed.source;
+  const tokens = parsed.tokens.map((tk) => ({ ...tk, t: r3(Math.max(0, (tk.t || 0) - GAME_LYRIC_LEAD)) }));
   let lines = lyricsFromTokens(tokens);
   let lyricError = "";
   if (lines.length) {

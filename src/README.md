@@ -1,9 +1,9 @@
-# Sources of deploy_ready/V1.2
+# Sources of deploy_ready/V1.2.1
 
-The converter scripts in `deploy_ready/V1.2/web/` are built from these sources. The page itself,
-`deploy_ready/V1.2/index.html`, is edited directly and has no build step.
+The converter scripts in `deploy_ready/V1.2.1/web/` are built from these sources. The page itself,
+`deploy_ready/V1.2.1/index.html`, is edited directly and has no build step.
 
-V1.2 opens song packs and charts only:
+V1.2.1 opens song packs and charts only:
 - `.feedpak` and `.sloppak` packs (the same format under two names);
 - unpacked pack folders and loose arrangement JSON;
 - arrangement XML with its audio.
@@ -21,7 +21,7 @@ V1.2 opens song packs and charts only:
 | `js/cover.js` | DDS cover art decoder (charting project folders) |
 | `js/zip.js` | minimal zip reader (`DecompressionStream`) |
 | `vendor/` | ww2ogg (BSD-3-Clause) and js-yaml (MIT) |
-| `build.mjs` | esbuild bundling into `../deploy_ready/V1.2/web/` |
+| `build.mjs` | esbuild bundling into `../deploy_ready/V1.2.1/web/` |
 
 ## Build
 
@@ -31,10 +31,13 @@ From `play_song_web_experiment/src_v1.2/`:
 ESBUILD=/path/to/node_modules/esbuild node build.mjs
 ```
 
-The script writes `converter.js` and `converter.worker.js` to `../deploy_ready/V1.2/web/`.
+The script writes `converter.js` and `converter.worker.js` to `../deploy_ready/V1.2.1/web/`.
 `web/ww2ogg.bundle.js` is a copy of `vendor/ww2ogg.bundle.js`.
 
 ## History
 
 Copied from the desktop Play Song's converter (`play_song_src`), with the game-archive reader, the
 encrypted chart reader and everything that used them removed. The desktop keeps them.
+
+V1.2.1 is V1.2's sources plus one change: lyrics read from a vocals XML are moved 100 ms earlier
+(`GAME_LYRIC_LEAD` in `js/convert.js`), so they match the singing.

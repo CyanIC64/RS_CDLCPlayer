@@ -21,6 +21,9 @@ There is no server, no upload and no account.
   pull-offs, harmonics, palm and fret-hand mutes, taps, tremolo, accents and more.
   Technique symbols are visible as far down the highway as the note itself.
 - Chord frames with chord names, finger-position indicators, and a chord diagram for the chord being held.
+  Muted chords are drawn darker than played ones, so the two are told apart at a glance.
+- Open strings written with a slide sweep off toward the nut, the way the slide is played.
+- Past the nut, the strings fade out and each one ends in the note it is tuned to, in its own colour.
 - Chord names and fret numbers are sized with the fretboard, as if printed on it, and fade in
   as they come closer.
 - The glow on the fret numbers under the neck slides to the next hand position together with the
@@ -33,23 +36,29 @@ There is no server, no upload and no account.
 - The chart as guitar tablature, with rhythm stems, chord names and lyrics under the bars.
 - A pointer line glides with the music and highlights the notes being played.
 - The syllable being sung is highlighted too. Bars sung before the guitar comes in are included.
-- Press **T** or click **Tab** to switch.
+- Press **T** or click **Tab** to switch. It opens right at the line being played.
 
 ### Lyrics
 - Karaoke-style, two lines in view. When a line is sung, the lyrics scroll up one line: the finished line
   fades out as it rises and the next one fades in below.
-- Seeking puts the right lines in place at once.
+- Seeking, or coming back from Tab view, puts the right lines in place at once.
+- Lyrics from a vocals XML are moved to match the singing (a vocals XML is timed slightly late on purpose).
 
 ### Playing along
 - Arrangement picker (Lead / Rhythm / Bass / …) right in the control bar.
 - Song speed from 20 % to 100 % without changing pitch.
+- Difficulty bars across the top: each phrase's bar is as tall as its hardest level, with an orange
+  line under the phrases still to come.
 - Loop the current section, or press, hold and drag on the difficulty bars to loop any stretch.
+  Cyan pins mark where the loop starts and ends, already while you drag.
 - Metronome and a note synth that plays the chart's notes.
 - Tone changes marked on the seek bar, with the current tone shown in the corner.
 - Stem picker for packs that carry separated stems.
 - Note-sync offset in 1 ms and 10 ms steps.
 - Switching songs while one plays fades the old one out over a second, sound and picture together,
-  before the new one loads.
+  before the new one loads. While a song is opening, the controls are locked so nothing is
+  pressed by accident.
+- At the end of a song, playback goes back to the start and pauses, ready to play again.
 
 ### Opening songs
 | What you drop | What happens |
@@ -112,7 +121,7 @@ web/converter.js            the same for the page itself (used when a Worker can
 web/ww2ogg.bundle.js        audio converter (.wem to Ogg Vorbis) for the in-page converter
 ```
 
-The scripts in `web/` are built from the sources in `src_v1.2/` (in the development tree) with esbuild:
+The scripts in `web/` are built from the sources in `src_v1.2.1/` (in the development tree) with esbuild:
 
 ```bash
 ESBUILD=/path/to/node_modules/esbuild node build.mjs
@@ -150,6 +159,21 @@ changed. The only data the page stores is your settings, in your browser's `loca
 ---
 
 ## Version
+
+**V1.2.1**, built on V1.2:
+- **Difficulty bars:** heights follow each phrase's hardest level, with gaps between bars and an
+  orange line under the phrases still to come.
+- **Loops:** cyan pins mark the start and end of a loop, and show while you drag a selection.
+- **Highway:**
+  - muted chords drawn darker;
+  - open strings with a slide sweep toward the nut;
+  - each string's tuning written past the nut.
+- **Lyrics:** vocals XML lyrics are moved to match the singing; coming back from Tab view no longer
+  scrolls the lyrics from far away.
+- **Tab view:** opens right at the line being played.
+- **Playback:** at the end of a song, it goes back to the start and pauses, with the camera easing back.
+- **Loading:** the controls are locked while a song opens.
+- **Icon:** a page icon.
 
 **V1.2**, built on V1.1:
 - **Formats:** opens `.feedpak` and `.sloppak` packs, unpacked pack folders, arrangement JSON and
