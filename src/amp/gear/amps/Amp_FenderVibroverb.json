@@ -7,5 +7,18 @@
   "voice": "american",
   "bass": false,
   "cab": "2x12",
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "head",
+    "theme": "blackface",
+    "controls": [
+      { "type": "switch", "label": "BRIGHT", "param": "bright", "options": [
+          ["OFF", 0], ["ON", 6]
+        ] },
+      { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 },
+      { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 },
+      { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 },
+      { "type": "knob", "label": "REVERB", "param": "reverb", "scale": 10 }
+    ]
+  }
 }

@@ -6,5 +6,22 @@
   "category": "Delay / Echo",
   "model": "echo",
   "params": { "tone": 0.45, "feedback": 0.4 },
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "wide",
+    "color": "#1f2b4a",
+    "knob": "chrome",
+    "title": "COSMONAUT ECHO",
+    "after": "Eventide Space (Blackhole) / Memory Man",
+    "controls": [
+      { "type": "knob", "label": "DELAY", "param": "time" },
+      { "type": "knob", "label": "FEEDBACK", "param": "feedback" },
+      { "type": "knob", "label": "BLEND", "param": "mix" },
+      { "type": "knob", "label": "TONE", "param": "tone" }
+    ],
+    "ink": "#cfe0ff"
+  },
+  "alt": [
+    "Eventide Space [BLACKHOLE]"
+  ]
 }

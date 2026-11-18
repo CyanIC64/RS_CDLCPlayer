@@ -6,5 +6,26 @@
   "category": "EQ",
   "model": "eq",
   "params": {},
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "tall",
+    "color": "#e6e6e2",
+    "ink": "#1b1b1b",
+    "knob": "mxr",
+    "title": "8 BAND EQ",
+    "after": "Guyatone 8 band graphic equalizer",
+    "bands": [63, 125, 250, 500, 1000, 2000, 4000, 8000],
+    "controls": [
+      { "type": "slider", "label": "63", "param": "g0" },
+      { "type": "slider", "label": "125", "param": "g1" },
+      { "type": "slider", "label": "250", "param": "g2" },
+      { "type": "slider", "label": "500", "param": "g3" },
+      { "type": "slider", "label": "1k", "param": "g4" },
+      { "type": "slider", "label": "2k", "param": "g5" },
+      { "type": "slider", "label": "4k", "param": "g6" },
+      { "type": "slider", "label": "8k", "param": "g7" },
+      { "type": "slider", "label": "LEVEL", "param": "level" }
+    ]
+  },
+  "alt": ["1979 Guyatone 8 band graphic equalizer", "2008 Artec SE-EQ8 Graphic EQ"]
 }

@@ -6,5 +6,20 @@
   "category": "Flanger",
   "model": "flanger",
   "params": { "feedback": 0.85 },
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "mxr",
+    "color": "#262626",
+    "knob": "mxr",
+    "title": "80'S FLANGER",
+    "after": "MXR M117R Flanger",
+    "controls": [
+      { "type": "knob", "label": "MANUAL", "param": "manual" },
+      { "type": "knob", "label": "WIDTH", "param": "depth" },
+      { "type": "knob", "label": "SPEED", "param": "rate" },
+      { "type": "knob", "label": "REGEN", "param": "feedback" }
+    ],
+    "ink": "#e9e9e9"
+  },
+  "alt": ["1976 MXR M117R Flanger"]
 }

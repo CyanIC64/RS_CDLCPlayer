@@ -6,5 +6,18 @@
   "category": "Delay / Echo",
   "model": "delay",
   "params": {},
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "compact",
+    "color": "#6e7378",
+    "knob": "boss",
+    "title": "MOD DELAY",
+    "after": "Ibanez DML10",
+    "controls": [
+      { "type": "knob", "label": "DELAY TIME", "param": "time" },
+      { "type": "knob", "label": "FEEDBACK", "param": "feedback" },
+      { "type": "knob", "label": "LEVEL", "param": "mix" }
+    ]
+  },
+  "alt": ["1986 Ibanez DML10 Digital Modulation Delay", "1980s Boss RDD-10 Digital Delay"]
 }

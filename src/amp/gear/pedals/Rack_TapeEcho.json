@@ -6,5 +6,20 @@
   "category": "Delay / Echo",
   "model": "echo",
   "params": {},
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "rack",
+    "color": "#2f3d33",
+    "ink": "#efe6cf",
+    "knob": "chicken",
+    "title": "TAPE ECHO",
+    "after": "Roland Space Echo RE-150",
+    "controls": [
+      { "type": "knob", "label": "REPEAT RATE", "param": "time", "min": 60, "max": 650 },
+      { "type": "knob", "label": "INTENSITY", "param": "feedback" },
+      { "type": "knob", "label": "ECHO VOLUME", "param": "mix" },
+      { "type": "knob", "label": "TREBLE", "param": "tone" }
+    ]
+  },
+  "alt": ["1974 (1979) Roland Space Echo (RE-150)"]
 }

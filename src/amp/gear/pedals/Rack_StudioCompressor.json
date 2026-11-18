@@ -12,5 +12,19 @@
   },
   "params": {},
   "real": "Tube Compressor",
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "rack",
+    "color": "#26292d",
+    "ink": "#d9dde2",
+    "knob": "rack",
+    "title": "STUDIO COMPRESSOR",
+    "after": "dbx 160",
+    "controls": [
+      { "type": "knob", "label": "THRESHOLD", "param": "threshold" },
+      { "type": "knob", "label": "COMPRESSION", "param": "ratio" },
+      { "type": "knob", "label": "OUTPUT GAIN", "param": "level" }
+    ]
+  },
+  "alt": ["1976 DBX 160 - VCA compressor/limiter"]
 }

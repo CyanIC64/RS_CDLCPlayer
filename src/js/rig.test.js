@@ -52,8 +52,8 @@ describe("toneRig board", () => {
     }, ["$[35722]DISTORTION"]));
     const b = rig.board;
     expect(b.pre.map((p) => p.model)).toEqual(["octave", "chorus"]);
-    expect(b.loop.map((p) => p.model)).toEqual(["comp"]);
-    expect(b.loop[0].params).toMatchObject({ threshold: -22.5, ratio: 2, attack: 75, release: 170 });
+    expect(b.rack.map((p) => p.model)).toEqual(["comp"]);
+    expect(b.rack[0].params).toMatchObject({ threshold: -22.5, ratio: 2, attack: 75, release: 170 });
     expect(b.pre[0].params.mix).toBe(0.66);
     expect(b.pre[1].params.depth).toBe(0.4);
     expect(b.pre.map((p) => p.id)).toEqual(["prepedal1", "prepedal2"]);

@@ -6,5 +6,20 @@
   "category": "Wah / Filter",
   "model": "wah",
   "params": {},
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "wide",
+    "color": "#1d1d1d",
+    "ink": "#e9e2d0",
+    "knob": "chrome",
+    "wood": true,
+    "title": "ANALOG FILTER",
+    "after": "Moogerfooger MF-105M MuRF / EHX",
+    "controls": [
+      { "type": "knob", "label": "ENVELOPE", "param": "sensitivity" },
+      { "type": "knob", "label": "CUTOFF", "param": "baseFrequency" },
+      { "type": "knob", "label": "RESONANCE", "param": "resonance" }
+    ]
+  },
+  "alt": ["2009 Moogerfooger MF-105M MIDI MuRF Analog Filter", "EHX MonoSynth"]
 }

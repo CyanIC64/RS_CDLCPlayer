@@ -10,5 +10,18 @@
   },
   "params": {},
   "real": "Roger Mayer Octavia",
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "mxr",
+    "color": "#c4c6c8",
+    "knob": "mxr",
+    "title": "OCTAVE UP!",
+    "after": "Roger Mayer Octavia / Foxrox Octron",
+    "controls": [
+      { "type": "knob", "label": "OCTAVE", "param": "mix" },
+      { "type": "knob", "label": "DIRECT", "param": "dry" }
+    ],
+    "ink": "#1b1b1b"
+  },
+  "alt": ["Earthquaker Tentacle", "2005 Foxrox Octron"]
 }

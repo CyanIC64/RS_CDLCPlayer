@@ -6,5 +6,18 @@
   "category": "Chorus",
   "model": "chorus",
   "params": {},
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "wide",
+    "color": "#5d7d99",
+    "knob": "chrome",
+    "title": "CHORUS 2.0",
+    "after": "Fulltone Deja Vibe / Roland CE-1",
+    "controls": [
+      { "type": "knob", "label": "INTENSITY", "param": "depth" },
+      { "type": "knob", "label": "RATE", "param": "rate" }
+    ],
+    "ink": "#f2f2f2"
+  },
+  "alt": ["1993 Fulltone Deja Vibe ( chorus mode )", "1976 TC Electronics Stereo Chorus +"]
 }

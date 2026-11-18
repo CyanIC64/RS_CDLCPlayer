@@ -6,5 +6,18 @@
   "category": "Tremolo / Vibrato",
   "model": "phaser",
   "params": { "rate": 2, "depth": 0.8, "feedback": 0.3 },
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "tall",
+    "color": "#e7dcc2",
+    "ink": "#2a2416",
+    "knob": "cream",
+    "title": "AMP VIBE",
+    "after": "Origin Effects Magma57 Amp Vibrato",
+    "controls": [
+      { "type": "knob", "label": "SPEED", "param": "rate" },
+      { "type": "knob", "label": "INTENSITY", "param": "depth" }
+    ]
+  },
+  "alt": ["Origin Effects MAGMA57 Amp Vibrato (and Drive)", "2020 ? Surfy Industries Surfy Vibe"]
 }

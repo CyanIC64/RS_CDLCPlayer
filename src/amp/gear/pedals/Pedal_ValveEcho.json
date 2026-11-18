@@ -6,5 +6,20 @@
   "category": "Delay / Echo",
   "model": "echo",
   "params": { "tone": 0.4 },
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "wide",
+    "color": "#d9cfb4",
+    "knob": "chicken",
+    "title": "VALVE ECHO",
+    "after": "Binson Echorec / Maestro Echoplex",
+    "controls": [
+      { "type": "knob", "label": "ECHO DELAY", "param": "time" },
+      { "type": "knob", "label": "REPEATS", "param": "feedback" },
+      { "type": "knob", "label": "ECHO VOLUME", "param": "mix" },
+      { "type": "knob", "label": "TONE", "param": "tone" }
+    ],
+    "ink": "#3a2a16"
+  },
+  "alt": ["1958 Binson EchoRec or Watkins Copicat", "Maestro Echoplex EP-3 (Solid state)"]
 }

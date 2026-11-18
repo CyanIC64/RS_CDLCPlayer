@@ -6,5 +6,21 @@
   "category": "Distortion / Overdrive",
   "model": "dist",
   "params": {},
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "compact",
+    "color": "#3a3d40",
+    "knob": "boss",
+    "title": "SHRED ZONE",
+    "after": "Boss MT-2 Metal Zone",
+    "controls": [
+      { "type": "knob", "label": "LEVEL", "param": "level", "size": "s" },
+      { "type": "knob", "label": "HIGH", "param": "treble", "size": "s" },
+      { "type": "knob", "label": "LOW", "param": "bass", "size": "s" },
+      { "type": "knob", "label": "DIST", "param": "gain", "size": "s" },
+      { "type": "knob", "label": "MIDDLE", "param": "mid", "size": "s" }
+    ],
+    "ink": "#e8423a"
+  },
+  "alt": ["1991 Boss MT-2 Metal Zone"]
 }

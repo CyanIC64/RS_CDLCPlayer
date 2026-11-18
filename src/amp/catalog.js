@@ -5,11 +5,13 @@
 // No audio and no DOM here: the converter (src/js/rig.js) builds a board for
 // every tone with it, and the page and its tests read the same tables.
 //
-// A board:
-//   { amp: { name, bassAmp, on, gain, bass, mid, treble, presence },   gain 0..1, EQ in dB
-//     cab: "4x12",                                                     a CABS id
-//     pre:  [ {id, model, on, params} ],                               pedals before the amp
-//     loop: [ {id, model, on, params} ] }                              effects after it (racks, post pedals)
+// A board, in the order of Rocksmith's tone designer - pre, amp, loop, cabinet, rack:
+//   { pre:  [ {id, model, on, params} ],                               pedals before the amp (PrePedal1..)
+//     amp:  { name, voice, bassAmp, on, gain, bass, mid, treble, presence },  gain 0..1, EQ in dB
+//     loop: [ {id, model, on, params} ],                               the amp's effects loop, before the
+//                                                                      cabinet (PostPedal1.., LoopPedal1..)
+//     cab: "4x12", mic: "57_Cone", cabOn,                              a CABS id, a MICS id
+//     rack: [ {id, model, on, params} ] }                              studio effects after the cabinet (Rack1..)
 
 /* the knobs of each kind of effect; a model sets their starting values */
 export const FX = {
@@ -45,6 +47,20 @@ export const FX = {
                          { k:"dry",  label:"DRY",    min:0, max:1, step:0.01, def:1 } ] },
 };
 
+/* settings the generic pedals do not show, for the controls of real gear (gear/*.json "face"):
+   a Metal Zone's EQ, a Dyna Comp's output, a flanger's manual, a graphic EQ's sliders */
+const dBk = (k, label) => ({ k, label, min:-12, max:12, step:0.5, def:0, unit:"dB" });
+FX.Overdrive.extra  = [dBk("bass", "BASS"), dBk("mid", "MID"), dBk("treble", "TREBLE")];
+FX.Compressor.extra = [dBk("level", "LEVEL")];
+FX.Chorus.extra     = [{ k:"manual", label:"MANUAL", min:0.5, max:15, step:0.1, def:4.5, unit:"ms" }];
+FX.EQ.extra         = Array.from({ length: 10 }, (_, i) => dBk("g" + i, "BAND " + (i + 1)));
+for (const f of Object.values(FX)) f.extra = f.extra || [];
+/** every setting of an effect: its knobs, then the extra ones */
+export const paramsOf = (fx) => (FX[fx] ? [...FX[fx].knobs, ...FX[fx].extra] : []);
+
+/* the bands of a graphic EQ with no face of its own (a 7-band pedal's) */
+export const EQ_BANDS = [100, 200, 400, 800, 1600, 3200, 6400];
+
 /* the knobs of the amp head (the master volume is the page's amp volume) */
 export const AMP_KNOBS = [
   { k:"gain",     label:"GAIN",     min:0, max:1, step:0.01, def:0.3 },
@@ -53,6 +69,15 @@ export const AMP_KNOBS = [
   { k:"treble",   label:"TREBLE",   min:-12, max:12, step:0.5, def:0, unit:"dB" },
   { k:"presence", label:"PRESENCE", min:-12, max:12, step:0.5, def:0, unit:"dB" },
 ];
+/* what some real heads have besides (their faces show them): a bright switch, a depth
+   (resonance) knob, the amp's own reverb, and a graphic EQ (a Mark series' five sliders) */
+export const AMP_EXTRA = [
+  { k:"bright", label:"BRIGHT", min:0, max:9, step:0.5, def:0, unit:"dB" },
+  { k:"depth",  label:"DEPTH",  min:0, max:1, step:0.01, def:0 },
+  { k:"reverb", label:"REVERB", min:0, max:1, step:0.01, def:0 },
+  ...[80, 240, 750, 2200, 6600].map((f, i) => ({ k:"eq" + i, label: f < 1000 ? String(f) : f / 1000 + "K", min:-12, max:12, step:0.5, def:0, unit:"dB", hz:f })),
+];
+export const AMP_PARAMS = [...AMP_KNOBS, ...AMP_EXTRA];
 
 /* the pedals of the "+" menu. `tuna` holds settings the knobs do not show. */
 export const MODELS = {
@@ -63,7 +88,7 @@ export const MODELS = {
   fuzz:    { name:"Fuzz",         group:"Drive",      fx:"Overdrive", color:"#8a8f99", tuna:{ algorithm:2 }, params:{ gain:0.7, tone:0.45, level:0.5 } },
   comp:    { name:"Compressor",   group:"Dynamics",   fx:"Compressor",color:"#2f6fc0", params:{} },
   chorus:  { name:"Chorus",       group:"Modulation", fx:"Chorus",    color:"#6fb8d9", params:{} },
-  flanger: { name:"Flanger",      group:"Modulation", fx:"Chorus",    color:"#9b5fc0", tuna:{ delay:0.002 }, params:{ rate:0.4, depth:0.8, feedback:0.75 } },
+  flanger: { name:"Flanger",      group:"Modulation", fx:"Chorus",    color:"#9b5fc0", params:{ rate:0.4, depth:0.8, feedback:0.75, manual:2 } },
   phaser:  { name:"Phaser",       group:"Modulation", fx:"Phaser",    color:"#e0a020", params:{} },
   tremolo: { name:"Tremolo",      group:"Modulation", fx:"Tremolo",   color:"#e6cf45", params:{} },
   wah:     { name:"Auto Wah",     group:"Filter",     fx:"WahWah",    color:"#b13b3b", params:{} },
@@ -131,7 +156,7 @@ export const driveOf = (voice, gain) => { const [a, b] = voiceOf(voice).drive; r
 export const gainFor = (voice, t) => { const [a, b] = voiceOf(voice).drive; return b === a ? 0 : clamp((t - a) / (b - a), 0, 1); };
 
 import { gearEntry, applyKnobs, cabOfGear } from "./gear.js";
-export { modelOfGear, cabOfGear, describeGear, gearEntry, applyKnobs } from "./gear.js";
+export { modelOfGear, cabOfGear, describeGear, gearEntry, applyKnobs, faceOf, LIBRARY } from "./gear.js";
 
 /* ── helpers ──────────────────────────────────────────────────────────────── */
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -152,12 +177,17 @@ export function makePedal(model, params = {}, id = "") {
     const v = Number(params[kn.k] ?? m.params[kn.k] ?? kn.def);
     p[kn.k] = r3(clamp(Number.isFinite(v) ? v : kn.def, kn.min, kn.max));
   }
+  /* the extra settings only when given (the defaults leave the sound as it is) */
+  for (const kn of FX[m.fx].extra) {
+    const v = Number(params[kn.k] ?? m.params[kn.k]);
+    if (Number.isFinite(v)) p[kn.k] = r3(clamp(v, kn.min, kn.max));
+  }
   return { id: id || newId(model), model, on: true, params: p };
 }
 export function emptyBoard(bass = false) {
   return { amp: { name: bass ? "Bass amp" : "Amp", bassAmp: !!bass, on: true, voice: bass ? "bass" : "generic",
                   gain: 0.3, bass: 0, mid: 0, treble: 0, presence: 0 },
-           cab: bass ? "bass" : "2x12", mic: "", pre: [], loop: [] };
+           cab: bass ? "bass" : "2x12", mic: "", cabOn: true, pre: [], loop: [], rack: [] };
 }
 
 /* ── from Rocksmith gear (through the gear library, gear.js) ─────────────── */
@@ -183,7 +213,7 @@ export function boardFromGear(gl, { bass = false, kind = "" } = {}) {
     if (ampE.real) board.amp.real = ampE.real;
     if (VOICES[ampE.voice]) board.amp.voice = ampE.voice;
     const p = applyKnobs(ampE, ampG.KnobValues);
-    for (const k of ["gain", "bass", "mid", "treble", "presence"]) if (Number.isFinite(p[k])) board.amp[k] = r3(p[k]);
+    for (const kn of AMP_PARAMS) if (Number.isFinite(p[kn.k])) board.amp[kn.k] = r3(p[kn.k]);
   }
   const cabG = gl.Cabinet && typeof gl.Cabinet === "object" ? gl.Cabinet : null;
   const cabE = cabG ? gearEntry("Cabinet", cabG) : null;
@@ -204,7 +234,7 @@ export function boardFromGear(gl, { bass = false, kind = "" } = {}) {
     const pedal = makePedal(e.model, applyKnobs(e, g.KnobValues), s.toLowerCase());
     pedal.gear = e.key;
     if (e.real) pedal.real = e.real;
-    (/^PrePedal/i.test(s) ? board.pre : board.loop).push(pedal);
+    (/^PrePedal/i.test(s) ? board.pre : /^Rack/i.test(s) ? board.rack : board.loop).push(pedal);
   }
   /* the author's label wins over the amp's knob, unless a drive pedal before the amp gives the dirt */
   /* (in the preamp's terms: a clean voice has little to give, a high-gain one never gets quite clean) */
@@ -240,14 +270,21 @@ export function boardFromRig(rig) {
   if (r.octave > 0) board.pre.push(makePedal("octave", { mix: r.octave }));
   if (r.mod > 0) board.loop.push(makePedal("chorus", { depth: r.mod }));
   if (r.delay > 0) board.loop.push(makePedal("delay", { mix: r.delay }));
-  if (r.reverb > 0) board.loop.push(makePedal("room", { mix: r.reverb }));
+  if (r.reverb > 0) board.rack.push(makePedal("room", { mix: r.reverb }));
   return board;
+}
+
+/* a board made before the rack: its loop ran after the cabinet, so it is the rack now */
+function sections(b) {
+  if (!Array.isArray(b.rack)) { b.rack = b.loop; b.loop = []; }
+  if (b.cabOn === undefined) b.cabOn = true;
+  return b;
 }
 
 /** whatever the page holds for a tone, as a board */
 export function asBoard(x, { bass = false } = {}) {
-  if (x && x.amp && typeof x.amp === "object" && Array.isArray(x.pre) && Array.isArray(x.loop)) return x;
-  if (x && x.board) return x.board;
+  if (x && x.amp && typeof x.amp === "object" && Array.isArray(x.pre) && Array.isArray(x.loop)) return sections(x);
+  if (x && x.board) return sections(x.board);
   if (x && typeof x === "object") return boardFromRig({ ...x, bass: x.bass || bass });
   return emptyBoard(bass);
 }

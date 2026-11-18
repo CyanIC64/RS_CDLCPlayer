@@ -1,7 +1,7 @@
 // The guitar input played through the song's tones: a pedalboard in Web Audio,
 // exposed to the page as window.AmpKit (built into web/amp.js).
 //
-//   input ─ gate ─ pedals before the amp ─ amp (preamp, tone stack, cabinet) ─ effects loop ─ room ─ level ─ out
+//   input ─ gate ─ pre ─ amp (preamp, voice, tone stack) ─ loop ─ cabinet (+ mic) ─ rack ─ room ─ level ─ out
 //
 // What each tone holds - amp, cabinet and pedals, in order - is a "board"
 // (src/amp/catalog.js): the converter makes one from the tone's gear, and the
@@ -14,7 +14,7 @@
 // adding, removing or moving a pedal builds the chain again and crossfades.
 
 import Tuna from "tunajs";
-import { FX, MODELS, CABS, asBoard, emptyBoard, boardFromRig, voiceOf, driveOf, micTilt } from "./catalog.js";
+import { FX, MODELS, CABS, AMP_PARAMS, EQ_BANDS, paramsOf, faceOf, asBoard, emptyBoard, boardFromRig, voiceOf, driveOf, micTilt } from "./catalog.js";
 import irTuna from "./ir/tuna_guitar.wav";
 import ir1x12 from "./ir/cab_1x12.wav";
 import ir2x12 from "./ir/cab_2x12.wav";
@@ -27,7 +27,7 @@ import ir4x12g from "./ir/cab_4x12_engl.wav";
 import irRoom from "./ir/rev_room.wav";
 import irPlate from "./ir/rev_short.wav";
 
-export { FX, MODELS, CABS, GROUPS, AMP_KNOBS, VOICES, MICS, makePedal, emptyBoard, boardFromRig, boardFromGear, asBoard, knobsOf } from "./catalog.js";
+export { FX, MODELS, CABS, GROUPS, AMP_KNOBS, AMP_EXTRA, AMP_PARAMS, VOICES, MICS, EQ_BANDS, LIBRARY, paramsOf, faceOf, makePedal, emptyBoard, boardFromRig, boardFromGear, asBoard, knobsOf } from "./catalog.js";
 export { mountBoard } from "./board.ui.js";
 
 const IR_BYTES = { tuna: irTuna, c1x12: ir1x12, c2x12: ir2x12, c4x12: ir4x12, c4x12m: ir4x12m, cbass: irBass,
@@ -132,7 +132,9 @@ const BUILD = {
       const alg = (model.tuna && model.tuna.algorithm) || 0;
       const pre = N.g(1), od = new S.tuna.Overdrive({ drive: 1, outputGain: 0, curveAmount: 0.5, algorithmIndex: alg });
       const lp = N.bq("lowpass", 4000), post = N.g(1);
-      pre.connect(od.input); od.output.connect(lp); lp.connect(post);
+      /* the EQ some drives have after the clipping (a Metal Zone's, an HM-2's); flat unless set */
+      const eLo = N.bq("lowshelf", 120), eMid = N.bq("peaking", 900, 0, 0.9), eHi = N.bq("highshelf", 3000);
+      pre.connect(od.input); od.output.connect(lp); lp.connect(eLo); eLo.connect(eMid); eMid.connect(eHi); eHi.connect(post);
       const set = (k, v) => {
         if (k === "gain"){
           const k2 = 2 + 400 * v * v * v + 30 * v;
@@ -141,23 +143,28 @@ const BUILD = {
           p.gain = v; set("level", p.level);
         } else if (k === "tone"){ N.ramp(lp.frequency, 600 * Math.pow(2, v * 4.5)); }
         else if (k === "level"){ N.ramp(post.gain, dB(-24 + 30 * v) / (1 + 1.5 * p.gain)); p.level = v; }
+        else if (k === "bass") N.ramp(eLo.gain, v);
+        else if (k === "mid") N.ramp(eMid.gain, v);
+        else if (k === "treble") N.ramp(eHi.gain, v);
       };
-      for (const k of ["gain", "tone", "level"]) set(k, p[k]);
+      for (const k of ["gain", "tone", "level", "bass", "mid", "treble"]) set(k, p[k]);
       return { input: pre, output: post, set, close: () => closeTuna(od) };
     });
   },
   Compressor(ctx, S, model, p){
-    return part(ctx, () => {
+    return part(ctx, (N) => {
       const c = new S.tuna.Compressor({ threshold: p.threshold, ratio: p.ratio, attack: p.attack, release: p.release,
                                         knee: 6, automakeup: true });
-      return { input: c.input, output: c.output, set: (k, v) => { c[k] = v; c.automakeup = true; }, close: () => closeTuna(c) };
+      const out = N.g(dB(p.level || 0));
+      c.output.connect(out);
+      const set = (k, v) => { if (k === "level") N.ramp(out.gain, dB(v)); else { c[k] = v; c.automakeup = true; } };
+      return { input: c.input, output: out, set, close: () => closeTuna(c) };
     });
   },
   Chorus(ctx, S, model, p){
     return part(ctx, () => {
-      const c = new S.tuna.Chorus({ rate: p.rate, depth: p.depth, feedback: p.feedback,
-                                    delay: (model.tuna && model.tuna.delay) || 0.0045 });
-      return { input: c.input, output: c.output, set: (k, v) => { c[k] = v; }, close: () => closeTuna(c) };
+      const c = new S.tuna.Chorus({ rate: p.rate, depth: p.depth, feedback: p.feedback, delay: p.manual / 1000 });
+      return { input: c.input, output: c.output, set: (k, v) => { if (k === "manual") c.delay = v / 1000; else c[k] = v; }, close: () => closeTuna(c) };
     });
   },
   Phaser(ctx, S, model, p){
@@ -209,14 +216,20 @@ const BUILD = {
   EQ(ctx, S, model, p){
     return part(ctx, (N) => {
       const lo = N.bq("lowshelf", 120), mid = N.bq("peaking", 800, 0, 0.8), hi = N.bq("highshelf", 3200), lvl = N.g(1);
-      lo.connect(mid); mid.connect(hi); hi.connect(lvl);
+      /* a graphic EQ's sliders (g0, g1...) at the bands of its face; flat unless set */
+      const bands = (model.bands || EQ_BANDS).slice(0, 10).map((f, i, all) =>
+        N.bq("peaking", f, 0, all.length > 7 ? 1.8 : 1.2));
+      let at = lo;
+      for (const n of [mid, hi, ...bands]){ at.connect(n); at = n; }
+      at.connect(lvl);
       const set = (k, v) => {
         if (k === "bass") N.ramp(lo.gain, v);
         else if (k === "mid") N.ramp(mid.gain, v);
         else if (k === "treble") N.ramp(hi.gain, v);
         else if (k === "level") N.ramp(lvl.gain, dB(v));
+        else if (/^g\d$/.test(k) && bands[+k[1]]) N.ramp(bands[+k[1]].gain, v);
       };
-      for (const k of ["bass", "mid", "treble", "level"]) set(k, p[k]);
+      for (const kn of paramsOf("EQ")) set(kn.k, p[kn.k]);
       return { input: lo, output: lvl, set };
     });
   },
@@ -237,13 +250,11 @@ const BUILD = {
   },
 };
 
-/* the amp: preamp (Tuna's soft clipper, tightened in the lows as high-gain amps
-   are), the voice of the amp (its own mids, brightness and lows), a tone stack,
-   the cabinet and its microphone */
+/* the amp head: preamp (Tuna's soft clipper, tightened in the lows as high-gain
+   amps are), the voice of the amp (its own mids, brightness and lows) and a tone
+   stack. The cabinet is a part of its own, after the effects loop. */
 function buildAmp(ctx, S, board){
   const a = board.amp, V = voiceOf(a.voice), bass = !!a.bassAmp || !!V.bass;
-  const cab = CABS[board.cab] || CABS[bass ? "bass" : V.cab] || CABS["2x12"];
-  const mic = micTilt(board.mic);
   return part(ctx, (N) => {
     const tight = N.bq("highpass", V.tight);
     const od = new S.tuna.Overdrive({ drive: 1, outputGain: 0, curveAmount: 0.5, algorithmIndex: 0 });
@@ -252,14 +263,17 @@ function buildAmp(ctx, S, board){
           vBright = N.bq("highshelf", 2500, V.bright);
     const lo = N.bq("lowshelf", bass ? 90 : 140), mid = N.bq("peaking", bass ? 600 : 750, 0, 0.8),
           hi = N.bq("highshelf", bass ? 2500 : 3000), pres = N.bq("peaking", 4500, 0, 1);
-    const cv = N.conv(cab.ir ? S.irs[cab.ir] : null), cabGain = N.g(cab.gain);
-    const micLo = N.bq("lowshelf", 150, cv.buffer ? mic.lo : 0), micHi = N.bq("highshelf", 3500, cv.buffer ? mic.hi : 0);
-    const fizz = N.bq("lowpass", V.fizz, 0, 0.6);
+    /* what some real heads add: a bright switch, a depth knob, a graphic EQ, a reverb (flat and dry unless set) */
+    const brt = N.bq("highshelf", 2500), deep = N.bq("lowshelf", 90);
+    const face = faceOf(a.gear);
+    const geq = AMP_PARAMS.filter((kn) => kn.hz).map((kn, i) => N.bq("peaking", (face && face.bands && face.bands[i]) || kn.hz, 0, 1.1));
+    const out = N.g(1), rvWet = N.g(0), rvHp = N.bq("highpass", 200), rv = N.conv(S.irs[bass ? "room" : "plate"]), rvLp = N.bq("lowpass", 5000);
     tight.connect(od.input); od.output.connect(post);
-    post.connect(vLow); vLow.connect(vMid); vMid.connect(vBright);
-    vBright.connect(lo); lo.connect(mid); mid.connect(hi); hi.connect(pres);
-    if (cv.buffer){ pres.connect(cv); cv.connect(cabGain); } else { pres.connect(cabGain); }
-    cabGain.connect(micLo); micLo.connect(micHi); micHi.connect(fizz);
+    post.connect(brt); brt.connect(vLow); vLow.connect(vMid); vMid.connect(vBright);
+    let at = vBright;
+    for (const n of [lo, mid, hi, ...geq, pres, deep]){ at.connect(n); at = n; }
+    at.connect(out);
+    at.connect(rvHp); rvHp.connect(rv); rv.connect(rvLp); rvLp.connect(rvWet); rvWet.connect(out);
     const set = (k, v) => {
       if (k === "gain"){
         const t = driveOf(a.voice, v);                      // the knob, through the voice's range
@@ -271,9 +285,30 @@ function buildAmp(ctx, S, board){
       else if (k === "mid") N.ramp(mid.gain, v * 0.6);
       else if (k === "treble") N.ramp(hi.gain, v * 0.67);
       else if (k === "presence") N.ramp(pres.gain, v * 0.4);
+      else if (k === "bright") N.ramp(brt.gain, v);
+      else if (k === "depth") N.ramp(deep.gain, v * 9);
+      else if (k === "reverb") N.ramp(rvWet.gain, v * 0.8);
+      else if (/^eq\d$/.test(k) && geq[+k[2]]) N.ramp(geq[+k[2]].gain, v);
     };
-    for (const k of ["gain", "bass", "mid", "treble", "presence"]) set(k, Number(a[k]) || 0);
-    return { input: tight, output: fizz, set, close: () => closeTuna(od) };
+    for (const kn of AMP_PARAMS) set(kn.k, Number(a[kn.k]) || 0);
+    return { input: tight, output: out, set, close: () => closeTuna(od) };
+  });
+}
+
+/* the cabinet: the speakers (an impulse response), the microphone on them, and
+   the speakers' roll-off of the fizz the amp's voice leaves */
+function buildCab(ctx, S, board){
+  const a = board.amp, V = voiceOf(a.voice), bass = !!a.bassAmp || !!V.bass;
+  const cab = CABS[board.cab] || CABS[bass ? "bass" : V.cab] || CABS["2x12"];
+  const mic = micTilt(board.mic);
+  return part(ctx, (N) => {
+    const input = N.g(1);
+    const cv = N.conv(cab.ir ? S.irs[cab.ir] : null), cabGain = N.g(cab.gain);
+    const micLo = N.bq("lowshelf", 150, cv.buffer ? mic.lo : 0), micHi = N.bq("highshelf", 3500, cv.buffer ? mic.hi : 0);
+    const fizz = N.bq("lowpass", cv.buffer ? V.fizz : 12000, 0, 0.6);
+    if (cv.buffer){ input.connect(cv); cv.connect(cabGain); } else { input.connect(cabGain); }
+    cabGain.connect(micLo); micLo.connect(micHi); micHi.connect(fizz);
+    return { input, output: fizz };
   });
 }
 
@@ -293,12 +328,16 @@ function buildChain(ctx, S, board){
     const m = MODELS[p.model], make = m && BUILD[m.fx];
     if (!make) return;
     const params = { ...p.params };
-    for (const kn of FX[m.fx].knobs) if (!Number.isFinite(params[kn.k])) params[kn.k] = kn.def;
-    add(p.id, make(ctx, S, m, params), p.on);
+    for (const kn of paramsOf(m.fx)) if (!Number.isFinite(params[kn.k])) params[kn.k] = Number.isFinite(m.params[kn.k]) ? m.params[kn.k] : kn.def;
+    const face = faceOf(p.gear);
+    add(p.id, make(ctx, S, face && face.bands ? { ...m, bands: face.bands } : m, params), p.on);
   };
+  /* the Rocksmith tone designer's chain: pre -> amp -> loop -> cabinet -> rack */
   for (const p of board.pre) pedal(p);
   add("amp", buildAmp(ctx, S, board), board.amp.on);
   for (const p of board.loop) pedal(p);
+  add("cab", buildCab(ctx, S, board), board.cabOn);
+  for (const p of board.rack || []) pedal(p);
   /* a little room, always: a dry amp in headphones sounds boxed in */
   const room = BUILD.Reverb(ctx, S, { ir: "room" }, { mix: 0.07, tone: 0.6 });
   head.connect(room.input); room.output.connect(out);

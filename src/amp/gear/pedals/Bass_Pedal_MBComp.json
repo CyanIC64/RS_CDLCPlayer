@@ -8,5 +8,20 @@
     "Compress": { "param": "threshold", "from": [0, 100], "to": [-10, -50] },
     "Rate": { "param": null, "from": [0, 100] }
   },
-  "params": {}
+  "params": {},
+  "face": {
+    "look": "compact",
+    "color": "#1f2328",
+    "knob": "boss",
+    "title": "BASS COMP",
+    "after": "Multi-band bass compressor",
+    "controls": [
+      { "type": "knob", "label": "THRESH", "param": "threshold" },
+      { "type": "knob", "label": "RATIO", "param": "ratio" },
+      { "type": "knob", "label": "ATTACK", "param": "attack", "size": "s" },
+      { "type": "knob", "label": "RELEASE", "param": "release", "size": "s" },
+      { "type": "knob", "label": "LEVEL", "param": "level" }
+    ],
+    "ink": "#e7c44a"
+  }
 }

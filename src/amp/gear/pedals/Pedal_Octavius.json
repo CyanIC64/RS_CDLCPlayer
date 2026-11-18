@@ -6,5 +6,17 @@
   "category": "Other",
   "model": "octave",
   "params": {},
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "compact",
+    "color": "#3a8fd0",
+    "knob": "boss",
+    "title": "OCTAVIUS",
+    "after": "Boss OC-2 Octave",
+    "controls": [
+      { "type": "knob", "label": "OCT", "param": "mix" },
+      { "type": "knob", "label": "DIRECT", "param": "dry" }
+    ]
+  },
+  "alt": ["1982 Boss OC-2 Octaver", "1976 Electro-Harmonix Octave Multiplexer"]
 }

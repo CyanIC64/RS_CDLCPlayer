@@ -6,5 +6,22 @@
   "category": "Distortion / Overdrive",
   "model": "od",
   "params": {},
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "mxr",
+    "color": "#e8e4d8",
+    "knob": "chicken",
+    "title": "CUSTOM DRIVE",
+    "after": "Fulltone OCD",
+    "controls": [
+      { "type": "knob", "label": "VOLUME", "param": "level" },
+      { "type": "knob", "label": "DRIVE", "param": "gain" },
+      { "type": "knob", "label": "TONE", "param": "tone" },
+      { "type": "switch", "label": "MODE", "param": "treble", "options": [
+          ["LP", 0], ["HP", 4]
+        ] }
+    ],
+    "ink": "#222"
+  },
+  "alt": ["1991 Fulltone OCD", "1995 Boss BD-2 Blues Overdrive"]
 }

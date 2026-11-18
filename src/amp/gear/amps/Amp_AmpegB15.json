@@ -7,5 +7,14 @@
   "voice": "bass",
   "bass": true,
   "cab": "bass",
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "head",
+    "theme": "bass",
+    "controls": [
+      { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 },
+      { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 },
+      { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }
+    ]
+  }
 }

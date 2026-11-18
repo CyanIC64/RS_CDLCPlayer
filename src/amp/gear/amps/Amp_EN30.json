@@ -15,5 +15,17 @@
   "real": "British Copper 30TB (Orange)",
   "family": "English (Orange)",
   "voice": "orange",
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "head",
+    "theme": "orange",
+    "controls": [
+      { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 },
+      { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 },
+      { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 },
+      { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 },
+      { "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }
+    ]
+  },
+  "alt": ["Vox AC-30"]
 }

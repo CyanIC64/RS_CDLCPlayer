@@ -6,5 +6,17 @@
   "category": "Reverb",
   "model": "room",
   "params": { "tone": 0.55 },
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "mxr",
+    "color": "#c8cbcf",
+    "knob": "chrome",
+    "title": "SPRING REVERB",
+    "after": "Electro-Harmonix Holy Grail",
+    "controls": [
+      { "type": "knob", "label": "REVERB", "param": "mix", "size": "l" }
+    ],
+    "ink": "#1b1b1b"
+  },
+  "alt": ["2002 EHX Holy Grail"]
 }

@@ -6,5 +6,17 @@
   "category": "Reverb",
   "model": "plate",
   "params": {},
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "rack",
+    "color": "#26292d",
+    "ink": "#d9dde2",
+    "knob": "rack",
+    "title": "STUDIO PLATE",
+    "after": "Plate reverb",
+    "controls": [
+      { "type": "knob", "label": "MIX", "param": "mix" },
+      { "type": "knob", "label": "TONE", "param": "tone" }
+    ]
+  }
 }

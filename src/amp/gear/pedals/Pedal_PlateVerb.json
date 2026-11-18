@@ -6,5 +6,21 @@
   "category": "Reverb",
   "model": "plate",
   "params": {},
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "mxr",
+    "color": "#ececec",
+    "knob": "mxr",
+    "title": "PLATE REVERB",
+    "after": "Catalinbread Talisman",
+    "controls": [
+      { "type": "knob", "label": "LEVEL", "param": "mix" },
+      { "type": "knob", "label": "TONE", "param": "tone" }
+    ],
+    "ink": "#1b1b1b"
+  },
+  "alt": [
+    "Catalinbread Talisman Plate Reverb",
+    "Wampler Reflection [PLATE]"
+  ]
 }

@@ -6,5 +6,22 @@
   "category": "Delay / Echo",
   "model": "echo",
   "params": { "tone": 0.15 },
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "compact",
+    "color": "#3b3f44",
+    "knob": "boss",
+    "title": "NO-FI ECHO",
+    "after": "Ibanez DE7 (Lo-Fi echo)",
+    "controls": [
+      { "type": "knob", "label": "DELAY", "param": "time" },
+      { "type": "knob", "label": "REPEAT", "param": "feedback" },
+      { "type": "knob", "label": "LEVEL", "param": "mix" },
+      { "type": "knob", "label": "LO-FI", "param": "tone", "invert": true }
+    ]
+  },
+  "alt": [
+    "Ibanez DE7 Stereo Delay: Lo-Fi Echo mode",
+    "Strymon TIMELINE [Lo-Fi]"
+  ]
 }

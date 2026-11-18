@@ -241,3 +241,6 @@ export function applyKnobs(entry, knobValues = {}) {
 }
 
 export { LIBRARY, TYPE_OF_SLOT };
+
+/** how a piece of gear looks (its "face" in the library), or null */
+export const faceOf = (key) => (key && LIBRARY[key] && LIBRARY[key].face) || null;

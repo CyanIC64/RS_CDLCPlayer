@@ -6,5 +6,23 @@
   "category": "EQ",
   "model": "eq",
   "params": {},
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "tall",
+    "color": "#151515",
+    "ink": "#e9e9e9",
+    "knob": "mxr",
+    "title": "5 BAND EQ",
+    "after": "Mesa/Boogie Five-Band Graphic EQ",
+    "bands": [80, 240, 750, 2200, 6600],
+    "controls": [
+      { "type": "slider", "label": "80", "param": "g0" },
+      { "type": "slider", "label": "240", "param": "g1" },
+      { "type": "slider", "label": "750", "param": "g2" },
+      { "type": "slider", "label": "2.2k", "param": "g3" },
+      { "type": "slider", "label": "6.6k", "param": "g4" },
+      { "type": "knob", "label": "LEVEL", "param": "level", "size": "s" }
+    ]
+  },
+  "alt": ["2014 Mesa Boogie Five-Band Graphic EQ", "1976 MXR-109 6 Band Graphic EQ"]
 }

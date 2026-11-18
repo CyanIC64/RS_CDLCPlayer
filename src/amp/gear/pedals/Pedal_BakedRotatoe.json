@@ -6,5 +6,21 @@
   "category": "Other",
   "model": "chorus",
   "params": { "rate": 5, "depth": 0.9, "feedback": 0.1 },
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "wide",
+    "color": "#5b1f24",
+    "knob": "chrome",
+    "title": "BAKED ROTATOE",
+    "after": "Leslie rotary speaker / Boss RT-20",
+    "controls": [
+      { "type": "switch", "label": "SPEED", "param": "rate", "options": [
+          ["SLOW", 0.8], ["FAST", 6.5]
+        ] },
+      { "type": "knob", "label": "DEPTH", "param": "depth" },
+      { "type": "knob", "label": "DRIVE", "param": "feedback" }
+    ],
+    "ink": "#f0d9a0"
+  },
+  "alt": ["2005 Boss RT-20 Rotary Sound Processor", "1941 Leslie Rotary Speaker"]
 }

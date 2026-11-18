@@ -6,5 +6,20 @@
   "category": "Distortion / Overdrive",
   "model": "metal",
   "params": {},
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "compact",
+    "color": "#1c1c1c",
+    "knob": "boss",
+    "title": "ALLOY DISTORTION",
+    "after": "Boss HM-2",
+    "controls": [
+      { "type": "knob", "label": "LEVEL", "param": "level" },
+      { "type": "knob", "label": "LOW", "param": "bass" },
+      { "type": "knob", "label": "HIGH", "param": "treble" },
+      { "type": "knob", "label": "DISTORTION", "param": "gain" }
+    ],
+    "ink": "#f2742b"
+  },
+  "alt": ["2017 TC Electronic Eyemaster Metal Distortion", "1982 Boss HM-2"]
 }

@@ -7,5 +7,13 @@
   "voice": "american",
   "bass": false,
   "cab": "1x12",
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "head",
+    "theme": "blackface",
+    "controls": [
+      { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 },
+      { "type": "knob", "label": "TONE", "param": "treble", "scale": 10 }
+    ]
+  }
 }

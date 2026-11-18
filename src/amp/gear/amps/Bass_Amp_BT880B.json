@@ -14,5 +14,22 @@
     "Hi": { "param": null, "from": [-12, 12] },
     "HiFreq": { "param": null, "from": [0, 100] },
     "MidFreq": { "param": null, "from": [0, 820] }
+  },
+  "face": {
+    "look": "head",
+    "theme": "bass",
+    "controls": [
+      { "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 },
+      { "type": "switch", "label": "ULTRA LO", "param": "depth", "options": [
+          ["OFF", 0], ["ON", 0.7]
+        ] },
+      { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 },
+      { "type": "knob", "label": "MIDRANGE", "param": "mid", "scale": 10 },
+      { "type": "switch", "label": "ULTRA HI", "param": "bright", "options": [
+          ["OFF", 0], ["ON", 6]
+        ] },
+      { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 },
+      { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }
+    ]
   }
 }

@@ -6,5 +6,21 @@
   "category": "Wah / Filter",
   "model": "wah",
   "params": {},
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "wide",
+    "color": "#c9ced3",
+    "knob": "chrome",
+    "title": "AUTO FILTER",
+    "after": "Musitronics Mu-Tron III",
+    "controls": [
+      { "type": "knob", "label": "GAIN", "param": "sensitivity" },
+      { "type": "knob", "label": "PEAK", "param": "resonance" },
+      { "type": "switch", "label": "RANGE", "param": "baseFrequency", "options": [
+          ["LO", 0.15], ["HI", 0.55]
+        ] }
+    ],
+    "ink": "#1f3d8a"
+  },
+  "alt": ["1972 Mu-Tron III", "2015 Mad Professor Snow White Auto Wah"]
 }

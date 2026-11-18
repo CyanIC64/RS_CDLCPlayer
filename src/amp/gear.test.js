@@ -56,9 +56,10 @@ describe("gear library", () => {
     }, { kind: "clean" });
     expect(b.amp).toMatchObject({ name: "BT880B", bassAmp: true, treble: -6, mid: 8 });
     expect(b.cab).toBe("bass");
-    expect(b.loop.map((p) => p.model)).toEqual(["eq", "comp"]);
-    expect(b.loop[0].params).toMatchObject({ treble: -6, bass: -4, mid: 3 });
-    expect(b.loop[1].params.threshold).toBe(-40);
+    expect(b.rack.map((p) => p.model)).toEqual(["eq"]);           // Rack1: after the cabinet
+    expect(b.loop.map((p) => p.model)).toEqual(["comp"]);         // PostPedal1: the effects loop
+    expect(b.rack[0].params).toMatchObject({ treble: -6, bass: -4, mid: 3 });
+    expect(b.loop[0].params.threshold).toBe(-40);
   });
   it("writes one line per knob", () => {
     const txt = pretty({ key: "K", knobs: { Mix: { param: "mix", from: [0, 100], to: [0, 1] } } });

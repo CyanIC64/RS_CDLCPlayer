@@ -4743,7 +4743,7 @@ function ampBoard(key){
   let b;
   if (saved) b = kit.asBoard(saved, { bass });
   else if (nm && nm.rig && nm.rig.gear) b = kit.boardFromGear(nm.rig.gear, { bass, kind: nm.kind || "" });
-  else if (nm && nm.rig) b = nm.rig.board ? JSON.parse(JSON.stringify(nm.rig.board)) : kit.boardFromRig({ ...nm.rig, bass: nm.rig.bass || bass });
+  else if (nm && nm.rig) b = nm.rig.board ? kit.asBoard(JSON.parse(JSON.stringify(nm.rig.board))) : kit.boardFromRig({ ...nm.rig, bass: nm.rig.bass || bass });
   else b = kit.emptyBoard(bass);
   if (bass && !saved && !b.amp.bassAmp){ b.amp.bassAmp = true; b.cab = "bass"; }
   AMP.boards.set(key, b);

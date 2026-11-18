@@ -6,5 +6,19 @@
   "category": "Reverb",
   "model": "room",
   "params": { "tone": 0.5 },
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "wide",
+    "color": "#181818",
+    "ink": "#d9d9d9",
+    "knob": "skirt",
+    "tolex": "brown",
+    "title": "TUBE SPRING REVERB",
+    "after": "Fender '63 Reverb",
+    "controls": [
+      { "type": "knob", "label": "MIXER", "param": "mix", "scale": 10 },
+      { "type": "knob", "label": "TONE", "param": "tone", "scale": 10 }
+    ]
+  },
+  "alt": ["Source Audio True Spring Reverb", "Boss FRV-1 '63 Fender Reverb"]
 }

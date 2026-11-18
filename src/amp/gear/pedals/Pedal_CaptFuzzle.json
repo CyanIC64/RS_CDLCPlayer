@@ -6,5 +6,18 @@
   "category": "Distortion / Overdrive",
   "model": "fuzz",
   "params": {},
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "wedge",
+    "color": "#7a5a32",
+    "ink": "#f1e3c2",
+    "knob": "cream",
+    "title": "CAPTAIN FUZZLE",
+    "after": "Gibson Maestro FZ-1A Fuzz-Tone",
+    "controls": [
+      { "type": "knob", "label": "VOLUME", "param": "level" },
+      { "type": "knob", "label": "ATTACK", "param": "gain" }
+    ]
+  },
+  "alt": ["1962 Gibson Maestro FZ-1A Fuzz-Tone"]
 }

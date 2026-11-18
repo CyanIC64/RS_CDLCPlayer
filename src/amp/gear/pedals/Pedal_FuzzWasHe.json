@@ -6,5 +6,18 @@
   "category": "Distortion / Overdrive",
   "model": "fuzz",
   "params": { "tone": 0.55 },
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "round",
+    "color": "#b5232c",
+    "ink": "#f5f5f5",
+    "knob": "chicken",
+    "title": "FUZZ WAS HE",
+    "after": "Fuzz Face (sheet: Boss FZ-3 / Tone Bender)",
+    "controls": [
+      { "type": "knob", "label": "VOLUME", "param": "level" },
+      { "type": "knob", "label": "FUZZ", "param": "gain" }
+    ]
+  },
+  "alt": ["1997 Boss FZ-3 Fuzz", "1966 Sola Sound Tonebender Mk 1.5"]
 }

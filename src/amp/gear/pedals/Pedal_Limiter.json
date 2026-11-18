@@ -6,5 +6,18 @@
   "category": "Dynamics",
   "model": "comp",
   "params": { "ratio": 20, "threshold": -12, "attack": 2 },
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "compact",
+    "color": "#4b6f96",
+    "knob": "boss",
+    "title": "LIMITER",
+    "after": "Boss LM-2",
+    "controls": [
+      { "type": "knob", "label": "LEVEL", "param": "level" },
+      { "type": "knob", "label": "RELEASE", "param": "release" },
+      { "type": "knob", "label": "THRESHOLD", "param": "threshold" }
+    ]
+  },
+  "alt": ["1987 Boss LM-2 Limiter", "Behringer CL9 ( Ibanez CP9 Clone )"]
 }

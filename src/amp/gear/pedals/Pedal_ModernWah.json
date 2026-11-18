@@ -6,5 +6,16 @@
   "category": "Wah / Filter",
   "model": "wah",
   "params": {},
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "wah",
+    "color": "#202326",
+    "ink": "#e9e9e9",
+    "title": "MODERN WAH",
+    "after": "Cry Baby style wah",
+    "controls": [
+      { "type": "treadle", "label": "WAH", "param": "baseFrequency" },
+      { "type": "knob", "label": "Q", "param": "resonance", "size": "s" }
+    ]
+  }
 }

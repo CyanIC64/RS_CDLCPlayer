@@ -7,5 +7,16 @@
   "voice": "di",
   "bass": false,
   "cab": "none",
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "head",
+    "theme": "di",
+    "controls": [
+      { "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 },
+      { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 },
+      { "type": "knob", "label": "MID", "param": "mid", "scale": 10 },
+      { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 },
+      { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }
+    ]
+  }
 }

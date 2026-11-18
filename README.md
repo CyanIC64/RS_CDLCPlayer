@@ -41,16 +41,21 @@ server, no upload and no account.
   (amp gain, drive pedals); the seek-bar flags take the same colours. Packages without arrangement
   XML get their tone switches from the chart (`.sng`).
 - **Play through the song's tone** (*Options → Guitar input*, or **A**): the guitar input is heard
-  through a pedalboard set from each tone's gear: the pedals before the amp, the amp (gain, EQ,
-  cabinet) and its effects loop, with drive, compressor, chorus, flanger, phaser, tremolo, wah, EQ,
-  octave, delay and reverb pedals. It switches tone when the song does. Use headphones.
+  through a pedalboard set from each tone's gear, in the order of Rocksmith's tone designer: **Pre**
+  (pedals before the amp), **Amp** (voice, gain, EQ), **Loop** (the amp's effects loop, before the
+  cabinet), **Cabinet** (speakers and microphone) and **Rack** (studio effects after the cabinet), with
+  drive, compressor, chorus, flanger, phaser, tremolo, wah, EQ, octave, delay and reverb. It switches tone when the song does. Use headphones.
 - **Pedalboard** (**P**, or *Options → Guitar input → Pedalboard*): every tone of the song, from all
   its arrangements, is rebuilt from its gear and listed on a bar at the top (the tone in force is
   underlined; *Follow the song* keeps the board on it). Pick any tone to see and change its amp,
   cabinet and pedals, even one of another arrangement. Every amp, effect and cabinet of Rocksmith 2014
   and Rocksmith+ is recognised by its key (from the RS-to-AT5p gear map) and played as the real gear it
   stands for: the amp's voice (tweed, American clean, Plexi, JCM, AC, Orange, Rectifier, Mark, high
-  gain, German, JC, bass, DI), its cabinet and the microphone on it. Turn the knobs (drag around them, the wheel or the arrow keys; double-click
+  gain, German, JC, bass, DI), its cabinet and the microphone on it. Amps and pedals wear the face of
+  the real gear: its enclosure and colours, and its own controls (knobs, faders, switches, a wah's
+  treadle) - a Mark series head has its five-band EQ, a Twin its bright switch and reverb, a Metal Zone
+  its EQ, a rack unit its ears and bypass. The amp's *Model* puts another head on the board, and **+**
+  offers the library's real pedals as well as the plain ones. Turn the knobs (drag around them, the wheel or the arrow keys; double-click
   puts one back), switch pedals on and off, drag them into another order or into the effects loop, and
   add pedals with **+**. Changes are kept in this browser per song and tone; *Song's tone* puts the
   board back as the song has it.
@@ -168,7 +173,8 @@ changed. The only data the page stores is your settings, in your browser's `loca
 - [JS Rocks](https://github.com/vitaliy-bobrov/js-rocks) by Vitaliy Bobrov, under the MIT licence: the
   pedalboard's design and knob, and cabinet impulse responses.
 - Which real amp, effect and cabinet each Rocksmith gear key stands for: the gear map of
-  [RS-to-AT5p](https://github.com/zagatozee/RS-to-AT5p) (`gear_mapping_reference.md`).
+  [RS-to-AT5p](https://github.com/zagatozee/RS-to-AT5p) (`gear_mapping_reference.md`), and the community
+  sheet "Rocksmith 2014 / Real World" for the real gear behind each pedal and amp name.
 
 ---
 

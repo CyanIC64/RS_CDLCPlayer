@@ -60,6 +60,17 @@ drives; an effect, its pedalboard `model` and starting `params`; a cabinet file 
 the enclosure ("Cab_CA412C"), and the microphone at the end of the tone's key
 ("_57_Edge") colours it. `gear-from-map.mjs` keeps the knob maps already in a file.
 
+An amp or pedal's `face` is how the panel draws it, after the real gear it is
+modelled on (`after`): an enclosure (`look`: compact, mxr, wide, tall, round,
+wedge, wah, rack; an amp's `theme`), colours, a knob style, and its `controls`
+- knobs, sliders, switches (`options`) and a treadle, each wired to a setting
+(`param`) of its effect or of the amp head, optionally over part of its range
+(`min`/`max`) or reversed (`invert`). A graphic EQ's `bands` are its sliders'
+frequencies. `alt` lists the real gear the "Rocksmith 2014 / Real World" sheet
+gives for the piece.
+
+    node amp/gear-faces.mjs [sheet.csv]     write the faces (and the sheet's real gear) into the files
+
 `build.mjs` gathers the files into `amp/gear/library.js` before bundling.
 
 needs `esbuild` (set `ESBUILD` to its path if it is not installed locally).

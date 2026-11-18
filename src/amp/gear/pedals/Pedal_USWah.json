@@ -6,5 +6,15 @@
   "category": "Wah / Filter",
   "model": "wah",
   "params": {},
-  "source": "RS-to-AT5p gear map"
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "wah",
+    "color": "#1a1a1a",
+    "ink": "#e9e9e9",
+    "title": "US WAH",
+    "after": "Dunlop Cry Baby",
+    "controls": [
+      { "type": "treadle", "label": "WAH", "param": "baseFrequency" }
+    ]
+  }
 }
