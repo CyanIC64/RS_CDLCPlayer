@@ -1,0 +1,23 @@
+{
+  "key": "Amp_MarshallMajor",
+  "type": "amp",
+  "name": "MarshallMajor",
+  "real": "Marshall Major",
+  "family": "Other",
+  "voice": "plexi",
+  "bass": false,
+  "cab": "4x12",
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "head",
+    "theme": "plexi",
+    "controls": [
+      { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 },
+      { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 },
+      { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 },
+      { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 },
+      { "type": "knob", "label": "VOLUME I", "param": "gain", "scale": 10 },
+      { "type": "knob", "label": "VOLUME II", "param": "bright", "scale": 10 }
+    ]
+  }
+}

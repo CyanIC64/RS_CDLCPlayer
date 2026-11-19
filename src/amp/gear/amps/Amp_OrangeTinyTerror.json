@@ -1,0 +1,20 @@
+{
+  "key": "Amp_OrangeTinyTerror",
+  "type": "amp",
+  "name": "OrangeTinyTerror",
+  "real": "Orange Tiny Terror",
+  "family": "Other",
+  "voice": "orange",
+  "bass": false,
+  "cab": "4x12o",
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "head",
+    "theme": "orange",
+    "controls": [
+      { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 },
+      { "type": "knob", "label": "TONE", "param": "treble", "scale": 10 },
+      { "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }
+    ]
+  }
+}

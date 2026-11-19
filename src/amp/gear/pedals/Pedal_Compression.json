@@ -1,0 +1,22 @@
+{
+  "key": "Pedal_Compression",
+  "type": "pedal",
+  "name": "Compression",
+  "real": "Compressor",
+  "category": "Dynamics",
+  "model": "comp",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "mxr",
+    "color": "#c8202a",
+    "knob": "mxr",
+    "title": "COMPRESSION",
+    "after": "MXR Dyna Comp",
+    "controls": [
+      { "type": "knob", "label": "OUTPUT", "param": "level" },
+      { "type": "knob", "label": "SENSITIVITY", "param": "threshold", "invert": true }
+    ]
+  },
+  "alt": ["1972 MXR DynaComp", "2008 MXR Super Comp"]
+}

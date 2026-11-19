@@ -1,0 +1,9 @@
+{
+  "key": "IBEX_Cab_MesaBoogie1x12Widebody",
+  "type": "cabinet",
+  "name": "MesaBoogie1x12Widebody",
+  "real": "Mesa/Boogie",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map"
+}

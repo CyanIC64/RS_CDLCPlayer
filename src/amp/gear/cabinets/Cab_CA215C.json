@@ -1,0 +1,9 @@
+{
+  "key": "Cab_CA215C",
+  "type": "cabinet",
+  "name": "CA215C",
+  "real": "2x15 Mesa/Boogie",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map"
+}

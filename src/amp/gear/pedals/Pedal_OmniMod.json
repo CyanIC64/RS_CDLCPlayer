@@ -1,0 +1,23 @@
+{
+  "key": "Pedal_OmniMod",
+  "type": "pedal",
+  "name": "OmniMod",
+  "real": "X-VIBE",
+  "category": "Other",
+  "model": "chorus",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "tall",
+    "color": "#1d1d1d",
+    "ink": "#f2f2f2",
+    "knob": "chrome",
+    "title": "OMNI MOD",
+    "after": "Univox Uni-Vibe",
+    "controls": [
+      { "type": "knob", "label": "SPEED", "param": "rate" },
+      { "type": "knob", "label": "INTENSITY", "param": "depth" }
+    ]
+  },
+  "alt": ["1968 UniVox Uni-Vibe"]
+}

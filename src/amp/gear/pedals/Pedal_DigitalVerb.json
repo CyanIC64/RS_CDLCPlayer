@@ -1,0 +1,22 @@
+{
+  "key": "Pedal_DigitalVerb",
+  "type": "pedal",
+  "name": "DigitalVerb",
+  "real": "Digital Reverb",
+  "category": "Reverb",
+  "model": "room",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "compact",
+    "color": "#3f6f8f",
+    "knob": "boss",
+    "title": "DIGITAL VERB",
+    "after": "Boss RV-2",
+    "controls": [
+      { "type": "knob", "label": "E.LEVEL", "param": "mix" },
+      { "type": "knob", "label": "TONE", "param": "tone" }
+    ]
+  },
+  "alt": ["1987 Boss RV-2 Digital Reverb", "1985 Boss RRV-10 Digital Reverb"]
+}

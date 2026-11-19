@@ -1,0 +1,24 @@
+{
+  "key": "Rack_StudioTapDelay",
+  "type": "rack",
+  "name": "StudioTapDelay",
+  "real": "TapDelay",
+  "category": "Delay / Echo",
+  "model": "delay",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "rack",
+    "color": "#26292d",
+    "ink": "#d9dde2",
+    "knob": "rack",
+    "title": "STUDIO TAP DELAY",
+    "after": "Rack tap delay",
+    "controls": [
+      { "type": "knob", "label": "TIME", "param": "time" },
+      { "type": "knob", "label": "FEEDBACK", "param": "feedback" },
+      { "type": "knob", "label": "MIX", "param": "mix" },
+      { "type": "knob", "label": "HI CUT", "param": "tone" }
+    ]
+  }
+}

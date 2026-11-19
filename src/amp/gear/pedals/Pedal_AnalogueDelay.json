@@ -1,0 +1,25 @@
+{
+  "key": "Pedal_AnalogueDelay",
+  "type": "pedal",
+  "name": "AnalogueDelay",
+  "real": "Analog Delay",
+  "category": "Delay / Echo",
+  "model": "echo",
+  "params": { "tone": 0.35 },
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "wide",
+    "color": "#b9bcc0",
+    "knob": "chrome",
+    "title": "ANALOG DELAY",
+    "after": "Electro-Harmonix Memory Man / Moog MF-104",
+    "controls": [
+      { "type": "knob", "label": "BLEND", "param": "mix" },
+      { "type": "knob", "label": "FEEDBACK", "param": "feedback" },
+      { "type": "knob", "label": "DELAY", "param": "time", "min": 30, "max": 550 },
+      { "type": "knob", "label": "TONE", "param": "tone", "size": "s" }
+    ],
+    "ink": "#1b1b1b"
+  },
+  "alt": ["Moog MF-104 MiniFooger Delay", "1976 Electro-Harmonix Memory Man"]
+}

@@ -1,0 +1,24 @@
+{
+  "key": "Pedal_GermaniumDrive",
+  "type": "pedal",
+  "name": "GermaniumDrive",
+  "real": "Germanium Fuzz Face",
+  "category": "Distortion / Overdrive",
+  "model": "fuzz",
+  "params": { "tone": 0.4 },
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "tall",
+    "color": "#1b1b1b",
+    "ink": "#f4f4f4",
+    "knob": "mxr",
+    "title": "GERMANIUM DRIVE",
+    "after": "ProCo RAT / Chandler Germanium Drive",
+    "controls": [
+      { "type": "knob", "label": "DISTORTION", "param": "gain" },
+      { "type": "knob", "label": "FILTER", "param": "tone", "invert": true },
+      { "type": "knob", "label": "VOLUME", "param": "level" }
+    ]
+  },
+  "alt": ["1980s Chandler Ltd Germanium Drive", "1979 ProCo RAT"]
+}

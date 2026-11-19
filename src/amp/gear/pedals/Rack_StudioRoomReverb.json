@@ -1,0 +1,22 @@
+{
+  "key": "Rack_StudioRoomReverb",
+  "type": "rack",
+  "name": "StudioRoomReverb",
+  "real": "rack",
+  "category": "Reverb",
+  "model": "room",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "rack",
+    "color": "#26292d",
+    "ink": "#d9dde2",
+    "knob": "rack",
+    "title": "STUDIO ROOM REVERB",
+    "after": "Room reverb",
+    "controls": [
+      { "type": "knob", "label": "MIX", "param": "mix" },
+      { "type": "knob", "label": "TONE", "param": "tone" }
+    ]
+  }
+}

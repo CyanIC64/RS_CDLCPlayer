@@ -1,0 +1,9 @@
+{
+  "key": "Cab_MesaMarkIII",
+  "type": "cabinet",
+  "name": "MesaMarkIII",
+  "real": "1x12 Mesa/Boogie",
+  "bass": false,
+  "cab": "1x12",
+  "source": "RS-to-AT5p gear map"
+}

@@ -1,0 +1,32 @@
+{
+  "key": "Amp_CA100",
+  "type": "amp",
+  "name": "CA100",
+  "category": "Amp",
+  "bass": false,
+  "cab": "4x12m",
+  "knobs": {
+    "Gain": { "param": "gain", "from": [0, 100], "to": [0, 1] },
+    "Bass": { "param": "bass", "from": [0, 100], "to": [-12, 12] },
+    "Mid": { "param": "mid", "from": [0, 100], "to": [-12, 12] },
+    "Treble": { "param": "treble", "from": [0, 100], "to": [-12, 12] },
+    "Pres": { "param": "presence", "from": [0, 100], "to": [-12, 12] }
+  },
+  "real": "Dual Rectifier (Mesa/Boogie)",
+  "family": "California (Mesa/Boogie)",
+  "voice": "rectifier",
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "head",
+    "theme": "rect",
+    "controls": [
+      { "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 },
+      { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 },
+      { "type": "knob", "label": "MID", "param": "mid", "scale": 10 },
+      { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 },
+      { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 },
+      { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }
+    ]
+  },
+  "alt": ["Mesaboogie Dual Rectifier"]
+}

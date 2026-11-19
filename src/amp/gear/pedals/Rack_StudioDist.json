@@ -1,0 +1,23 @@
+{
+  "key": "Rack_StudioDist",
+  "type": "rack",
+  "name": "StudioDist",
+  "real": "Boss DS-1",
+  "category": "Distortion / Overdrive",
+  "model": "dist",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "rack",
+    "color": "#26292d",
+    "ink": "#d9dde2",
+    "knob": "rack",
+    "title": "STUDIO DISTORTION",
+    "after": "Rack distortion",
+    "controls": [
+      { "type": "knob", "label": "DRIVE", "param": "gain" },
+      { "type": "knob", "label": "TONE", "param": "tone" },
+      { "type": "knob", "label": "LEVEL", "param": "level" }
+    ]
+  }
+}

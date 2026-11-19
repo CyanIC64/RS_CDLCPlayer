@@ -1,0 +1,9 @@
+{
+  "key": "Cab_AT1121C",
+  "type": "cabinet",
+  "name": "AT1121C",
+  "real": "Fender",
+  "bass": false,
+  "cab": "1x12",
+  "source": "RS-to-AT5p gear map"
+}

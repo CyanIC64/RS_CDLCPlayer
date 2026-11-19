@@ -1,0 +1,23 @@
+{
+  "key": "Amp_MarshallDSL15H",
+  "type": "amp",
+  "name": "MarshallDSL15H",
+  "real": "Marshall DSL15H",
+  "family": "Other",
+  "voice": "jcm",
+  "bass": false,
+  "cab": "4x12j",
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "head",
+    "theme": "plexi",
+    "controls": [
+      { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 },
+      { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 },
+      { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 },
+      { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 },
+      { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 },
+      { "type": "knob", "label": "PRE-AMP", "param": "gain", "scale": 10 }
+    ]
+  }
+}

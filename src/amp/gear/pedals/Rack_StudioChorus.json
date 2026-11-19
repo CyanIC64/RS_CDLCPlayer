@@ -1,0 +1,28 @@
+{
+  "key": "Rack_StudioChorus",
+  "type": "rack",
+  "name": "StudioChorus",
+  "real": "Chorus",
+  "category": "Reverb",
+  "model": "chorus",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "rack",
+    "color": "#26292d",
+    "ink": "#d9dde2",
+    "knob": "rack",
+    "title": "STUDIO CHORUS",
+    "after": "Boss RCE-10 Chorus Ensemble",
+    "controls": [
+      { "type": "knob", "label": "RATE", "param": "rate" },
+      { "type": "knob", "label": "DEPTH", "param": "depth" },
+      { "type": "knob", "label": "DELAY", "param": "manual", "size": "s" },
+      { "type": "knob", "label": "MIX", "param": "mix" },
+      { "type": "knob", "label": "LO CUT", "param": "loCut", "size": "s" },
+      { "type": "knob", "label": "HI CUT", "param": "hiCut", "size": "s" },
+      { "type": "knob", "label": "STEREO", "param": "stereo", "size": "s" }
+    ]
+  },
+  "alt": ["1986 Boss Micro Rack RCE-10 Digital Chorus Ensemble"]
+}

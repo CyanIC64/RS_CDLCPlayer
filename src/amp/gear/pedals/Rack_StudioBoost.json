@@ -1,0 +1,23 @@
+{
+  "key": "Rack_StudioBoost",
+  "type": "rack",
+  "name": "StudioBoost",
+  "real": "MXR",
+  "category": "Distortion / Overdrive",
+  "model": "boost",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "rack",
+    "color": "#26292d",
+    "ink": "#d9dde2",
+    "knob": "rack",
+    "title": "STUDIO BOOST",
+    "after": "Studio booster",
+    "controls": [
+      { "type": "knob", "label": "BOOST", "param": "gain" },
+      { "type": "knob", "label": "TONE", "param": "tone" },
+      { "type": "knob", "label": "LEVEL", "param": "level" }
+    ]
+  }
+}

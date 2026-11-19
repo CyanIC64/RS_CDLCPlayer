@@ -1,0 +1,22 @@
+{
+  "key": "Pedal_Chorus",
+  "type": "pedal",
+  "name": "Chorus",
+  "real": "Chorus",
+  "category": "Chorus",
+  "model": "chorus",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "compact",
+    "color": "#6fb8e0",
+    "knob": "boss",
+    "title": "CHORUS",
+    "after": "Boss CE-2",
+    "controls": [
+      { "type": "knob", "label": "RATE", "param": "rate" },
+      { "type": "knob", "label": "DEPTH", "param": "depth" }
+    ]
+  },
+  "alt": ["1979 Boss Chorus CE-2", "2009 Maxon CS-550 Stereo Chorus"]
+}

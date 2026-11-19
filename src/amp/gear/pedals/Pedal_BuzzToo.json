@@ -1,0 +1,24 @@
+{
+  "key": "Pedal_BuzzToo",
+  "type": "pedal",
+  "name": "BuzzToo",
+  "real": "Big Muff",
+  "category": "Distortion / Overdrive",
+  "model": "fuzz",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "wide",
+    "color": "#d8d6cf",
+    "knob": "chrome",
+    "title": "BUZZ 2",
+    "after": "Electro-Harmonix Big Muff",
+    "controls": [
+      { "type": "knob", "label": "VOLUME", "param": "level" },
+      { "type": "knob", "label": "TONE", "param": "tone" },
+      { "type": "knob", "label": "SUSTAIN", "param": "gain" }
+    ],
+    "ink": "#b3141c"
+  },
+  "alt": ["1970 Electro-Harmonix Big Muff"]
+}

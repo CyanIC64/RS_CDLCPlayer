@@ -1,0 +1,22 @@
+{
+  "key": "Pedal_Swole",
+  "type": "pedal",
+  "name": "Swole",
+  "real": "Compressor",
+  "category": "Dynamics",
+  "model": "comp",
+  "params": { "ratio": 8, "threshold": -30 },
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "compact",
+    "color": "#2e5fa8",
+    "knob": "boss",
+    "title": "SWOLE",
+    "after": "Aphex Punch Factory",
+    "controls": [
+      { "type": "knob", "label": "DRIVE", "param": "threshold", "invert": true },
+      { "type": "knob", "label": "OUTPUT", "param": "level" }
+    ]
+  },
+  "alt": ["2003 APHEX Punch FACTORY ( Sonic Maximizer )"]
+}

@@ -1,0 +1,9 @@
+{
+  "key": "Bass_Cab_CS15BC",
+  "type": "cabinet",
+  "name": "CS15BC",
+  "real": "Bass",
+  "bass": true,
+  "cab": "bass",
+  "source": "RS-to-AT5p gear map"
+}

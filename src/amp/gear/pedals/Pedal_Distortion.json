@@ -1,0 +1,23 @@
+{
+  "key": "Pedal_Distortion",
+  "type": "pedal",
+  "name": "Distortion",
+  "real": "Boss DS-1",
+  "category": "Distortion / Overdrive",
+  "model": "dist",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "compact",
+    "color": "#f07f1d",
+    "knob": "boss",
+    "title": "STANDARD DISTORTION",
+    "after": "Boss DS-1",
+    "controls": [
+      { "type": "knob", "label": "TONE", "param": "tone" },
+      { "type": "knob", "label": "LEVEL", "param": "level" },
+      { "type": "knob", "label": "DIST", "param": "gain" }
+    ]
+  },
+  "alt": ["1978 Boss DS-1"]
+}

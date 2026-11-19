@@ -1,0 +1,25 @@
+{
+  "key": "Pedal_ShaverPhaser",
+  "type": "pedal",
+  "name": "ShaverPhaser",
+  "real": "EHX Small Stone",
+  "category": "Phaser",
+  "model": "phaser",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "compact",
+    "color": "#2a7b6a",
+    "knob": "boss",
+    "title": "SHAVER PHASER",
+    "after": "Boss PH-1 / EHX Small Stone",
+    "controls": [
+      { "type": "knob", "label": "RATE", "param": "rate" },
+      { "type": "knob", "label": "DEPTH", "param": "depth" },
+      { "type": "switch", "label": "COLOR", "param": "feedback", "options": [
+          ["OFF", 0.3], ["ON", 0.75]
+        ] }
+    ]
+  },
+  "alt": ["1977 Boss PH-1 Phaser", "1977 EHX Bad Stone Phase Shifter"]
+}

@@ -1,0 +1,9 @@
+{
+  "key": "Cab_TW410C",
+  "type": "cabinet",
+  "name": "TW410C",
+  "real": "4x10 Fender tweed",
+  "bass": false,
+  "cab": "bass",
+  "source": "RS-to-AT5p gear map"
+}

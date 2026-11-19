@@ -1,0 +1,9 @@
+{
+  "key": "Bass_Cab_CS410BC",
+  "type": "cabinet",
+  "name": "CS410BC",
+  "real": "Bass",
+  "bass": true,
+  "cab": "bass",
+  "source": "RS-to-AT5p gear map"
+}

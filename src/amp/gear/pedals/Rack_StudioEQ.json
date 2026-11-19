@@ -1,0 +1,35 @@
+{
+  "key": "Rack_StudioEQ",
+  "type": "rack",
+  "name": "StudioEQ",
+  "real": "7 Band Graphic EQ",
+  "category": "Reverb",
+  "model": "eq",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "rack",
+    "color": "#26292d",
+    "ink": "#d9dde2",
+    "knob": "rack",
+    "title": "STUDIO EQ",
+    "after": "4 band parametric EQ (as the song's tone sets it)",
+    "controls": [
+      { "type": "knob", "label": "BASS", "param": "bass" },
+      { "type": "knob", "label": "FREQ", "param": "bassFreq", "size": "s" },
+      { "type": "knob", "label": "LO MID", "param": "lomid" },
+      { "type": "knob", "label": "FREQ", "param": "lomidFreq", "size": "s" },
+      { "type": "switch", "label": "Q", "param": "lomidQ", "options": [
+          ["WIDE", 0.7], ["NARROW", 2]
+        ] },
+      { "type": "knob", "label": "HI MID", "param": "himid" },
+      { "type": "knob", "label": "FREQ", "param": "himidFreq", "size": "s" },
+      { "type": "switch", "label": "Q", "param": "himidQ", "options": [
+          ["WIDE", 0.7], ["NARROW", 2]
+        ] },
+      { "type": "knob", "label": "TREBLE", "param": "treble" },
+      { "type": "knob", "label": "FREQ", "param": "trebleFreq", "size": "s" },
+      { "type": "knob", "label": "LEVEL", "param": "level" }
+    ]
+  }
+}

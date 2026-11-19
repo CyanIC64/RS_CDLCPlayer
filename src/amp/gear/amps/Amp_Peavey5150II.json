@@ -1,0 +1,24 @@
+{
+  "key": "Amp_Peavey5150II",
+  "type": "amp",
+  "name": "Peavey5150II",
+  "real": "SJ50",
+  "family": "Other",
+  "voice": "highgain",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "head",
+    "theme": "highgain",
+    "controls": [
+      { "type": "knob", "label": "PRE GAIN", "param": "gain", "scale": 10 },
+      { "type": "knob", "label": "LOW", "param": "bass", "scale": 10 },
+      { "type": "knob", "label": "MID", "param": "mid", "scale": 10 },
+      { "type": "knob", "label": "HIGH", "param": "treble", "scale": 10 },
+      { "type": "knob", "label": "POST GAIN", "param": "master", "scale": 10 },
+      { "type": "knob", "label": "RESONANCE", "param": "depth", "scale": 10 },
+      { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }
+    ]
+  }
+}

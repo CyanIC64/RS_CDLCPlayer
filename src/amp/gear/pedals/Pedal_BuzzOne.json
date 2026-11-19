@@ -1,0 +1,26 @@
+{
+  "key": "Pedal_BuzzOne",
+  "type": "pedal",
+  "name": "BuzzOne",
+  "real": "Maestro FuzzTone",
+  "category": "Distortion / Overdrive",
+  "model": "fuzz",
+  "params": { "tone": 0.65, "gain": 0.8 },
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "wide",
+    "color": "#35404b",
+    "knob": "mxr",
+    "title": "BUZZ 1",
+    "after": "Univox Super-Fuzz",
+    "controls": [
+      { "type": "knob", "label": "VOLUME", "param": "level" },
+      { "type": "knob", "label": "EXPANDER", "param": "gain" },
+      { "type": "switch", "label": "TONE", "param": "mid", "options": [
+          ["NORM", 0], ["SCOOP", -8]
+        ] }
+    ],
+    "ink": "#f2f2f2"
+  },
+  "alt": ["? Univox Super-Fuzz ?", "1973 Tycobrahe Octavia"]
+}

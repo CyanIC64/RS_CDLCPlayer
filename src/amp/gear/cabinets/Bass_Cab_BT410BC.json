@@ -1,0 +1,9 @@
+{
+  "key": "Bass_Cab_BT410BC",
+  "type": "cabinet",
+  "name": "BT410BC",
+  "real": "8x10 Marshall (bass)",
+  "bass": true,
+  "cab": "bass",
+  "source": "RS-to-AT5p gear map"
+}

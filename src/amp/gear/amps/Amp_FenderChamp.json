@@ -1,0 +1,18 @@
+{
+  "key": "Amp_FenderChamp",
+  "type": "amp",
+  "name": "FenderChamp",
+  "real": "Fender '57 Champ",
+  "family": "Other",
+  "voice": "tweed",
+  "bass": false,
+  "cab": "1x12",
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "head",
+    "theme": "tweed",
+    "controls": [
+      { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }
+    ]
+  }
+}

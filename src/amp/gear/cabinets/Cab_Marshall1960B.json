@@ -1,0 +1,9 @@
+{
+  "key": "Cab_Marshall1960B",
+  "type": "cabinet",
+  "name": "Marshall1960B",
+  "real": "4x12 Marshall",
+  "bass": false,
+  "cab": "4x12",
+  "source": "RS-to-AT5p gear map"
+}

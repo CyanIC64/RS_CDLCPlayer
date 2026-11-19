@@ -1,0 +1,26 @@
+{
+  "key": "Rack_StudioPlateReverb",
+  "type": "rack",
+  "name": "StudioPlateReverb",
+  "real": "rack",
+  "category": "Reverb",
+  "model": "plate",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "rack",
+    "color": "#26292d",
+    "ink": "#d9dde2",
+    "knob": "rack",
+    "title": "STUDIO PLATE REVERB",
+    "after": "EMT plate / Boss RRV-10 (plate)",
+    "controls": [
+      { "type": "knob", "label": "MIX", "param": "mix" },
+      { "type": "knob", "label": "TONE", "param": "tone" }
+    ]
+  },
+  "alt": [
+    "1957 Electrical Audio Studios: An actual plate reverb",
+    "1985 Boss MicroRack RRV-10 Digital Reverb [PLATE]"
+  ]
+}

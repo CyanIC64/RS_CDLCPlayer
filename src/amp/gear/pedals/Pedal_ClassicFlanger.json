@@ -1,0 +1,24 @@
+{
+  "key": "Pedal_ClassicFlanger",
+  "type": "pedal",
+  "name": "ClassicFlanger",
+  "real": "Boss BF-2",
+  "category": "Flanger",
+  "model": "flanger",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "compact",
+    "color": "#6d4fa0",
+    "knob": "boss",
+    "title": "CLASSIC FLANGER",
+    "after": "Boss BF-2",
+    "controls": [
+      { "type": "knob", "label": "MANUAL", "param": "manual" },
+      { "type": "knob", "label": "DEPTH", "param": "depth" },
+      { "type": "knob", "label": "RATE", "param": "rate" },
+      { "type": "knob", "label": "RES", "param": "feedback" }
+    ]
+  },
+  "alt": ["1980 Boss BF-2 Flanger"]
+}

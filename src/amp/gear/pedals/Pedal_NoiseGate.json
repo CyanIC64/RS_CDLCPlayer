@@ -1,0 +1,11 @@
+{
+  "key": "Pedal_NoiseGate",
+  "type": "pedal",
+  "name": "NoiseGate",
+  "real": "Noise Gate",
+  "category": "Dynamics",
+  "model": "",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "alt": ["1979 Boss Nf-1 Noise Gate", "2017 TC Electronics Iron Curtain"]
+}

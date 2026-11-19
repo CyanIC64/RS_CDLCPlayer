@@ -1,0 +1,9 @@
+{
+  "key": "IBEX_Cab_OrangePrPro412_RSD20_OffAxis_Cone",
+  "type": "cabinet",
+  "name": "OrangePrPro412 RSD20 OffAxis Cone",
+  "real": "4x12 Mesa/Boogie",
+  "bass": false,
+  "cab": "4x12o",
+  "source": "RS-to-AT5p gear map"
+}

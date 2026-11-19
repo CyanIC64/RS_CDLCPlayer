@@ -1,5 +1,5 @@
 (() => {
-  // psarc.js
+  // src/psarc.js
   var MAGIC = 1347633490;
   var BLOCK_SIZE_DEFAULT = 65536;
   var ENTRY_SIZE = 30;
@@ -291,7 +291,7 @@
     return v;
   }
 
-  // js/sng.js
+  // src/js/sng.js
   var PC_KEY = hex("CB648DF3D12A16BF71701414E69619EC171CCA5D2A142E3E59DE7ADDA18A3A30");
   var MAC_KEY = hex("9821330E34B91F70D0A48CBD625993126970CEA09192C0E6CDA676CC9838289D");
   function hex(s) {
@@ -780,6 +780,9 @@
       chord_templates: templates,
       phrases: null,
       tones: null,
+      // tone switches as the chart has them (ToneId 0..3 = the manifest's Tone_A..Tone_D);
+      // used when the package has no arrangement XML to read them from
+      sng_tones: (sng.Tones || []).map((t) => ({ t: Math.round(t.Time * 1e3) / 1e3, id: t.ToneId })),
       path_lead: false,
       path_rhythm: false,
       path_bass: false,
@@ -788,7 +791,7 @@
     };
   }
 
-  // js/xml.js
+  // src/js/xml.js
   function elementFromDom(el) {
     xmlStats.count = (xmlStats.count || 0) + 1;
     const attrs = {};
@@ -895,7 +898,7 @@
     archiveCache.clear();
   }
 
-  // js/song.js
+  // src/js/song.js
   var r3 = (v) => Math.round(v * 1e3) / 1e3;
   function noteToWire(n) {
     const out = {
@@ -1063,6 +1066,12 @@
     if (capoEl && textOf(capoEl)) {
       const c = parseInt(textOf(capoEl), 10);
       if (!Number.isNaN(c)) capo = c;
+    }
+    let centOffset = null;
+    const centEl = find(root, "centOffset");
+    if (centEl && textOf(centEl)) {
+      const c = parseFloat(textOf(centEl));
+      if (Number.isFinite(c)) centOffset = c;
     }
     const chordTemplates = [];
     const ctContainer = find(root, "chordTemplates");
@@ -1261,6 +1270,7 @@
       name: arrName,
       tuning,
       capo,
+      cent_offset: centOffset,
       notes,
       chords,
       anchors,
@@ -1549,7 +1559,7 @@
     return song;
   }
 
-  // js/tones.js
+  // src/js/tones.js
   var NON_TONE = /* @__PURE__ */ new Set(["vocals", "showlights", "jvocals"]);
   var tokens = (s) => new Set((s || "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
   var stemOf = (n) => {
@@ -1558,7 +1568,7 @@
     return (i < 0 ? b : b.slice(0, i)).toLowerCase();
   };
   var decodeText2 = (b) => new TextDecoder("utf-8", { fatal: false }).decode(b);
-  function manifestToneData(jsonNames, files, arrName) {
+  function manifestAttributes(jsonNames, files, arrName) {
     const target = (arrName || "").trim().toLowerCase();
     for (const name of jsonNames) {
       let data;
@@ -1577,27 +1587,43 @@
         const raw = attrs.ArrangementName;
         const name2 = typeof raw === "string" ? raw.trim() : "";
         if (!name2 || name2.toLowerCase() !== target) continue;
-        const definitions = [];
-        const seen = /* @__PURE__ */ new Set();
-        const rawTones = Array.isArray(attrs.Tones) ? attrs.Tones : [];
-        for (const tone2 of rawTones) {
-          if (!tone2 || typeof tone2 !== "object") continue;
-          const key = tone2.Key;
-          if (typeof key === "string" && key) {
-            if (seen.has(key)) continue;
-            seen.add(key);
-          }
-          definitions.push(tone2);
-        }
-        const idName = /* @__PURE__ */ new Map();
-        ["Tone_A", "Tone_B", "Tone_C", "Tone_D"].forEach((k, i) => {
-          const v = attrs[k];
-          if (typeof v === "string" && v) idName.set(i, v);
-        });
-        return { definitions, idName, jsonStem: stemOf(name) };
+        return { attrs, name };
       }
     }
-    return { definitions: [], idName: /* @__PURE__ */ new Map(), jsonStem: null };
+    return null;
+  }
+  function manifestCentOffsets(files, arrNames) {
+    const jsonNames = [...files.keys()].sort().filter((n) => n.toLowerCase().endsWith(".json"));
+    const out = /* @__PURE__ */ new Map();
+    for (const arrName of arrNames) {
+      const hit = manifestAttributes(jsonNames, files, arrName);
+      const c = hit ? Number(hit.attrs.CentOffset) : NaN;
+      if (Number.isFinite(c)) out.set(arrName, c);
+    }
+    return out;
+  }
+  function manifestToneData(jsonNames, files, arrName) {
+    const hit = manifestAttributes(jsonNames, files, arrName);
+    if (!hit) return { definitions: [], idName: /* @__PURE__ */ new Map(), jsonStem: null };
+    const { attrs, name } = hit;
+    const definitions = [];
+    const seen = /* @__PURE__ */ new Set();
+    const rawTones = Array.isArray(attrs.Tones) ? attrs.Tones : [];
+    for (const tone2 of rawTones) {
+      if (!tone2 || typeof tone2 !== "object") continue;
+      const key = tone2.Key;
+      if (typeof key === "string" && key) {
+        if (seen.has(key)) continue;
+        seen.add(key);
+      }
+      definitions.push(tone2);
+    }
+    const idName = /* @__PURE__ */ new Map();
+    ["Tone_A", "Tone_B", "Tone_C", "Tone_D"].forEach((k, i) => {
+      const v = attrs[k];
+      if (typeof v === "string" && v) idName.set(i, v);
+    });
+    return { definitions, idName, jsonStem: stemOf(name) };
   }
   function xmlToneChanges(files, name, idName) {
     let root;
@@ -1630,7 +1656,7 @@
     }
     return { base, changes };
   }
-  function extractOne(arrName, jsonNames, xmlNames, files) {
+  function extractOne(arrName, jsonNames, xmlNames, files, sngTones) {
     if (NON_TONE.has((arrName || "").trim().toLowerCase())) return null;
     const { definitions, idName, jsonStem } = manifestToneData(jsonNames, files, arrName);
     let xmlName = null;
@@ -1656,6 +1682,12 @@
     }
     let base = "", changes = [];
     if (xmlName) ({ base, changes } = xmlToneChanges(files, xmlName, idName));
+    if (!changes.length && Array.isArray(sngTones)) {
+      for (const s of sngTones) {
+        const name = idName.get(s.id);
+        if (name && Number.isFinite(s.t)) changes.push({ t: s.t, name });
+      }
+    }
     if (!base && idName.has(0)) base = idName.get(0);
     if (!base && !changes.length && !definitions.length) return null;
     const result = {};
@@ -1664,20 +1696,920 @@
     if (definitions.length) result.definitions = definitions;
     return result;
   }
-  function extractTonesForSong(files, arrNames) {
+  function extractTonesForSong(files, arrNames, sngTones = /* @__PURE__ */ new Map()) {
     const names = [...files.keys()].sort();
     const jsonNames = names.filter((n) => n.toLowerCase().endsWith(".json"));
     const xmlNames = names.filter((n) => n.toLowerCase().endsWith(".xml"));
     const out = /* @__PURE__ */ new Map();
     for (const name of arrNames) {
-      const block = extractOne(name, jsonNames, xmlNames, files);
+      const block = extractOne(name, jsonNames, xmlNames, files, sngTones.get(name));
       if (block) out.set(name, block);
     }
     return out;
   }
 
-  // js/convert.js
+  // src/amp/gear/library.js
+  var library_default = {
+    "Amp_AT120": { "key": "Amp_AT120", "type": "amp", "name": "AT120", "real": "Jazz Amp 120 (Fender)", "family": "American Tube (Fender)", "voice": "jazz", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "jc", "controls": [{ "type": "switch", "label": "BRIGHT", "param": "bright", "options": [["OFF", 0], ["ON", 6]] }, { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "REVERB", "param": "reverb", "scale": 10 }] } },
+    "Amp_AT20": { "key": "Amp_AT20", "type": "amp", "name": "AT20", "real": "65 Deluxe Reverb (Fender)", "family": "American Tube (Fender)", "voice": "american", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "blackface", "controls": [{ "type": "switch", "label": "BRIGHT", "param": "bright", "options": [["OFF", 0], ["ON", 6]] }, { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "REVERB", "param": "reverb", "scale": 10 }] } },
+    "Amp_Acoustic360": { "key": "Amp_Acoustic360", "type": "amp", "name": "Acoustic360", "real": "360Bass Preamp", "family": "Other", "voice": "bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "bass", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MID", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "DEEP", "param": "depth", "scale": 10 }, { "type": "knob", "label": "BRIGHT", "param": "bright", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_Aguilar": { "key": "Amp_Aguilar", "type": "amp", "name": "Aguilar", "real": "New York B750", "family": "Other", "voice": "bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "bass", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MID", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "DEEP", "param": "depth", "scale": 10 }, { "type": "knob", "label": "BRIGHT", "param": "bright", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_Ampeg": { "key": "Amp_Ampeg", "type": "amp", "name": "Ampeg", "real": "SVX-CL", "family": "Other", "voice": "bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "bass", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "switch", "label": "ULTRA LO", "param": "depth", "options": [["OFF", 0], ["ON", 0.7]] }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDRANGE", "param": "mid", "scale": 10 }, { "type": "switch", "label": "ULTRA HI", "param": "bright", "options": [["OFF", 0], ["ON", 6]] }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_AmpegB15": { "key": "Amp_AmpegB15", "type": "amp", "name": "AmpegB15", "real": "SVX-15R", "family": "Other", "voice": "bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "bass", "controls": [{ "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }] } },
+    "Amp_AmpegSVTVR": { "key": "Amp_AmpegSVTVR", "type": "amp", "name": "AmpegSVTVR", "real": "SVX-VR", "family": "Other", "voice": "bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "bass", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "switch", "label": "ULTRA LO", "param": "depth", "options": [["OFF", 0], ["ON", 0.7]] }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDRANGE", "param": "mid", "scale": 10 }, { "type": "switch", "label": "ULTRA HI", "param": "bright", "options": [["OFF", 0], ["ON", 6]] }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_BT15": { "key": "Amp_BT15", "type": "amp", "name": "BT15", "real": "JH Gold (Marshall)", "family": "British Tube (Marshall)", "voice": "plexi", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "plexi", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "VOLUME I", "param": "gain", "scale": 10 }, { "type": "knob", "label": "VOLUME II", "param": "bright", "scale": 10 }] } },
+    "Amp_BT30": { "key": "Amp_BT30", "type": "amp", "name": "BT30", "real": "Brit 9000 (Marshall)", "family": "British Tube (Marshall)", "voice": "jcm", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "plexi", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "PRE-AMP", "param": "gain", "scale": 10 }] } },
+    "Amp_BT45": { "key": "Amp_BT45", "type": "amp", "name": "BT45", "real": "JH Gold (Marshall)", "family": "British Tube (Marshall)", "voice": "plexi", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "plexi", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "VOLUME I", "param": "gain", "scale": 10 }, { "type": "knob", "label": "VOLUME II", "param": "bright", "scale": 10 }] }, "alt": ["Budda Superdrive 45"] },
+    "Amp_BognerEcstasy": { "key": "Amp_BognerEcstasy", "type": "amp", "name": "BognerEcstasy", "real": "German 34", "family": "Other", "voice": "german", "bass": false, "cab": "4x12g", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "highgain", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "DEPTH", "param": "depth", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_CA100": { "key": "Amp_CA100", "type": "amp", "name": "CA100", "category": "Amp", "bass": false, "cab": "4x12m", "knobs": { "Gain": { "param": "gain", "from": [0, 100], "to": [0, 1] }, "Bass": { "param": "bass", "from": [0, 100], "to": [-12, 12] }, "Mid": { "param": "mid", "from": [0, 100], "to": [-12, 12] }, "Treble": { "param": "treble", "from": [0, 100], "to": [-12, 12] }, "Pres": { "param": "presence", "from": [0, 100], "to": [-12, 12] } }, "real": "Dual Rectifier (Mesa/Boogie)", "family": "California (Mesa/Boogie)", "voice": "rectifier", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "rect", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MID", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] }, "alt": ["Mesaboogie Dual Rectifier"] },
+    "Amp_CA38": { "key": "Amp_CA38", "type": "amp", "name": "CA38", "real": "American Clean MKIII (Mesa/Boogie)", "family": "California (Mesa/Boogie)", "voice": "american", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "blackface", "controls": [{ "type": "switch", "label": "BRIGHT", "param": "bright", "options": [["OFF", 0], ["ON", 6]] }, { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "REVERB", "param": "reverb", "scale": 10 }] } },
+    "Amp_CA85": { "key": "Amp_CA85", "type": "amp", "name": "CA85", "real": "Mark III (Mesa/Boogie)", "family": "California (Mesa/Boogie)", "voice": "mark", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "mesa", "controls": [{ "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "switch", "label": "DEEP", "param": "depth", "options": [["OFF", 0], ["PULL", 0.5]] }, { "type": "slider", "label": "80", "param": "eq0" }, { "type": "slider", "label": "240", "param": "eq1" }, { "type": "slider", "label": "750", "param": "eq2" }, { "type": "slider", "label": "2.2K", "param": "eq3" }, { "type": "slider", "label": "6.6K", "param": "eq4" }] }, "alt": ["1985 'Boogie' MkIII [crunch channel]"] },
+    "Amp_CS100": { "key": "Amp_CS100", "type": "amp", "name": "CS100", "real": "Jazz Amp 120 (Fender)", "family": "Custom Shop (Fender)", "voice": "plexi", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "plexi", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "VOLUME I", "param": "gain", "scale": 10 }, { "type": "knob", "label": "VOLUME II", "param": "bright", "scale": 10 }] } },
+    "Amp_CS120": { "key": "Amp_CS120", "type": "amp", "name": "CS120", "real": "Jazz Amp 120 (Fender)", "family": "Custom Shop (Fender)", "voice": "jazz", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "jc", "controls": [{ "type": "switch", "label": "BRIGHT", "param": "bright", "options": [["OFF", 0], ["ON", 6]] }, { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "REVERB", "param": "reverb", "scale": 10 }] } },
+    "Amp_CS90": { "key": "Amp_CS90", "type": "amp", "name": "CS90", "real": "Jazz Amp 120 (Fender)", "family": "Custom Shop (Fender)", "voice": "jazz", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "jc", "controls": [{ "type": "switch", "label": "BRIGHT", "param": "bright", "options": [["OFF", 0], ["ON", 6]] }, { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "REVERB", "param": "reverb", "scale": 10 }] }, "alt": ["Roland JC-90"] },
+    "Amp_CarvinV3M": { "key": "Amp_CarvinV3M", "type": "amp", "name": "CarvinV3M", "real": "V3M", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "highgain", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_DiezelVH4": { "key": "Amp_DiezelVH4", "type": "amp", "name": "DiezelVH4", "real": "VHandcraft 4", "family": "Other", "voice": "german", "bass": false, "cab": "4x12g", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "highgain", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "DEEP", "param": "depth", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_DrZMaz18": { "key": "Amp_DrZMaz18", "type": "amp", "name": "DrZMaz18", "real": "MAZ 18 Jr", "family": "Other", "voice": "vox", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "vox", "controls": [{ "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "CUT", "param": "presence", "invert": true, "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_DrZZWreck": { "key": "Amp_DrZZWreck", "type": "amp", "name": "DrZZWreck", "real": "Z Wreck", "family": "Other", "voice": "vox", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "vox", "controls": [{ "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "CUT", "param": "presence", "invert": true, "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_EN30": { "key": "Amp_EN30", "type": "amp", "name": "EN30", "bass": false, "cab": "4x12o", "knobs": { "Gain": { "param": "gain", "from": [0, 100], "to": [0, 1] }, "Pres": { "param": "presence", "from": [0, 100], "to": [-12, 12] }, "Bass": { "param": "bass", "from": [0, 100], "to": [-12, 12] }, "Mid": { "param": "mid", "from": [0, 100], "to": [-12, 12] }, "Bright": { "param": null, "from": [0, 100] }, "Treble": { "param": "treble", "from": [0, 100], "to": [-12, 12] } }, "real": "British Copper 30TB (Orange)", "family": "English (Orange)", "voice": "orange", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "orange", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "switch", "label": "BRIGHT", "param": "bright", "options": [["OFF", 0], ["ON", 6]] }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] }, "alt": ["Vox AC-30"] },
+    "Amp_EN50": { "key": "Amp_EN50", "type": "amp", "name": "EN50", "real": "RockerVerb 50 (Orange)", "family": "English (Orange)", "voice": "orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "orange", "controls": [{ "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }] } },
+    "Amp_EnglE650": { "key": "Amp_EnglE650", "type": "amp", "name": "EnglE650", "real": "E650", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "highgain", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "DEPTH", "param": "depth", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_EnglPowerball": { "key": "Amp_EnglPowerball", "type": "amp", "name": "EnglPowerball", "real": "Powerball", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "highgain", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "DEPTH", "param": "depth", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_Fender57CustomPro": { "key": "Amp_Fender57CustomPro", "type": "amp", "name": "Fender57CustomPro", "real": "Fender '57 Custom Pro-Amp", "family": "Other", "voice": "tweed", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "tweed", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BRIGHT", "param": "bright", "scale": 10 }] } },
+    "Amp_Fender57CustomTwin": { "key": "Amp_Fender57CustomTwin", "type": "amp", "name": "Fender57CustomTwin", "real": "Fender '57 Custom Twin-Amp", "family": "Other", "voice": "tweed", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "tweed", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BRIGHT", "param": "bright", "scale": 10 }] } },
+    "Amp_Fender59Bassman": { "key": "Amp_Fender59Bassman", "type": "amp", "name": "Fender59Bassman", "real": "Fender '59 Bassman LTD", "family": "Other", "voice": "tweed", "bass": false, "cab": "bass", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "tweed", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BRIGHT", "param": "bright", "scale": 10 }] } },
+    "Amp_FenderBassman": { "key": "Amp_FenderBassman", "type": "amp", "name": "FenderBassman", "real": "Fender American Vintage B", "family": "Other", "voice": "tweed", "bass": false, "cab": "bass", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "tweed", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BRIGHT", "param": "bright", "scale": 10 }] } },
+    "Amp_FenderBassman300": { "key": "Amp_FenderBassman300", "type": "amp", "name": "FenderBassman300", "real": "Fender Bassman 300", "family": "Other", "voice": "bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "bass", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "switch", "label": "ULTRA LO", "param": "depth", "options": [["OFF", 0], ["ON", 0.7]] }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDRANGE", "param": "mid", "scale": 10 }, { "type": "switch", "label": "ULTRA HI", "param": "bright", "options": [["OFF", 0], ["ON", 6]] }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_FenderChamp": { "key": "Amp_FenderChamp", "type": "amp", "name": "FenderChamp", "real": "Fender '57 Champ", "family": "Other", "voice": "tweed", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "tweed", "controls": [{ "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }] } },
+    "Amp_FenderChampion600": { "key": "Amp_FenderChampion600", "type": "amp", "name": "FenderChampion600", "real": "Fender Champion 600", "family": "Other", "voice": "american", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "blackface", "controls": [{ "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TONE", "param": "treble", "scale": 10 }] } },
+    "Amp_FenderDeluxeReverb": { "key": "Amp_FenderDeluxeReverb", "type": "amp", "name": "FenderDeluxeReverb", "real": "Fender '65 Deluxe Reverb", "family": "Other", "voice": "american", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "blackface", "controls": [{ "type": "switch", "label": "BRIGHT", "param": "bright", "options": [["OFF", 0], ["ON", 6]] }, { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "REVERB", "param": "reverb", "scale": 10 }] } },
+    "Amp_FenderMH500": { "key": "Amp_FenderMH500", "type": "amp", "name": "FenderMH500", "real": "Fender MH-500 Metalhead", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "highgain", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_FenderPrinceton": { "key": "Amp_FenderPrinceton", "type": "amp", "name": "FenderPrinceton", "real": "Fender '65 Princeton", "family": "Other", "voice": "american", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "blackface", "controls": [{ "type": "switch", "label": "BRIGHT", "param": "bright", "options": [["OFF", 0], ["ON", 6]] }, { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "REVERB", "param": "reverb", "scale": 10 }] } },
+    "Amp_FenderProJunior": { "key": "Amp_FenderProJunior", "type": "amp", "name": "FenderProJunior", "real": "Fender Pro Junior", "family": "Other", "voice": "american", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "blackface", "controls": [{ "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TONE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_FenderSuperReverb": { "key": "Amp_FenderSuperReverb", "type": "amp", "name": "FenderSuperReverb", "real": "Fender '65 Super Reverb", "family": "Other", "voice": "american", "bass": false, "cab": "bass", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "blackface", "controls": [{ "type": "switch", "label": "BRIGHT", "param": "bright", "options": [["OFF", 0], ["ON", 6]] }, { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "REVERB", "param": "reverb", "scale": 10 }] } },
+    "Amp_FenderSupersonic": { "key": "Amp_FenderSupersonic", "type": "amp", "name": "FenderSupersonic", "real": "Fender Super-Sonic", "family": "Other", "voice": "american", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "blackface", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "REVERB", "param": "reverb", "scale": 10 }] } },
+    "Amp_FenderTwinReverb": { "key": "Amp_FenderTwinReverb", "type": "amp", "name": "FenderTwinReverb", "real": "Fender '65 Twin Reverb", "family": "Other", "voice": "american", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "blackface", "controls": [{ "type": "switch", "label": "BRIGHT", "param": "bright", "options": [["OFF", 0], ["ON", 6]] }, { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "REVERB", "param": "reverb", "scale": 10 }] } },
+    "Amp_FenderVibroking": { "key": "Amp_FenderVibroking", "type": "amp", "name": "FenderVibroking", "real": "Fender Vibro-King", "family": "Other", "voice": "american", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "blackface", "controls": [{ "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MID", "param": "mid", "scale": 10 }, { "type": "knob", "label": "DWELL", "param": "reverb", "scale": 10 }, { "type": "knob", "label": "FAT", "param": "depth", "scale": 10 }] } },
+    "Amp_FenderVibroverb": { "key": "Amp_FenderVibroverb", "type": "amp", "name": "FenderVibroverb", "real": "Fender '64 Vibroverb Custom", "family": "Other", "voice": "american", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "blackface", "controls": [{ "type": "switch", "label": "BRIGHT", "param": "bright", "options": [["OFF", 0], ["ON", 6]] }, { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "REVERB", "param": "reverb", "scale": 10 }] } },
+    "Amp_GB100": { "key": "Amp_GB100", "type": "amp", "name": "GB100", "real": "VHandcraft 4", "family": "German/British (Bogner/Diezel)", "voice": "german", "bass": false, "cab": "4x12g", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "highgain", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "DEPTH", "param": "depth", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_GB38": { "key": "Amp_GB38", "type": "amp", "name": "GB38", "real": "German 34", "family": "German/British (Bogner/Diezel)", "voice": "german", "bass": false, "cab": "4x12g", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "highgain", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "DEPTH", "param": "depth", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_GB50": { "key": "Amp_GB50", "type": "amp", "name": "GB50", "real": "German 34", "family": "German/British (Bogner/Diezel)", "voice": "german", "bass": false, "cab": "4x12g", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "highgain", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "DEPTH", "param": "depth", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_HG100": { "key": "Amp_HG100", "type": "amp", "name": "HG100", "real": "Metal Lead V (Mesa/Peavey/Soldano)", "family": "High Gain (Mesa/Peavey/Soldano)", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "highgain", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_HG180": { "key": "Amp_HG180", "type": "amp", "name": "HG180", "real": "SLD 100 (Mesa/Peavey/Soldano)", "family": "High Gain (Mesa/Peavey/Soldano)", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "highgain", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_HG500": { "key": "Amp_HG500", "type": "amp", "name": "HG500", "real": "Triple Rectifier (Mesa/Peavey/Soldano)", "family": "High Gain (Mesa/Peavey/Soldano)", "voice": "rectifier", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "rect", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MID", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_Hiwatt": { "key": "Amp_Hiwatt", "type": "amp", "name": "Hiwatt", "real": "HiAmp", "family": "Other", "voice": "plexi", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "hiwatt", "controls": [{ "type": "knob", "label": "NORMAL", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BRILLIANCE", "param": "bright", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_JetCityJCA100H": { "key": "Amp_JetCityJCA100H", "type": "amp", "name": "JetCityJCA100H", "real": "JCA100H", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "highgain", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_JetCityJCA20H": { "key": "Amp_JetCityJCA20H", "type": "amp", "name": "JetCityJCA20H", "real": "JCA20H", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "highgain", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_Marshall1962Bluesbreaker": { "key": "Amp_Marshall1962Bluesbreaker", "type": "amp", "name": "Marshall1962Bluesbreaker", "real": "Marshall 1962 Bluesbreaker", "family": "Other", "voice": "plexi", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "plexi", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "VOLUME I", "param": "gain", "scale": 10 }, { "type": "knob", "label": "VOLUME II", "param": "bright", "scale": 10 }] }, "alt": ['1962 Marshall "BluesBreaker"'] },
+    "Amp_MarshallDSL100H": { "key": "Amp_MarshallDSL100H", "type": "amp", "name": "MarshallDSL100H", "real": "Marshall DSL100H", "family": "Other", "voice": "jcm", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "plexi", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "PRE-AMP", "param": "gain", "scale": 10 }] } },
+    "Amp_MarshallDSL15H": { "key": "Amp_MarshallDSL15H", "type": "amp", "name": "MarshallDSL15H", "real": "Marshall DSL15H", "family": "Other", "voice": "jcm", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "plexi", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "PRE-AMP", "param": "gain", "scale": 10 }] } },
+    "Amp_MarshallJCM800": { "key": "Amp_MarshallJCM800", "type": "amp", "name": "MarshallJCM800", "real": "Marshall JCM 800", "family": "Other", "voice": "jcm", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "plexi", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "PRE-AMP", "param": "gain", "scale": 10 }] }, "alt": ["Marshall JCM 800"] },
+    "Amp_MarshallJCM900": { "key": "Amp_MarshallJCM900", "type": "amp", "name": "MarshallJCM900", "real": "Marshall JCM 900", "family": "Other", "voice": "jcm", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "plexi", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "PRE-AMP", "param": "gain", "scale": 10 }] } },
+    "Amp_MarshallJMP": { "key": "Amp_MarshallJMP", "type": "amp", "name": "MarshallJMP", "real": "Marshall JMP", "family": "Other", "voice": "plexi", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "plexi", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "VOLUME I", "param": "gain", "scale": 10 }, { "type": "knob", "label": "VOLUME II", "param": "bright", "scale": 10 }] } },
+    "Amp_MarshallJTM45": { "key": "Amp_MarshallJTM45", "type": "amp", "name": "MarshallJTM45", "real": "Marshall JTM 45", "family": "Other", "voice": "plexi", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "plexi", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "VOLUME I", "param": "gain", "scale": 10 }, { "type": "knob", "label": "VOLUME II", "param": "bright", "scale": 10 }] } },
+    "Amp_MarshallJVM": { "key": "Amp_MarshallJVM", "type": "amp", "name": "MarshallJVM", "real": "Marshall JVM", "family": "Other", "voice": "jcm", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "plexi", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "PRE-AMP", "param": "gain", "scale": 10 }] } },
+    "Amp_MarshallJVM410H": { "key": "Amp_MarshallJVM410H", "type": "amp", "name": "MarshallJVM410H", "real": "Marshall JVM 410H", "family": "Other", "voice": "jcm", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "plexi", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "PRE-AMP", "param": "gain", "scale": 10 }] } },
+    "Amp_MarshallMajor": { "key": "Amp_MarshallMajor", "type": "amp", "name": "MarshallMajor", "real": "Marshall Major", "family": "Other", "voice": "plexi", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "plexi", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "VOLUME I", "param": "gain", "scale": 10 }, { "type": "knob", "label": "VOLUME II", "param": "bright", "scale": 10 }] } },
+    "Amp_MarshallPlexi": { "key": "Amp_MarshallPlexi", "type": "amp", "name": "MarshallPlexi", "real": "Marshall Super Lead 100 (Plexi)", "family": "Other", "voice": "plexi", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "plexi", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "VOLUME I", "param": "gain", "scale": 10 }, { "type": "knob", "label": "VOLUME II", "param": "bright", "scale": 10 }] } },
+    "Amp_MarshallSilverJubilee": { "key": "Amp_MarshallSilverJubilee", "type": "amp", "name": "MarshallSilverJubilee", "real": "Marshall Silver Jubilee", "family": "Other", "voice": "jcm", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "silver", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "INPUT GAIN", "param": "gain", "scale": 10 }] } },
+    "Amp_MarshallSlash": { "key": "Amp_MarshallSlash", "type": "amp", "name": "MarshallSlash", "real": "Marshall Slash AFD100", "family": "Other", "voice": "jcm", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "plexi", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "PRE-AMP", "param": "gain", "scale": 10 }] } },
+    "Amp_MarshallSlashGold": { "key": "Amp_MarshallSlashGold", "type": "amp", "name": "MarshallSlashGold", "real": "Marshall Slash Signature Gold", "family": "Other", "voice": "jcm", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "plexi", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "PRE-AMP", "param": "gain", "scale": 10 }] } },
+    "Amp_MesaBoogieMarkIIC": { "key": "Amp_MesaBoogieMarkIIC", "type": "amp", "name": "MesaBoogieMarkIIC", "real": "Mark IIC+", "family": "Other", "voice": "mark", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "mesa", "controls": [{ "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "switch", "label": "DEEP", "param": "depth", "options": [["OFF", 0], ["PULL", 0.5]] }, { "type": "slider", "label": "80", "param": "eq0" }, { "type": "slider", "label": "240", "param": "eq1" }, { "type": "slider", "label": "750", "param": "eq2" }, { "type": "slider", "label": "2.2K", "param": "eq3" }, { "type": "slider", "label": "6.6K", "param": "eq4" }] } },
+    "Amp_MesaBoogieMarkIII": { "key": "Amp_MesaBoogieMarkIII", "type": "amp", "name": "MesaBoogieMarkIII", "real": "Mark III", "family": "Other", "voice": "mark", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "mesa", "controls": [{ "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "switch", "label": "DEEP", "param": "depth", "options": [["OFF", 0], ["PULL", 0.5]] }, { "type": "slider", "label": "80", "param": "eq0" }, { "type": "slider", "label": "240", "param": "eq1" }, { "type": "slider", "label": "750", "param": "eq2" }, { "type": "slider", "label": "2.2K", "param": "eq3" }, { "type": "slider", "label": "6.6K", "param": "eq4" }] } },
+    "Amp_MesaBoogieMarkIV": { "key": "Amp_MesaBoogieMarkIV", "type": "amp", "name": "MesaBoogieMarkIV", "real": "Mark IV", "family": "Other", "voice": "mark", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "mesa", "controls": [{ "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "switch", "label": "DEEP", "param": "depth", "options": [["OFF", 0], ["PULL", 0.5]] }, { "type": "slider", "label": "80", "param": "eq0" }, { "type": "slider", "label": "240", "param": "eq1" }, { "type": "slider", "label": "750", "param": "eq2" }, { "type": "slider", "label": "2.2K", "param": "eq3" }, { "type": "slider", "label": "6.6K", "param": "eq4" }] } },
+    "Amp_MesaBoogieMarkV": { "key": "Amp_MesaBoogieMarkV", "type": "amp", "name": "MesaBoogieMarkV", "real": "Mark V", "family": "Other", "voice": "mark", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "mesa", "controls": [{ "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "switch", "label": "DEEP", "param": "depth", "options": [["OFF", 0], ["PULL", 0.5]] }, { "type": "slider", "label": "80", "param": "eq0" }, { "type": "slider", "label": "240", "param": "eq1" }, { "type": "slider", "label": "750", "param": "eq2" }, { "type": "slider", "label": "2.2K", "param": "eq3" }, { "type": "slider", "label": "6.6K", "param": "eq4" }] } },
+    "Amp_MesaCaliforniaTweed": { "key": "Amp_MesaCaliforniaTweed", "type": "amp", "name": "MesaCaliforniaTweed", "real": "California Tweed", "family": "Other", "voice": "american", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "tweed", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BRIGHT", "param": "bright", "scale": 10 }] } },
+    "Amp_MesaCleanMKIII": { "key": "Amp_MesaCleanMKIII", "type": "amp", "name": "MesaCleanMKIII", "real": "American Clean MKIII", "family": "Other", "voice": "american", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "mesa", "controls": [{ "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "switch", "label": "DEEP", "param": "depth", "options": [["OFF", 0], ["PULL", 0.5]] }, { "type": "slider", "label": "80", "param": "eq0" }, { "type": "slider", "label": "240", "param": "eq1" }, { "type": "slider", "label": "750", "param": "eq2" }, { "type": "slider", "label": "2.2K", "param": "eq3" }, { "type": "slider", "label": "6.6K", "param": "eq4" }] } },
+    "Amp_MesaDualRectifier": { "key": "Amp_MesaDualRectifier", "type": "amp", "name": "MesaDualRectifier", "real": "Dual Rectifier", "family": "Other", "voice": "rectifier", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "rect", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MID", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_MesaLeadMKIII": { "key": "Amp_MesaLeadMKIII", "type": "amp", "name": "MesaLeadMKIII", "real": "American Lead MKIII", "family": "Other", "voice": "mark", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "mesa", "controls": [{ "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "switch", "label": "DEEP", "param": "depth", "options": [["OFF", 0], ["PULL", 0.5]] }, { "type": "slider", "label": "80", "param": "eq0" }, { "type": "slider", "label": "240", "param": "eq1" }, { "type": "slider", "label": "750", "param": "eq2" }, { "type": "slider", "label": "2.2K", "param": "eq3" }, { "type": "slider", "label": "6.6K", "param": "eq4" }] } },
+    "Amp_MesaModernTubeLead": { "key": "Amp_MesaModernTubeLead", "type": "amp", "name": "MesaModernTubeLead", "real": "Modern Tube Lead", "family": "Other", "voice": "mark", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "mesa", "controls": [{ "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "switch", "label": "DEEP", "param": "depth", "options": [["OFF", 0], ["PULL", 0.5]] }, { "type": "slider", "label": "80", "param": "eq0" }, { "type": "slider", "label": "240", "param": "eq1" }, { "type": "slider", "label": "750", "param": "eq2" }, { "type": "slider", "label": "2.2K", "param": "eq3" }, { "type": "slider", "label": "6.6K", "param": "eq4" }] } },
+    "Amp_MesaTA30": { "key": "Amp_MesaTA30", "type": "amp", "name": "MesaTA30", "real": "TransAtlantic TA-30", "family": "Other", "voice": "mark", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "mesa", "controls": [{ "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "switch", "label": "DEEP", "param": "depth", "options": [["OFF", 0], ["PULL", 0.5]] }, { "type": "slider", "label": "80", "param": "eq0" }, { "type": "slider", "label": "240", "param": "eq1" }, { "type": "slider", "label": "750", "param": "eq2" }, { "type": "slider", "label": "2.2K", "param": "eq3" }, { "type": "slider", "label": "6.6K", "param": "eq4" }] } },
+    "Amp_MesaTripleCrown": { "key": "Amp_MesaTripleCrown", "type": "amp", "name": "MesaTripleCrown", "real": "Triple Crown", "family": "Other", "voice": "rectifier", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "rect", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MID", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_MesaTripleRectifier": { "key": "Amp_MesaTripleRectifier", "type": "amp", "name": "MesaTripleRectifier", "real": "Triple Rectifier", "family": "Other", "voice": "rectifier", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "rect", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MID", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_OrangeAD200": { "key": "Amp_OrangeAD200", "type": "amp", "name": "OrangeAD200", "real": "Orange AD200 Bass", "family": "Other", "voice": "bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "orange", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_OrangeAD30": { "key": "Amp_OrangeAD30", "type": "amp", "name": "OrangeAD30", "real": "Orange AD30", "family": "Other", "voice": "orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "orange", "controls": [{ "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }] } },
+    "Amp_OrangeDualTerror": { "key": "Amp_OrangeDualTerror", "type": "amp", "name": "OrangeDualTerror", "real": "Orange Dual Terror", "family": "Other", "voice": "rectifier", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "orange", "controls": [{ "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "TONE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }] } },
+    "Amp_OrangeOR120": { "key": "Amp_OrangeOR120", "type": "amp", "name": "OrangeOR120", "real": "Orange OR120", "family": "Other", "voice": "orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "orange", "controls": [{ "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }] } },
+    "Amp_OrangeOR50": { "key": "Amp_OrangeOR50", "type": "amp", "name": "OrangeOR50", "real": "Orange OR50", "family": "Other", "voice": "orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "orange", "controls": [{ "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }] } },
+    "Amp_OrangeRockerverb": { "key": "Amp_OrangeRockerverb", "type": "amp", "name": "OrangeRockerverb", "real": "Orange Rockerverb 50", "family": "Other", "voice": "orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "orange", "controls": [{ "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "REVERB", "param": "reverb", "scale": 10 }] } },
+    "Amp_OrangeThunderverb": { "key": "Amp_OrangeThunderverb", "type": "amp", "name": "OrangeThunderverb", "real": "Orange Thunderverb 200", "family": "Other", "voice": "orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "orange", "controls": [{ "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }] } },
+    "Amp_OrangeTinyTerror": { "key": "Amp_OrangeTinyTerror", "type": "amp", "name": "OrangeTinyTerror", "real": "Orange Tiny Terror", "family": "Other", "voice": "orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "orange", "controls": [{ "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }, { "type": "knob", "label": "TONE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }] } },
+    "Amp_PRSArchon": { "key": "Amp_PRSArchon", "type": "amp", "name": "PRSArchon", "real": "SilverPlate 50", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "highgain", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_Peavey5150": { "key": "Amp_Peavey5150", "type": "amp", "name": "Peavey5150", "real": "Metal Lead V", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "highgain", "controls": [{ "type": "knob", "label": "PRE GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "LOW", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MID", "param": "mid", "scale": 10 }, { "type": "knob", "label": "HIGH", "param": "treble", "scale": 10 }, { "type": "knob", "label": "POST GAIN", "param": "master", "scale": 10 }, { "type": "knob", "label": "RESONANCE", "param": "depth", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }] } },
+    "Amp_Peavey5150II": { "key": "Amp_Peavey5150II", "type": "amp", "name": "Peavey5150II", "real": "SJ50", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "highgain", "controls": [{ "type": "knob", "label": "PRE GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "LOW", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MID", "param": "mid", "scale": 10 }, { "type": "knob", "label": "HIGH", "param": "treble", "scale": 10 }, { "type": "knob", "label": "POST GAIN", "param": "master", "scale": 10 }, { "type": "knob", "label": "RESONANCE", "param": "depth", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }] } },
+    "Amp_Randall": { "key": "Amp_Randall", "type": "amp", "name": "Randall", "real": "Darrell 100", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "highgain", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_RolandJC120": { "key": "Amp_RolandJC120", "type": "amp", "name": "RolandJC120", "real": "Jazz Amp 120", "family": "Other", "voice": "jazz", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "jc", "controls": [{ "type": "switch", "label": "BRIGHT", "param": "bright", "options": [["OFF", 0], ["ON", 6]] }, { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "REVERB", "param": "reverb", "scale": 10 }] } },
+    "Amp_Soldano": { "key": "Amp_Soldano", "type": "amp", "name": "Soldano", "real": "SLD 100", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "highgain", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_Sunn1200": { "key": "Amp_Sunn1200", "type": "amp", "name": "Sunn1200", "real": "JH 1200", "family": "Other", "voice": "bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "bass", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MID", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "DEEP", "param": "depth", "scale": 10 }, { "type": "knob", "label": "BRIGHT", "param": "bright", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_Supro": { "key": "Amp_Supro", "type": "amp", "name": "Supro", "real": "Tube Vintage Combo", "family": "Other", "voice": "tweed", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "tweed", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BRIGHT", "param": "bright", "scale": 10 }] } },
+    "Amp_THDBiValve": { "key": "Amp_THDBiValve", "type": "amp", "name": "THDBiValve", "real": "Bi-Valve", "family": "Other", "voice": "highgain", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "highgain", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_TW22": { "key": "Amp_TW22", "type": "amp", "name": "TW22", "real": "57 Custom Deluxe (Fender)", "family": "Tweed (Fender)", "voice": "tweed", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "tweed", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BRIGHT", "param": "bright", "scale": 10 }] }, "alt": ["Fender SuperSonic 22"] },
+    "Amp_TW26": { "key": "Amp_TW26", "type": "amp", "name": "TW26", "real": "57 Custom Pro-Amp (Fender)", "family": "Tweed (Fender)", "voice": "tweed", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "tweed", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BRIGHT", "param": "bright", "scale": 10 }] } },
+    "Amp_TW40": { "key": "Amp_TW40", "type": "amp", "name": "TW40", "real": "59 Bassman LTD (Fender)", "family": "Tweed (Fender)", "voice": "tweed", "bass": false, "cab": "bass", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "tweed", "controls": [{ "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BRIGHT", "param": "bright", "scale": 10 }] } },
+    "Amp_VoxAC30": { "key": "Amp_VoxAC30", "type": "amp", "name": "VoxAC30", "real": "Vox AC30", "family": "Other", "voice": "vox", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "vox", "controls": [{ "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "CUT", "param": "presence", "invert": true, "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Amp_VoxAC30Blue": { "key": "Amp_VoxAC30Blue", "type": "amp", "name": "VoxAC30Blue", "real": "Vox AC30 (blue)", "family": "Other", "voice": "vox", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "vox", "controls": [{ "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "CUT", "param": "presence", "invert": true, "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Bass_Amp_BT880B": { "key": "Bass_Amp_BT880B", "type": "amp", "name": "BT880B", "bass": true, "cab": "bass", "knobs": { "Treble": { "param": "treble", "from": [-12, 12], "to": [-12, 12] }, "Gain": { "param": "gain", "from": [0, 100], "to": [0, 1] }, "Bass": { "param": "bass", "from": [-12, 12], "to": [-12, 12] }, "LoFreq": { "param": null, "from": [0, 130] }, "Mid": { "param": "mid", "from": [-12, 12], "to": [-12, 12] }, "Lo": { "param": null, "from": [-12, 12] }, "Hi": { "param": null, "from": [-12, 12] }, "HiFreq": { "param": null, "from": [0, 100] }, "MidFreq": { "param": null, "from": [0, 820] } }, "face": { "look": "head", "theme": "bass", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "LO", "param": "lo", "scale": 10 }, { "type": "knob", "label": "LO FREQ", "param": "loFreq", "size": "s" }, { "type": "knob", "label": "MID", "param": "mid", "scale": 10 }, { "type": "knob", "label": "MID FREQ", "param": "midFreq", "size": "s" }, { "type": "knob", "label": "HI", "param": "hi", "scale": 10 }, { "type": "knob", "label": "HI FREQ", "param": "hiFreq", "size": "s" }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "Bass_Cab_AT1150BC": { "key": "Bass_Cab_AT1150BC", "type": "cabinet", "name": "AT1150BC", "real": "4x12 Ampeg (bass)", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_AT810BC": { "key": "Bass_Cab_AT810BC", "type": "cabinet", "name": "AT810BC", "real": "Ampeg (bass)", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_BT115BC": { "key": "Bass_Cab_BT115BC", "type": "cabinet", "name": "BT115BC", "real": "1x15 Marshall (bass)", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_BT212BC": { "key": "Bass_Cab_BT212BC", "type": "cabinet", "name": "BT212BC", "bass": true, "cab": "bass", "real": "Marshall (bass)", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_BT410BC": { "key": "Bass_Cab_BT410BC", "type": "cabinet", "name": "BT410BC", "real": "8x10 Marshall (bass)", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_CA1510BC": { "key": "Bass_Cab_CA1510BC", "type": "cabinet", "name": "CA1510BC", "real": "Bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_CH210BC": { "key": "Bass_Cab_CH210BC", "type": "cabinet", "name": "CH210BC", "real": "Practice (bass)", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_CH310BC": { "key": "Bass_Cab_CH310BC", "type": "cabinet", "name": "CH310BC", "real": "Practice (bass)", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_CH410BC": { "key": "Bass_Cab_CH410BC", "type": "cabinet", "name": "CH410BC", "real": "Practice (bass)", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_CS15BC": { "key": "Bass_Cab_CS15BC", "type": "cabinet", "name": "CS15BC", "real": "Bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_CS410BC": { "key": "Bass_Cab_CS410BC", "type": "cabinet", "name": "CS410BC", "real": "Bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_EdenD212XLT": { "key": "Bass_Cab_EdenD212XLT", "type": "cabinet", "name": "EdenD212XLT", "real": "Bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_EdenD610XST": { "key": "Bass_Cab_EdenD610XST", "type": "cabinet", "name": "EdenD610XST", "real": "Bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_GB415BC": { "key": "Bass_Cab_GB415BC", "type": "cabinet", "name": "GB415BC", "real": "German (bass)", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_OrangeOBC810": { "key": "Bass_Cab_OrangeOBC810", "type": "cabinet", "name": "OrangeOBC810", "real": "8x10 Bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Cab_TW215BC": { "key": "Bass_Cab_TW215BC", "type": "cabinet", "name": "TW215BC", "real": "Bass", "bass": true, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Bass_Pedal_BassEQ8": { "key": "Bass_Pedal_BassEQ8", "type": "pedal", "name": "BassEQ8", "category": "30785", "model": "eq", "knobs": { "30": { "param": "g0", "from": [-12, 12], "to": [-12, 12] }, "75": { "param": "g1", "from": [-12, 12], "to": [-12, 12] }, "185": { "param": "g2", "from": [-12, 12], "to": [-12, 12] }, "460": { "param": "g3", "from": [-12, 12], "to": [-12, 12] }, "1100": { "param": "g4", "from": [-12, 12], "to": [-12, 12] }, "2700": { "param": "g5", "from": [-12, 12], "to": [-12, 12] }, "6800": { "param": "g6", "from": [-12, 12], "to": [-12, 12] }, "16000": { "param": "g7", "from": [-12, 12], "to": [-12, 12] } }, "params": {}, "face": { "look": "tall", "color": "#1d2733", "ink": "#e9eef3", "knob": "mxr", "title": "BASS EQ 8", "after": "8 band bass graphic EQ (MXR M288 style)", "bands": [30, 75, 185, 460, 1100, 2700, 6800, 16e3], "controls": [{ "type": "slider", "label": "30", "param": "g0" }, { "type": "slider", "label": "75", "param": "g1" }, { "type": "slider", "label": "185", "param": "g2" }, { "type": "slider", "label": "460", "param": "g3" }, { "type": "slider", "label": "1.1k", "param": "g4" }, { "type": "slider", "label": "2.7k", "param": "g5" }, { "type": "slider", "label": "6.8k", "param": "g6" }, { "type": "slider", "label": "16k", "param": "g7" }, { "type": "slider", "label": "LEVEL", "param": "level" }] } },
+    "Bass_Pedal_MBComp": { "key": "Bass_Pedal_MBComp", "type": "pedal", "name": "MBComp", "model": "comp", "knobs": { "Filter": { "param": null, "from": [0, 350] }, "Compress": { "param": "threshold", "from": [0, 100], "to": [-10, -50] }, "Rate": { "param": null, "from": [0, 100] } }, "params": {}, "face": { "look": "compact", "color": "#1f2328", "knob": "boss", "title": "BASS COMP", "after": "Multi-band bass compressor", "controls": [{ "type": "knob", "label": "THRESH", "param": "threshold" }, { "type": "knob", "label": "RATIO", "param": "ratio" }, { "type": "knob", "label": "FILTER", "param": "split", "size": "s" }, { "type": "knob", "label": "ATTACK", "param": "attack", "size": "s" }, { "type": "knob", "label": "RATE", "param": "release", "size": "s", "invert": true }, { "type": "knob", "label": "LEVEL", "param": "level" }], "ink": "#e7c44a" } },
+    "Cab_AT0112C": { "key": "Cab_AT0112C", "type": "cabinet", "name": "AT0112C", "real": "1x12 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_AT1121C": { "key": "Cab_AT1121C", "type": "cabinet", "name": "AT1121C", "real": "Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_AT112C": { "key": "Cab_AT112C", "type": "cabinet", "name": "AT112C", "real": "1x12 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_AT412C": { "key": "Cab_AT412C", "type": "cabinet", "name": "AT412C", "real": "4x12 Fender", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_AmpegB15": { "key": "Cab_AmpegB15", "type": "cabinet", "name": "AmpegB15", "real": "Cab_AmpegB15", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_AmpegBA500": { "key": "Cab_AmpegBA500", "type": "cabinet", "name": "AmpegBA500", "real": "Cab_AmpegBA500", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_AmpegSVT810AV": { "key": "Cab_AmpegSVT810AV", "type": "cabinet", "name": "AmpegSVT810AV", "real": "Cab_AmpegSVT810AV", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_AmpegSVT810E": { "key": "Cab_AmpegSVT810E", "type": "cabinet", "name": "AmpegSVT810E", "real": "Cab_AmpegSVT810E", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_BT1120C": { "key": "Cab_BT1120C", "type": "cabinet", "name": "BT1120C", "real": "1x12 Marshall", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_BT1121C": { "key": "Cab_BT1121C", "type": "cabinet", "name": "BT1121C", "real": "Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_BT212C": { "key": "Cab_BT212C", "type": "cabinet", "name": "BT212C", "real": "2x12 Marshall", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_BT410C": { "key": "Cab_BT410C", "type": "cabinet", "name": "BT410C", "real": "4x10 Marshall", "bass": false, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Cab_BT412C": { "key": "Cab_BT412C", "type": "cabinet", "name": "BT412C", "real": "4x12 Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_CA112C": { "key": "Cab_CA112C", "type": "cabinet", "name": "CA112C", "real": "1x12 Mesa/Boogie", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_CA215C": { "key": "Cab_CA215C", "type": "cabinet", "name": "CA215C", "real": "2x15 Mesa/Boogie", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Cab_CA412C": { "key": "Cab_CA412C", "type": "cabinet", "name": "CA412C", "real": "4x12 Mesa/Boogie", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Cab_CS1120C": { "key": "Cab_CS1120C", "type": "cabinet", "name": "CS1120C", "real": "1x12 Fender Custom Shop", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_CS1515C": { "key": "Cab_CS1515C", "type": "cabinet", "name": "CS1515C", "real": "2x12 Fender Custom Shop", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_CS212C": { "key": "Cab_CS212C", "type": "cabinet", "name": "CS212C", "real": "2x12 Fender Custom Shop", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_DrZMaz18": { "key": "Cab_DrZMaz18", "type": "cabinet", "name": "DrZMaz18", "real": "1x8", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_DrZZWreck": { "key": "Cab_DrZZWreck", "type": "cabinet", "name": "DrZZWreck", "real": "2x12", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_EN212C": { "key": "Cab_EN212C", "type": "cabinet", "name": "EN212C", "bass": false, "cab": "2x12", "real": "2x12 Orange", "source": "RS-to-AT5p gear map" },
+    "Cab_EN4120C": { "key": "Cab_EN4120C", "type": "cabinet", "name": "EN4120C", "real": "4x12 Orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map" },
+    "Cab_EnglE412PROXXL": { "key": "Cab_EnglE412PROXXL", "type": "cabinet", "name": "EnglE412PROXXL", "real": "Orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map" },
+    "Cab_EnglE412Standard": { "key": "Cab_EnglE412Standard", "type": "cabinet", "name": "EnglE412Standard", "real": "Orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map" },
+    "Cab_Fender57Bandmaster": { "key": "Cab_Fender57Bandmaster", "type": "cabinet", "name": "Fender57Bandmaster", "real": "3x10 Fender", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Fender57Champ": { "key": "Cab_Fender57Champ", "type": "cabinet", "name": "Fender57Champ", "real": "1x8 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Fender57CustomChamp": { "key": "Cab_Fender57CustomChamp", "type": "cabinet", "name": "Fender57CustomChamp", "real": "1x8 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Fender57CustomDeluxe": { "key": "Cab_Fender57CustomDeluxe", "type": "cabinet", "name": "Fender57CustomDeluxe", "real": "1x12 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Fender57CustomPro": { "key": "Cab_Fender57CustomPro", "type": "cabinet", "name": "Fender57CustomPro", "real": "1x15 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Fender57CustomTwin": { "key": "Cab_Fender57CustomTwin", "type": "cabinet", "name": "Fender57CustomTwin", "real": "2x12 Fender", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Fender57Deluxe": { "key": "Cab_Fender57Deluxe", "type": "cabinet", "name": "Fender57Deluxe", "real": "1x12 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderBassman": { "key": "Cab_FenderBassman", "type": "cabinet", "name": "FenderBassman", "real": "4x10 Fender", "bass": false, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderChamp": { "key": "Cab_FenderChamp", "type": "cabinet", "name": "FenderChamp", "real": "1x8 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderChampion600": { "key": "Cab_FenderChampion600", "type": "cabinet", "name": "FenderChampion600", "real": "1x6 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderDeluxeReverb": { "key": "Cab_FenderDeluxeReverb", "type": "cabinet", "name": "FenderDeluxeReverb", "real": "1x12 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderPrinceton": { "key": "Cab_FenderPrinceton", "type": "cabinet", "name": "FenderPrinceton", "real": "1x10 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderProJunior": { "key": "Cab_FenderProJunior", "type": "cabinet", "name": "FenderProJunior", "real": "1x10 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderSuperReverb": { "key": "Cab_FenderSuperReverb", "type": "cabinet", "name": "FenderSuperReverb", "real": "4x10 Fender", "bass": false, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderSupersonic": { "key": "Cab_FenderSupersonic", "type": "cabinet", "name": "FenderSupersonic", "real": "1x12 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderTwinReverb": { "key": "Cab_FenderTwinReverb", "type": "cabinet", "name": "FenderTwinReverb", "real": "2x12 Fender", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderVibroking": { "key": "Cab_FenderVibroking", "type": "cabinet", "name": "FenderVibroking", "real": "3x10 Fender", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_FenderVibroverb": { "key": "Cab_FenderVibroverb", "type": "cabinet", "name": "FenderVibroverb", "real": "1x15 Fender", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_GB412C": { "key": "Cab_GB412C", "type": "cabinet", "name": "GB412C", "real": "4x12 German (Bogner/Diezel)", "bass": false, "cab": "4x12g", "source": "RS-to-AT5p gear map" },
+    "Cab_GB412CMKI": { "key": "Cab_GB412CMKI", "type": "cabinet", "name": "GB412CMKI", "real": "4x12 German (Bogner/Diezel)", "bass": false, "cab": "4x12g", "source": "RS-to-AT5p gear map" },
+    "Cab_GB412CMKII": { "key": "Cab_GB412CMKII", "type": "cabinet", "name": "GB412CMKII", "real": "German (Bogner/Diezel)", "bass": false, "cab": "4x12g", "source": "RS-to-AT5p gear map" },
+    "Cab_GB412CMKIII": { "key": "Cab_GB412CMKIII", "type": "cabinet", "name": "GB412CMKIII", "real": "4x12 German (Bogner/Diezel)", "bass": false, "cab": "4x12g", "source": "RS-to-AT5p gear map" },
+    "Cab_HG2120C": { "key": "Cab_HG2120C", "type": "cabinet", "name": "HG2120C", "category": "Condenser_Cone", "bass": false, "cab": "4x12m", "real": "2x12 High gain (Mesa/Peavey)", "source": "RS-to-AT5p gear map" },
+    "Cab_HG212C": { "key": "Cab_HG212C", "type": "cabinet", "name": "HG212C", "real": "2x12 High gain (Mesa/Peavey)", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Cab_HG215C": { "key": "Cab_HG215C", "type": "cabinet", "name": "HG215C", "real": "2x15 High gain (Mesa/Peavey)", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Cab_HG412C": { "key": "Cab_HG412C", "type": "cabinet", "name": "HG412C", "real": "4x12 High gain (Mesa/Peavey)", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Cab_Hiwatt": { "key": "Cab_Hiwatt", "type": "cabinet", "name": "Hiwatt", "real": "4x12", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Marshall1960AV": { "key": "Cab_Marshall1960AV", "type": "cabinet", "name": "Marshall1960AV", "real": "4x12 Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Marshall1960AX": { "key": "Cab_Marshall1960AX", "type": "cabinet", "name": "Marshall1960AX", "real": "4x12 Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Marshall1960B": { "key": "Cab_Marshall1960B", "type": "cabinet", "name": "Marshall1960B", "real": "4x12 Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Marshall1960BV": { "key": "Cab_Marshall1960BV", "type": "cabinet", "name": "Marshall1960BV", "real": "4x12 Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Marshall1960SL": { "key": "Cab_Marshall1960SL", "type": "cabinet", "name": "Marshall1960SL", "real": "4x12 Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Marshall1960TV": { "key": "Cab_Marshall1960TV", "type": "cabinet", "name": "Marshall1960TV", "real": "4x12 Marshall", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map" },
+    "Cab_Marshall1960a": { "key": "Cab_Marshall1960a", "type": "cabinet", "name": "Marshall1960a", "real": "4x12 Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_MarshallJCM800": { "key": "Cab_MarshallJCM800", "type": "cabinet", "name": "MarshallJCM800", "real": "4x12 Marshall", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map" },
+    "Cab_MarshallJCM900": { "key": "Cab_MarshallJCM900", "type": "cabinet", "name": "MarshallJCM900", "real": "4x12 Marshall", "bass": false, "cab": "4x12j", "source": "RS-to-AT5p gear map" },
+    "Cab_MarshallMajor": { "key": "Cab_MarshallMajor", "type": "cabinet", "name": "MarshallMajor", "real": "4x12 Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_MarshallSilver": { "key": "Cab_MarshallSilver", "type": "cabinet", "name": "MarshallSilver", "real": "4x12 Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_Marshall_ClosedVintage": { "key": "Cab_Marshall_ClosedVintage", "type": "cabinet", "name": "Marshall ClosedVintage", "real": "Marshall", "bass": false, "cab": "4x12", "source": "RS-to-AT5p gear map" },
+    "Cab_MesaCaliforniaTweed": { "key": "Cab_MesaCaliforniaTweed", "type": "cabinet", "name": "MesaCaliforniaTweed", "real": "1x12 Mesa/Boogie", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_MesaDualRecto": { "key": "Cab_MesaDualRecto", "type": "cabinet", "name": "MesaDualRecto", "real": "4x12 Mesa/Boogie", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Cab_MesaMarkIII": { "key": "Cab_MesaMarkIII", "type": "cabinet", "name": "MesaMarkIII", "real": "1x12 Mesa/Boogie", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_MesaMarkIV": { "key": "Cab_MesaMarkIV", "type": "cabinet", "name": "MesaMarkIV", "real": "1x12 Mesa/Boogie", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_MesaRecto": { "key": "Cab_MesaRecto", "type": "cabinet", "name": "MesaRecto", "real": "4x12 Mesa/Boogie", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Cab_MesaRoadKing": { "key": "Cab_MesaRoadKing", "type": "cabinet", "name": "MesaRoadKing", "real": "4x12 Mesa/Boogie", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Cab_MesaTA30": { "key": "Cab_MesaTA30", "type": "cabinet", "name": "MesaTA30", "real": "2x12 Mesa/Boogie", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Cab_MesaTripleRecto": { "key": "Cab_MesaTripleRecto", "type": "cabinet", "name": "MesaTripleRecto", "real": "4x12 Mesa/Boogie", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "Cab_OrangeAD30": { "key": "Cab_OrangeAD30", "type": "cabinet", "name": "OrangeAD30", "real": "2x12 Orange", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_OrangeOBC115": { "key": "Cab_OrangeOBC115", "type": "cabinet", "name": "OrangeOBC115", "real": "1x15 Orange", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_OrangeOBC410": { "key": "Cab_OrangeOBC410", "type": "cabinet", "name": "OrangeOBC410", "real": "4x10 Orange", "bass": false, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Cab_OrangeOBC810": { "key": "Cab_OrangeOBC810", "type": "cabinet", "name": "OrangeOBC810", "real": "8x10 Orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map" },
+    "Cab_OrangePPC112": { "key": "Cab_OrangePPC112", "type": "cabinet", "name": "OrangePPC112", "real": "1x12 Orange", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_OrangePPC212": { "key": "Cab_OrangePPC212", "type": "cabinet", "name": "OrangePPC212", "real": "2x12 Orange", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_OrangePPC412": { "key": "Cab_OrangePPC412", "type": "cabinet", "name": "OrangePPC412", "real": "4x12 Orange", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map" },
+    "Cab_OrangeTinyTerror": { "key": "Cab_OrangeTinyTerror", "type": "cabinet", "name": "OrangeTinyTerror", "real": "1x12 Orange", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_PA600C": { "key": "Cab_PA600C", "type": "cabinet", "name": "PA600C", "real": "Cab_PA600C", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_PA999C": { "key": "Cab_PA999C", "type": "cabinet", "name": "PA999C", "real": "Cab_PA999C", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_RolandJC120": { "key": "Cab_RolandJC120", "type": "cabinet", "name": "RolandJC120", "real": "2x12", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_TW110C": { "key": "Cab_TW110C", "type": "cabinet", "name": "TW110C", "real": "1x10 Fender tweed", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_TW112C": { "key": "Cab_TW112C", "type": "cabinet", "name": "TW112C", "real": "1x12 Fender tweed", "bass": false, "cab": "1x12", "source": "RS-to-AT5p gear map" },
+    "Cab_TW410C": { "key": "Cab_TW410C", "type": "cabinet", "name": "TW410C", "real": "4x10 Fender tweed", "bass": false, "cab": "bass", "source": "RS-to-AT5p gear map" },
+    "Cab_Vox": { "key": "Cab_Vox", "type": "cabinet", "name": "Vox", "real": "2x12 Vox", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_VoxAC30": { "key": "Cab_VoxAC30", "type": "cabinet", "name": "VoxAC30", "real": "2x12 Vox", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "Cab_VoxAC30Blue": { "key": "Cab_VoxAC30Blue", "type": "cabinet", "name": "VoxAC30Blue", "real": "2x12 Vox", "bass": false, "cab": "2x12", "source": "RS-to-AT5p gear map" },
+    "DI_Amp_BassDriver": { "key": "DI_Amp_BassDriver", "type": "amp", "name": "BassDriver", "real": "Bass DI \u2014 same muted placeholder", "family": "DI / Direct", "voice": "bassdi", "bass": true, "cab": "none", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "di", "controls": [{ "type": "knob", "label": "LEVEL", "param": "master", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 }, { "type": "knob", "label": "DRIVE", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }] } },
+    "DI_Amp_TubePre": { "key": "DI_Amp_TubePre", "type": "amp", "name": "TubePre", "real": "American Tube Clean 1", "family": "DI / Direct", "voice": "di", "bass": false, "cab": "none", "source": "RS-to-AT5p gear map", "face": { "look": "head", "theme": "di", "controls": [{ "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }, { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 }, { "type": "knob", "label": "MID", "param": "mid", "scale": 10 }, { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 }, { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }] } },
+    "IBEX_Cab_MesaBoogie1x12Widebody": { "key": "IBEX_Cab_MesaBoogie1x12Widebody", "type": "cabinet", "name": "MesaBoogie1x12Widebody", "real": "Mesa/Boogie", "bass": false, "cab": "4x12m", "source": "RS-to-AT5p gear map" },
+    "IBEX_Cab_OrangePrPro412_RSD20_OffAxis_Cone": { "key": "IBEX_Cab_OrangePrPro412_RSD20_OffAxis_Cone", "type": "cabinet", "name": "OrangePrPro412 RSD20 OffAxis Cone", "real": "4x12 Mesa/Boogie", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map" },
+    "IBEX_Cab_OrangeRV50_212_RSC67_OffAxis_Cap": { "key": "IBEX_Cab_OrangeRV50_212_RSC67_OffAxis_Cap", "type": "cabinet", "name": "OrangeRV50 212 RSC67 OffAxis Cap", "real": "Mesa/Boogie", "bass": false, "cab": "4x12o", "source": "RS-to-AT5p gear map" },
+    "Pedal_80sFlanger": { "key": "Pedal_80sFlanger", "type": "pedal", "name": "80sFlanger", "real": "MXR 117", "category": "Flanger", "model": "flanger", "params": { "feedback": 0.85 }, "source": "RS-to-AT5p gear map", "face": { "look": "mxr", "color": "#262626", "knob": "mxr", "title": "80'S FLANGER", "after": "MXR M117R Flanger", "controls": [{ "type": "knob", "label": "MANUAL", "param": "manual" }, { "type": "knob", "label": "WIDTH", "param": "depth" }, { "type": "knob", "label": "SPEED", "param": "rate" }, { "type": "knob", "label": "REGEN", "param": "feedback" }], "ink": "#e9e9e9" }, "alt": ["1976 MXR M117R Flanger"] },
+    "Pedal_AcousticEmulator": { "key": "Pedal_AcousticEmulator", "type": "pedal", "name": "AcousticEmulator", "real": "Acoustic Sim", "category": "Other", "model": "eq", "params": { "bass": -6, "mid": -3, "treble": 6 }, "source": "RS-to-AT5p gear map", "face": { "look": "compact", "color": "#a8743c", "knob": "boss", "title": "ACOUSTIC EMULATOR", "after": "Rockman Acoustic Guitar pedal", "controls": [{ "type": "knob", "label": "BASS", "param": "bass" }, { "type": "knob", "label": "MID", "param": "mid" }, { "type": "knob", "label": "TREBLE", "param": "treble" }, { "type": "knob", "label": "LEVEL", "param": "level" }] }, "alt": ["1994 Rockman Acoustic Guitar Pedal"] },
+    "Pedal_AmpTrem": { "key": "Pedal_AmpTrem", "type": "pedal", "name": "AmpTrem", "real": "Opto Tremolo", "category": "Tremolo / Vibrato", "model": "tremolo", "params": { "rate": 4, "intensity": 0.5 }, "source": "RS-to-AT5p gear map", "face": { "look": "mxr", "color": "#2b2b2b", "knob": "chicken", "title": "AMP TREM", "after": "Fulltone Supa-Trem", "controls": [{ "type": "knob", "label": "SPEED", "param": "rate" }, { "type": "knob", "label": "DEPTH", "param": "intensity" }], "ink": "#efe6cf" }, "alt": ["1996 Fulltone ST-1 Supa-Trem", "1982 Demeter Tremulator"] },
+    "Pedal_AmpVibe": { "key": "Pedal_AmpVibe", "type": "pedal", "name": "AmpVibe", "real": "Univibe", "category": "Tremolo / Vibrato", "model": "phaser", "params": { "rate": 2, "depth": 0.8, "feedback": 0.3 }, "source": "RS-to-AT5p gear map", "face": { "look": "tall", "color": "#e7dcc2", "ink": "#2a2416", "knob": "cream", "title": "AMP VIBE", "after": "Origin Effects Magma57 Amp Vibrato", "controls": [{ "type": "knob", "label": "SPEED", "param": "rate" }, { "type": "knob", "label": "INTENSITY", "param": "depth" }] }, "alt": ["Origin Effects MAGMA57 Amp Vibrato (and Drive)", "2020 ? Surfy Industries Surfy Vibe"] },
+    "Pedal_AnalogueDelay": { "key": "Pedal_AnalogueDelay", "type": "pedal", "name": "AnalogueDelay", "real": "Analog Delay", "category": "Delay / Echo", "model": "echo", "params": { "tone": 0.35 }, "source": "RS-to-AT5p gear map", "face": { "look": "wide", "color": "#b9bcc0", "knob": "chrome", "title": "ANALOG DELAY", "after": "Electro-Harmonix Memory Man / Moog MF-104", "controls": [{ "type": "knob", "label": "BLEND", "param": "mix" }, { "type": "knob", "label": "FEEDBACK", "param": "feedback" }, { "type": "knob", "label": "DELAY", "param": "time", "min": 30, "max": 550 }, { "type": "knob", "label": "TONE", "param": "tone", "size": "s" }], "ink": "#1b1b1b" }, "alt": ["Moog MF-104 MiniFooger Delay", "1976 Electro-Harmonix Memory Man"] },
+    "Pedal_AutoFilter": { "key": "Pedal_AutoFilter", "type": "pedal", "name": "AutoFilter", "real": "Envelope Filter", "category": "Wah / Filter", "model": "wah", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "wide", "color": "#c9ced3", "knob": "chrome", "title": "AUTO FILTER", "after": "Musitronics Mu-Tron III", "controls": [{ "type": "knob", "label": "GAIN", "param": "sensitivity" }, { "type": "knob", "label": "PEAK", "param": "resonance" }, { "type": "switch", "label": "RANGE", "param": "baseFrequency", "options": [["LO", 0.15], ["HI", 0.55]] }], "ink": "#1f3d8a" }, "alt": ["1972 Mu-Tron III", "2015 Mad Professor Snow White Auto Wah"] },
+    "Pedal_BakedRotatoe": { "key": "Pedal_BakedRotatoe", "type": "pedal", "name": "BakedRotatoe", "real": "Univibe", "category": "Other", "model": "chorus", "params": { "rate": 5, "depth": 0.9, "feedback": 0.1 }, "source": "RS-to-AT5p gear map", "face": { "look": "wide", "color": "#5b1f24", "knob": "chrome", "title": "BAKED ROTATOE", "after": "Leslie rotary speaker / Boss RT-20", "controls": [{ "type": "switch", "label": "SPEED", "param": "rate", "options": [["SLOW", 0.8], ["FAST", 6.5]] }, { "type": "knob", "label": "DEPTH", "param": "depth" }, { "type": "knob", "label": "DRIVE", "param": "feedback" }], "ink": "#f0d9a0" }, "alt": ["2005 Boss RT-20 Rotary Sound Processor", "1941 Leslie Rotary Speaker"] },
+    "Pedal_BitCruncher": { "key": "Pedal_BitCruncher", "type": "pedal", "name": "BitCruncher", "real": "Tape Cassette", "category": "Special / Synth", "model": "", "params": {}, "source": "RS-to-AT5p gear map", "alt": ["2003 Copilot FX Antenna", "Mooer LoFi Machine"] },
+    "Pedal_BobFilter": { "key": "Pedal_BobFilter", "type": "pedal", "name": "BobFilter", "real": "Envelope Filter", "category": "Wah / Filter", "model": "wah", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "wide", "color": "#1d1d1d", "ink": "#e9e2d0", "knob": "chrome", "wood": true, "title": "ANALOG FILTER", "after": "Moogerfooger MF-105M MuRF / EHX", "controls": [{ "type": "knob", "label": "ENVELOPE", "param": "sensitivity" }, { "type": "knob", "label": "CUTOFF", "param": "baseFrequency" }, { "type": "knob", "label": "RESONANCE", "param": "resonance" }] }, "alt": ["2009 Moogerfooger MF-105M MIDI MuRF Analog Filter", "EHX MonoSynth"] },
+    "Pedal_BuzzOne": { "key": "Pedal_BuzzOne", "type": "pedal", "name": "BuzzOne", "real": "Maestro FuzzTone", "category": "Distortion / Overdrive", "model": "fuzz", "params": { "tone": 0.65, "gain": 0.8 }, "source": "RS-to-AT5p gear map", "face": { "look": "wide", "color": "#35404b", "knob": "mxr", "title": "BUZZ 1", "after": "Univox Super-Fuzz", "controls": [{ "type": "knob", "label": "VOLUME", "param": "level" }, { "type": "knob", "label": "EXPANDER", "param": "gain" }, { "type": "switch", "label": "TONE", "param": "mid", "options": [["NORM", 0], ["SCOOP", -8]] }], "ink": "#f2f2f2" }, "alt": ["? Univox Super-Fuzz ?", "1973 Tycobrahe Octavia"] },
+    "Pedal_BuzzToo": { "key": "Pedal_BuzzToo", "type": "pedal", "name": "BuzzToo", "real": "Big Muff", "category": "Distortion / Overdrive", "model": "fuzz", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "wide", "color": "#d8d6cf", "knob": "chrome", "title": "BUZZ 2", "after": "Electro-Harmonix Big Muff", "controls": [{ "type": "knob", "label": "VOLUME", "param": "level" }, { "type": "knob", "label": "TONE", "param": "tone" }, { "type": "knob", "label": "SUSTAIN", "param": "gain" }], "ink": "#b3141c" }, "alt": ["1970 Electro-Harmonix Big Muff"] },
+    "Pedal_CaptFuzzle": { "key": "Pedal_CaptFuzzle", "type": "pedal", "name": "CaptFuzzle", "real": "Big Muff", "category": "Distortion / Overdrive", "model": "fuzz", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "wedge", "color": "#7a5a32", "ink": "#f1e3c2", "knob": "cream", "title": "CAPTAIN FUZZLE", "after": "Gibson Maestro FZ-1A Fuzz-Tone", "controls": [{ "type": "knob", "label": "VOLUME", "param": "level" }, { "type": "knob", "label": "ATTACK", "param": "gain" }] }, "alt": ["1962 Gibson Maestro FZ-1A Fuzz-Tone"] },
+    "Pedal_Chorus": { "key": "Pedal_Chorus", "type": "pedal", "name": "Chorus", "real": "Chorus", "category": "Chorus", "model": "chorus", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "compact", "color": "#6fb8e0", "knob": "boss", "title": "CHORUS", "after": "Boss CE-2", "controls": [{ "type": "knob", "label": "RATE", "param": "rate" }, { "type": "knob", "label": "DEPTH", "param": "depth" }] }, "alt": ["1979 Boss Chorus CE-2", "2009 Maxon CS-550 Stereo Chorus"] },
+    "Pedal_Chorus20": { "key": "Pedal_Chorus20", "type": "pedal", "name": "Chorus20", "real": "Roland CE-1", "category": "Chorus", "model": "chorus", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "wide", "color": "#5d7d99", "knob": "chrome", "title": "CHORUS 2.0", "after": "Fulltone Deja Vibe / Roland CE-1", "controls": [{ "type": "knob", "label": "INTENSITY", "param": "depth" }, { "type": "knob", "label": "RATE", "param": "rate" }], "ink": "#f2f2f2" }, "alt": ["1993 Fulltone Deja Vibe ( chorus mode )", "1976 TC Electronics Stereo Chorus +"] },
+    "Pedal_ClassicFlanger": { "key": "Pedal_ClassicFlanger", "type": "pedal", "name": "ClassicFlanger", "real": "Boss BF-2", "category": "Flanger", "model": "flanger", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "compact", "color": "#6d4fa0", "knob": "boss", "title": "CLASSIC FLANGER", "after": "Boss BF-2", "controls": [{ "type": "knob", "label": "MANUAL", "param": "manual" }, { "type": "knob", "label": "DEPTH", "param": "depth" }, { "type": "knob", "label": "RATE", "param": "rate" }, { "type": "knob", "label": "RES", "param": "feedback" }] }, "alt": ["1980 Boss BF-2 Flanger"] },
+    "Pedal_Compression": { "key": "Pedal_Compression", "type": "pedal", "name": "Compression", "real": "Compressor", "category": "Dynamics", "model": "comp", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "mxr", "color": "#c8202a", "knob": "mxr", "title": "COMPRESSION", "after": "MXR Dyna Comp", "controls": [{ "type": "knob", "label": "OUTPUT", "param": "level" }, { "type": "knob", "label": "SENSITIVITY", "param": "threshold", "invert": true }] }, "alt": ["1972 MXR DynaComp", "2008 MXR Super Comp"] },
+    "Pedal_CosmicEcho": { "key": "Pedal_CosmicEcho", "type": "pedal", "name": "CosmicEcho", "real": "Memory Man", "category": "Delay / Echo", "model": "echo", "params": { "tone": 0.45, "feedback": 0.4 }, "source": "RS-to-AT5p gear map", "face": { "look": "wide", "color": "#1f2b4a", "knob": "chrome", "title": "COSMONAUT ECHO", "after": "Eventide Space (Blackhole) / Memory Man", "controls": [{ "type": "knob", "label": "DELAY", "param": "time" }, { "type": "knob", "label": "FEEDBACK", "param": "feedback" }, { "type": "knob", "label": "BLEND", "param": "mix" }, { "type": "knob", "label": "TONE", "param": "tone" }], "ink": "#cfe0ff" }, "alt": ["Eventide Space [BLACKHOLE]"] },
+    "Pedal_CustomDrive": { "key": "Pedal_CustomDrive", "type": "pedal", "name": "CustomDrive", "real": "Boss SD-1", "category": "Distortion / Overdrive", "model": "od", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "mxr", "color": "#e8e4d8", "knob": "chicken", "title": "CUSTOM DRIVE", "after": "Fulltone OCD", "controls": [{ "type": "knob", "label": "VOLUME", "param": "level" }, { "type": "knob", "label": "DRIVE", "param": "gain" }, { "type": "knob", "label": "TONE", "param": "tone" }, { "type": "switch", "label": "MODE", "param": "treble", "options": [["LP", 0], ["HP", 4]] }], "ink": "#222" }, "alt": ["1991 Fulltone OCD", "1995 Boss BD-2 Blues Overdrive"] },
+    "Pedal_DigitalVerb": { "key": "Pedal_DigitalVerb", "type": "pedal", "name": "DigitalVerb", "real": "Digital Reverb", "category": "Reverb", "model": "room", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "compact", "color": "#3f6f8f", "knob": "boss", "title": "DIGITAL VERB", "after": "Boss RV-2", "controls": [{ "type": "knob", "label": "E.LEVEL", "param": "mix" }, { "type": "knob", "label": "TONE", "param": "tone" }] }, "alt": ["1987 Boss RV-2 Digital Reverb", "1985 Boss RRV-10 Digital Reverb"] },
+    "Pedal_Distortion": { "key": "Pedal_Distortion", "type": "pedal", "name": "Distortion", "real": "Boss DS-1", "category": "Distortion / Overdrive", "model": "dist", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "compact", "color": "#f07f1d", "knob": "boss", "title": "STANDARD DISTORTION", "after": "Boss DS-1", "controls": [{ "type": "knob", "label": "TONE", "param": "tone" }, { "type": "knob", "label": "LEVEL", "param": "level" }, { "type": "knob", "label": "DIST", "param": "gain" }] }, "alt": ["1978 Boss DS-1"] },
+    "Pedal_EQ5": { "key": "Pedal_EQ5", "type": "pedal", "name": "EQ5", "real": "7 Band Graphic EQ", "category": "EQ", "model": "eq", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "tall", "color": "#151515", "ink": "#e9e9e9", "knob": "mxr", "title": "5 BAND EQ", "after": "Mesa/Boogie Five-Band Graphic EQ", "bands": [80, 240, 750, 2200, 6600], "controls": [{ "type": "slider", "label": "80", "param": "g0" }, { "type": "slider", "label": "240", "param": "g1" }, { "type": "slider", "label": "750", "param": "g2" }, { "type": "slider", "label": "2.2k", "param": "g3" }, { "type": "slider", "label": "6.6k", "param": "g4" }, { "type": "knob", "label": "LEVEL", "param": "level", "size": "s" }] }, "alt": ["2014 Mesa Boogie Five-Band Graphic EQ", "1976 MXR-109 6 Band Graphic EQ"] },
+    "Pedal_EQ8": { "key": "Pedal_EQ8", "type": "pedal", "name": "EQ8", "real": "10 Band Graphic", "category": "EQ", "model": "eq", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "tall", "color": "#e6e6e2", "ink": "#1b1b1b", "knob": "mxr", "title": "8 BAND EQ", "after": "Guyatone 8 band graphic equalizer", "bands": [50, 100, 200, 400, 800, 1600, 3200, 6400], "controls": [{ "type": "slider", "label": "50", "param": "g0" }, { "type": "slider", "label": "100", "param": "g1" }, { "type": "slider", "label": "200", "param": "g2" }, { "type": "slider", "label": "400", "param": "g3" }, { "type": "slider", "label": "800", "param": "g4" }, { "type": "slider", "label": "1.6k", "param": "g5" }, { "type": "slider", "label": "3.2k", "param": "g6" }, { "type": "slider", "label": "6.4k", "param": "g7" }, { "type": "slider", "label": "LEVEL", "param": "level" }] }, "alt": ["1979 Guyatone 8 band graphic equalizer", "2008 Artec SE-EQ8 Graphic EQ"] },
+    "Pedal_FuzzWasHe": { "key": "Pedal_FuzzWasHe", "type": "pedal", "name": "FuzzWasHe", "real": "Si Fuzz Face", "category": "Distortion / Overdrive", "model": "fuzz", "params": { "tone": 0.55 }, "source": "RS-to-AT5p gear map", "face": { "look": "round", "color": "#b5232c", "ink": "#f5f5f5", "knob": "chicken", "title": "FUZZ WAS HE", "after": "Fuzz Face (sheet: Boss FZ-3 / Tone Bender)", "controls": [{ "type": "knob", "label": "VOLUME", "param": "level" }, { "type": "knob", "label": "FUZZ", "param": "gain" }] }, "alt": ["1997 Boss FZ-3 Fuzz", "1966 Sola Sound Tonebender Mk 1.5"] },
+    "Pedal_GermaniumDrive": { "key": "Pedal_GermaniumDrive", "type": "pedal", "name": "GermaniumDrive", "real": "Germanium Fuzz Face", "category": "Distortion / Overdrive", "model": "fuzz", "params": { "tone": 0.4 }, "source": "RS-to-AT5p gear map", "face": { "look": "tall", "color": "#1b1b1b", "ink": "#f4f4f4", "knob": "mxr", "title": "GERMANIUM DRIVE", "after": "ProCo RAT / Chandler Germanium Drive", "controls": [{ "type": "knob", "label": "DISTORTION", "param": "gain" }, { "type": "knob", "label": "FILTER", "param": "tone", "invert": true }, { "type": "knob", "label": "VOLUME", "param": "level" }] }, "alt": ["1980s Chandler Ltd Germanium Drive", "1979 ProCo RAT"] },
+    "Pedal_Limiter": { "key": "Pedal_Limiter", "type": "pedal", "name": "Limiter", "real": "closest to limiter", "category": "Dynamics", "model": "comp", "params": { "ratio": 20, "threshold": -12, "attack": 2 }, "source": "RS-to-AT5p gear map", "face": { "look": "compact", "color": "#4b6f96", "knob": "boss", "title": "LIMITER", "after": "Boss LM-2", "controls": [{ "type": "knob", "label": "LEVEL", "param": "level" }, { "type": "knob", "label": "RELEASE", "param": "release" }, { "type": "knob", "label": "THRESHOLD", "param": "threshold" }] }, "alt": ["1987 Boss LM-2 Limiter", "Behringer CL9 ( Ibanez CP9 Clone )"] },
+    "Pedal_LineDrive": { "key": "Pedal_LineDrive", "type": "pedal", "name": "LineDrive", "real": "Booster", "category": "Distortion / Overdrive", "model": "boost", "params": { "gain": 0.25, "tone": 0.6 }, "source": "RS-to-AT5p gear map", "face": { "look": "compact", "color": "#e9a024", "knob": "boss", "title": "LINE DRIVE", "after": "Boss OS-2", "controls": [{ "type": "knob", "label": "LEVEL", "param": "level" }, { "type": "knob", "label": "TONE", "param": "tone" }, { "type": "knob", "label": "DRIVE", "param": "gain" }] }, "alt": ["1990 Boss OS-2 Overdrive / Distortion", "Behringer OD300 Overdrive/Distortion"] },
+    "Pedal_LoFiFilter": { "key": "Pedal_LoFiFilter", "type": "pedal", "name": "LoFiFilter", "real": "Tape Cassette", "category": "Wah / Filter", "model": "", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Pedal_MetalDistortion": { "key": "Pedal_MetalDistortion", "type": "pedal", "name": "MetalDistortion", "real": "Boss MT-2", "category": "Distortion / Overdrive", "model": "metal", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "compact", "color": "#1c1c1c", "knob": "boss", "title": "ALLOY DISTORTION", "after": "Boss HM-2", "controls": [{ "type": "knob", "label": "LEVEL", "param": "level" }, { "type": "knob", "label": "LOW", "param": "bass" }, { "type": "knob", "label": "HIGH", "param": "treble" }, { "type": "knob", "label": "DISTORTION", "param": "gain" }], "ink": "#f2742b" }, "alt": ["2017 TC Electronic Eyemaster Metal Distortion", "1982 Boss HM-2"] },
+    "Pedal_ModDelay": { "key": "Pedal_ModDelay", "type": "pedal", "name": "ModDelay", "real": "mod delay", "category": "Delay / Echo", "model": "delay", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "compact", "color": "#6e7378", "knob": "boss", "title": "MOD DELAY", "after": "Ibanez DML10", "controls": [{ "type": "knob", "label": "DELAY TIME", "param": "time" }, { "type": "knob", "label": "FEEDBACK", "param": "feedback" }, { "type": "knob", "label": "LEVEL", "param": "mix" }] }, "alt": ["1986 Ibanez DML10 Digital Modulation Delay", "1980s Boss RDD-10 Digital Delay"] },
+    "Pedal_ModernFlanger": { "key": "Pedal_ModernFlanger", "type": "pedal", "name": "ModernFlanger", "real": "Flanger", "category": "Flanger", "model": "flanger", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "wide", "color": "#1d1d1d", "ink": "#e9e2d0", "knob": "chrome", "wood": true, "title": "MODERN FLANGE", "after": "Moog Minifooger MF Flange", "controls": [{ "type": "knob", "label": "RATE", "param": "rate" }, { "type": "knob", "label": "DEPTH", "param": "depth" }, { "type": "knob", "label": "FEEDBACK", "param": "feedback" }, { "type": "knob", "label": "MANUAL", "param": "manual" }] }, "alt": ["2014 Moog Minifooger MF Flange"] },
+    "Pedal_ModernWah": { "key": "Pedal_ModernWah", "type": "pedal", "name": "ModernWah", "real": "Cry Baby", "category": "Wah / Filter", "model": "wah", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "wah", "color": "#202326", "ink": "#e9e9e9", "title": "MODERN WAH", "after": "Cry Baby style wah", "controls": [{ "type": "treadle", "label": "WAH", "param": "baseFrequency" }, { "type": "knob", "label": "Q", "param": "resonance", "size": "s" }] } },
+    "Pedal_MultiPitch": { "key": "Pedal_MultiPitch", "type": "pedal", "name": "MultiPitch", "real": "Whammy", "category": "Pitch / Octave", "model": "octave", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "wah", "color": "#b7222b", "ink": "#f5f5f5", "title": "MULTIPITCH", "after": "DigiTech Whammy / Boss PS-2", "controls": [{ "type": "treadle", "label": "PITCH", "param": "mix" }, { "type": "knob", "label": "DRY", "param": "dry", "size": "s" }] }, "alt": ["MoogerFooger MF-102", "1987 Boss PS-2 Digital Pitch Shifter/Delay"] },
+    "Pedal_MultiTrem": { "key": "Pedal_MultiTrem", "type": "pedal", "name": "MultiTrem", "real": "Tremolo", "category": "Tremolo / Vibrato", "model": "tremolo", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "compact", "color": "#2f8f55", "knob": "boss", "title": "MULTI-TREM", "after": "Boss TR-2", "controls": [{ "type": "knob", "label": "RATE", "param": "rate" }, { "type": "knob", "label": "DEPTH", "param": "intensity" }] }, "alt": ["1997 Boss TR-2 Tremolo", "Electro-Harmonix Pulsar"] },
+    "Pedal_NPNDelay": { "key": "Pedal_NPNDelay", "type": "pedal", "name": "NPNDelay", "real": "Delay", "category": "Delay / Echo", "model": "delay", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "compact", "color": "#c2364a", "knob": "boss", "title": "CLASSIC NPN DELAY", "after": "Boss DM-2", "controls": [{ "type": "knob", "label": "REPEAT RATE", "param": "time", "min": 20, "max": 300 }, { "type": "knob", "label": "ECHO", "param": "mix" }, { "type": "knob", "label": "INTENSITY", "param": "feedback" }] }, "alt": ["1981 Boss DM-2", "2009 Young Pedals Time Stomp"] },
+    "Pedal_NoFiEcho": { "key": "Pedal_NoFiEcho", "type": "pedal", "name": "NoFiEcho", "real": "lo-fi", "category": "Delay / Echo", "model": "echo", "params": { "tone": 0.15 }, "source": "RS-to-AT5p gear map", "face": { "look": "compact", "color": "#3b3f44", "knob": "boss", "title": "NO-FI ECHO", "after": "Ibanez DE7 (Lo-Fi echo)", "controls": [{ "type": "knob", "label": "DELAY", "param": "time" }, { "type": "knob", "label": "REPEAT", "param": "feedback" }, { "type": "knob", "label": "LEVEL", "param": "mix" }, { "type": "knob", "label": "LO-FI", "param": "tone", "invert": true }] }, "alt": ["Ibanez DE7 Stereo Delay: Lo-Fi Echo mode", "Strymon TIMELINE [Lo-Fi]"] },
+    "Pedal_NoiseGate": { "key": "Pedal_NoiseGate", "type": "pedal", "name": "NoiseGate", "real": "Noise Gate", "category": "Dynamics", "model": "", "params": {}, "source": "RS-to-AT5p gear map", "alt": ["1979 Boss Nf-1 Noise Gate", "2017 TC Electronics Iron Curtain"] },
+    "Pedal_OctaveUp": { "key": "Pedal_OctaveUp", "type": "pedal", "name": "OctaveUp", "category": "Pitch / Octave", "model": "octave", "knobs": { "Mix": { "param": "mix", "from": [0, 100], "to": [0, 1] }, "Tone": { "param": null, "from": [0, 100] } }, "params": {}, "real": "Roger Mayer Octavia", "source": "RS-to-AT5p gear map", "face": { "look": "mxr", "color": "#c4c6c8", "knob": "mxr", "title": "OCTAVE UP!", "after": "Roger Mayer Octavia / Foxrox Octron", "controls": [{ "type": "knob", "label": "OCTAVE", "param": "mix" }, { "type": "knob", "label": "DIRECT", "param": "dry" }], "ink": "#1b1b1b" }, "alt": ["Earthquaker Tentacle", "2005 Foxrox Octron"] },
+    "Pedal_Octavius": { "key": "Pedal_Octavius", "type": "pedal", "name": "Octavius", "real": "Boss OC-2", "category": "Other", "model": "octave", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "compact", "color": "#3a8fd0", "knob": "boss", "title": "OCTAVIUS", "after": "Boss OC-2 Octave", "controls": [{ "type": "knob", "label": "OCT", "param": "mix" }, { "type": "knob", "label": "DIRECT", "param": "dry" }] }, "alt": ["1982 Boss OC-2 Octaver", "1976 Electro-Harmonix Octave Multiplexer"] },
+    "Pedal_OilCanEcho": { "key": "Pedal_OilCanEcho", "type": "pedal", "name": "OilCanEcho", "real": "Tape Echo", "category": "Delay / Echo", "model": "echo", "params": { "tone": 0.3 }, "source": "RS-to-AT5p gear map", "face": { "look": "wide", "color": "#2f3238", "knob": "chicken", "title": "OIL CAN ECHO", "after": "Tel-Ray / Morley oil can delay", "controls": [{ "type": "knob", "label": "SUSTAIN", "param": "feedback" }, { "type": "knob", "label": "DELAY", "param": "time" }, { "type": "knob", "label": "VOLUME", "param": "mix" }, { "type": "knob", "label": "TONE", "param": "tone" }], "ink": "#e7d9a8" }, "alt": ["1960s Tel-Ray / Morley Ad-N-Echo", "Eventide TimeFactor [Digital Delay]"] },
+    "Pedal_OmniMod": { "key": "Pedal_OmniMod", "type": "pedal", "name": "OmniMod", "real": "X-VIBE", "category": "Other", "model": "chorus", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "tall", "color": "#1d1d1d", "ink": "#f2f2f2", "knob": "chrome", "title": "OMNI MOD", "after": "Univox Uni-Vibe", "controls": [{ "type": "knob", "label": "SPEED", "param": "rate" }, { "type": "knob", "label": "INTENSITY", "param": "depth" }] }, "alt": ["1968 UniVox Uni-Vibe"] },
+    "Pedal_Phaser": { "key": "Pedal_Phaser", "type": "pedal", "name": "Phaser", "real": "Phase 90", "category": "Phaser", "model": "phaser", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "mxr", "color": "#f07b1e", "knob": "mxr", "title": "PHASER 363", "after": "MXR Phase 90", "controls": [{ "type": "knob", "label": "SPEED", "param": "rate", "size": "l" }], "ink": "#1b1b1b" }, "alt": ["1974 MXR Phase 90", "1977 EHX Small Stone"] },
+    "Pedal_PlateVerb": { "key": "Pedal_PlateVerb", "type": "pedal", "name": "PlateVerb", "real": "Plate Reverb", "category": "Reverb", "model": "plate", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "mxr", "color": "#ececec", "knob": "mxr", "title": "PLATE REVERB", "after": "Catalinbread Talisman", "controls": [{ "type": "knob", "label": "LEVEL", "param": "mix" }, { "type": "knob", "label": "TONE", "param": "tone" }], "ink": "#1b1b1b" }, "alt": ["Catalinbread Talisman Plate Reverb", "Wampler Reflection [PLATE]"] },
+    "Pedal_RangeBooster": { "key": "Pedal_RangeBooster", "type": "pedal", "name": "RangeBooster", "real": "Treble Booster", "category": "Distortion / Overdrive", "model": "boost", "params": { "gain": 0.35, "tone": 0.95 }, "source": "RS-to-AT5p gear map", "face": { "look": "wedge", "color": "#9a9ea3", "ink": "#1b1b1b", "knob": "chrome", "title": "RANGE BOOSTER", "after": "Dallas Rangemaster", "controls": [{ "type": "knob", "label": "BOOST", "param": "gain", "size": "l" }] }, "alt": ["1966 Dallas Rangemaster", "1970s / 2009 EHX Screaming Bird"] },
+    "Pedal_ShaverPhaser": { "key": "Pedal_ShaverPhaser", "type": "pedal", "name": "ShaverPhaser", "real": "EHX Small Stone", "category": "Phaser", "model": "phaser", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "compact", "color": "#2a7b6a", "knob": "boss", "title": "SHAVER PHASER", "after": "Boss PH-1 / EHX Small Stone", "controls": [{ "type": "knob", "label": "RATE", "param": "rate" }, { "type": "knob", "label": "DEPTH", "param": "depth" }, { "type": "switch", "label": "COLOR", "param": "feedback", "options": [["OFF", 0.3], ["ON", 0.75]] }] }, "alt": ["1977 Boss PH-1 Phaser", "1977 EHX Bad Stone Phase Shifter"] },
+    "Pedal_ShredZone": { "key": "Pedal_ShredZone", "type": "pedal", "name": "ShredZone", "real": "Boss DS-1", "category": "Distortion / Overdrive", "model": "dist", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "compact", "color": "#3a3d40", "knob": "boss", "title": "SHRED ZONE", "after": "Boss MT-2 Metal Zone", "controls": [{ "type": "knob", "label": "LEVEL", "param": "level", "size": "s" }, { "type": "knob", "label": "HIGH", "param": "treble", "size": "s" }, { "type": "knob", "label": "LOW", "param": "bass", "size": "s" }, { "type": "knob", "label": "DIST", "param": "gain", "size": "s" }, { "type": "knob", "label": "MIDDLE", "param": "mid", "size": "s" }], "ink": "#e8423a" }, "alt": ["1991 Boss MT-2 Metal Zone"] },
+    "Pedal_SpringReverb": { "key": "Pedal_SpringReverb", "type": "pedal", "name": "SpringReverb", "real": "Fender spring", "category": "Reverb", "model": "room", "params": { "tone": 0.55 }, "source": "RS-to-AT5p gear map", "face": { "look": "mxr", "color": "#c8cbcf", "knob": "chrome", "title": "SPRING REVERB", "after": "Electro-Harmonix Holy Grail", "controls": [{ "type": "knob", "label": "REVERB", "param": "mix", "size": "l" }], "ink": "#1b1b1b" }, "alt": ["2002 EHX Holy Grail"] },
+    "Pedal_Swole": { "key": "Pedal_Swole", "type": "pedal", "name": "Swole", "real": "Compressor", "category": "Dynamics", "model": "comp", "params": { "ratio": 8, "threshold": -30 }, "source": "RS-to-AT5p gear map", "face": { "look": "compact", "color": "#2e5fa8", "knob": "boss", "title": "SWOLE", "after": "Aphex Punch Factory", "controls": [{ "type": "knob", "label": "DRIVE", "param": "threshold", "invert": true }, { "type": "knob", "label": "OUTPUT", "param": "level" }] }, "alt": ["2003 APHEX Punch FACTORY ( Sonic Maximizer )"] },
+    "Pedal_Tremolo": { "key": "Pedal_Tremolo", "type": "pedal", "name": "Tremolo", "real": "Tremolo", "category": "Tremolo / Vibrato", "model": "tremolo", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "wide", "color": "#9aa0a6", "knob": "mxr", "title": "TREMOLO", "after": "Colorsound Tremolo", "controls": [{ "type": "knob", "label": "SPEED", "param": "rate" }, { "type": "knob", "label": "DEPTH", "param": "intensity" }], "ink": "#1b1b1b" }, "alt": ["1973 Colorsound Tremolo"] },
+    "Pedal_TubeSpring": { "key": "Pedal_TubeSpring", "type": "pedal", "name": "TubeSpring", "real": "spring", "category": "Reverb", "model": "room", "params": { "tone": 0.5 }, "source": "RS-to-AT5p gear map", "face": { "look": "wide", "color": "#181818", "ink": "#d9d9d9", "knob": "skirt", "tolex": "brown", "title": "TUBE SPRING REVERB", "after": "Fender '63 Reverb", "controls": [{ "type": "knob", "label": "MIXER", "param": "mix", "scale": 10 }, { "type": "knob", "label": "TONE", "param": "tone", "scale": 10 }] }, "alt": ["Source Audio True Spring Reverb", "Boss FRV-1 '63 Fender Reverb"] },
+    "Pedal_UKWah": { "key": "Pedal_UKWah", "type": "pedal", "name": "UKWah", "real": "Vox V847", "category": "Wah / Filter", "model": "wah", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "wah", "color": "#2b2b2b", "ink": "#e9e9e9", "chrome": true, "title": "UK WAH", "after": "Vox V847", "controls": [{ "type": "treadle", "label": "WAH", "param": "baseFrequency" }] } },
+    "Pedal_USWah": { "key": "Pedal_USWah", "type": "pedal", "name": "USWah", "real": "Cry Baby", "category": "Wah / Filter", "model": "wah", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "wah", "color": "#1a1a1a", "ink": "#e9e9e9", "title": "US WAH", "after": "Dunlop Cry Baby", "controls": [{ "type": "treadle", "label": "WAH", "param": "baseFrequency" }] } },
+    "Pedal_ValveEcho": { "key": "Pedal_ValveEcho", "type": "pedal", "name": "ValveEcho", "real": "Tape Echo", "category": "Delay / Echo", "model": "echo", "params": { "tone": 0.4 }, "source": "RS-to-AT5p gear map", "face": { "look": "wide", "color": "#d9cfb4", "knob": "chicken", "title": "VALVE ECHO", "after": "Binson Echorec / Maestro Echoplex", "controls": [{ "type": "knob", "label": "ECHO DELAY", "param": "time" }, { "type": "knob", "label": "REPEATS", "param": "feedback" }, { "type": "knob", "label": "ECHO VOLUME", "param": "mix" }, { "type": "knob", "label": "TONE", "param": "tone" }], "ink": "#3a2a16" }, "alt": ["1958 Binson EchoRec or Watkins Copicat", "Maestro Echoplex EP-3 (Solid state)"] },
+    "Pedal_VintageFlanger": { "key": "Pedal_VintageFlanger", "type": "pedal", "name": "VintageFlanger", "real": "EHX Mistress", "category": "Flanger", "model": "flanger", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "wide", "color": "#cfd2d4", "knob": "chrome", "title": "VINTAGE FLANGER", "after": "Electro-Harmonix Electric Mistress", "controls": [{ "type": "knob", "label": "RATE", "param": "rate" }, { "type": "knob", "label": "RANGE", "param": "depth" }, { "type": "knob", "label": "COLOR", "param": "feedback" }], "ink": "#2b3f8a" }, "alt": ["1976 Electro-Harmonix Electric Mistress", "1977 A/DA Flanger"] },
+    "Rack_StereoPhaser": { "key": "Rack_StereoPhaser", "type": "rack", "name": "StereoPhaser", "real": "Filter Phaser", "category": "Phaser", "model": "phaser", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STEREO PHASER", "after": "Rack phaser", "controls": [{ "type": "knob", "label": "RATE", "param": "rate" }, { "type": "knob", "label": "DEPTH", "param": "depth" }, { "type": "knob", "label": "FEEDBACK", "param": "feedback" }] } },
+    "Rack_StudioBoost": { "key": "Rack_StudioBoost", "type": "rack", "name": "StudioBoost", "real": "MXR", "category": "Distortion / Overdrive", "model": "boost", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO BOOST", "after": "Studio booster", "controls": [{ "type": "knob", "label": "BOOST", "param": "gain" }, { "type": "knob", "label": "TONE", "param": "tone" }, { "type": "knob", "label": "LEVEL", "param": "level" }] } },
+    "Rack_StudioChamber": { "key": "Rack_StudioChamber", "type": "rack", "name": "StudioChamber", "real": "spring reverb", "category": "Reverb", "model": "room", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO CHAMBER REVERB", "after": "Echo chamber", "controls": [{ "type": "knob", "label": "MIX", "param": "mix" }, { "type": "knob", "label": "TONE", "param": "tone" }, { "type": "knob", "label": "TIME", "param": "decay" }, { "type": "knob", "label": "DEPTH", "param": "predelay" }] }, "alt": ["Krown DM-200 Echo Chamber", "Keeley Abbey Chamber Verb"] },
+    "Rack_StudioChorus": { "key": "Rack_StudioChorus", "type": "rack", "name": "StudioChorus", "real": "Chorus", "category": "Reverb", "model": "chorus", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO CHORUS", "after": "Boss RCE-10 Chorus Ensemble", "controls": [{ "type": "knob", "label": "RATE", "param": "rate" }, { "type": "knob", "label": "DEPTH", "param": "depth" }, { "type": "knob", "label": "DELAY", "param": "manual", "size": "s" }, { "type": "knob", "label": "MIX", "param": "mix" }, { "type": "knob", "label": "LO CUT", "param": "loCut", "size": "s" }, { "type": "knob", "label": "HI CUT", "param": "hiCut", "size": "s" }, { "type": "knob", "label": "STEREO", "param": "stereo", "size": "s" }] }, "alt": ["1986 Boss Micro Rack RCE-10 Digital Chorus Ensemble"] },
+    "Rack_StudioComp": { "key": "Rack_StudioComp", "type": "rack", "name": "StudioComp", "real": "Compressor", "category": "Reverb", "model": "comp", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO COMP", "after": "FET studio compressor", "controls": [{ "type": "knob", "label": "INPUT", "param": "threshold", "invert": true }, { "type": "knob", "label": "OUTPUT", "param": "level" }, { "type": "knob", "label": "ATTACK", "param": "attack" }, { "type": "knob", "label": "RELEASE", "param": "release" }, { "type": "switch", "label": "RATIO", "param": "ratio", "options": [["4", 4], ["8", 8], ["12", 12], ["20", 20]] }] } },
+    "Rack_StudioCompressor": { "key": "Rack_StudioCompressor", "type": "rack", "name": "StudioCompressor", "category": "Reverb", "model": "comp", "knobs": { "Threshold": { "param": "threshold", "from": [-60, 0], "to": [-60, 0] }, "Ratio": { "param": "ratio", "from": [1, 20], "to": [1, 20] }, "Attack": { "param": "attack", "from": [0, 200], "to": [0, 200] }, "Release": { "param": "release", "from": [10, 1e3], "to": [10, 1e3] } }, "params": {}, "real": "Tube Compressor", "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO COMPRESSOR", "after": "dbx 160", "controls": [{ "type": "knob", "label": "THRESHOLD", "param": "threshold" }, { "type": "knob", "label": "COMPRESSION", "param": "ratio" }, { "type": "knob", "label": "OUTPUT GAIN", "param": "level" }] }, "alt": ["1976 DBX 160 - VCA compressor/limiter"] },
+    "Rack_StudioDelay": { "key": "Rack_StudioDelay", "type": "rack", "name": "StudioDelay", "real": "Delay", "category": "Delay / Echo", "model": "delay", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO DELAY", "after": "TC Electronic 2290", "controls": [{ "type": "knob", "label": "TIME", "param": "time" }, { "type": "knob", "label": "FEEDBACK", "param": "feedback" }, { "type": "knob", "label": "MIX", "param": "mix" }, { "type": "knob", "label": "HI CUT", "param": "tone" }] }, "alt": ["TC-2290 - Dynamic Digital Delay", "Eventide TimeFactor [FilterPong]"] },
+    "Rack_StudioDist": { "key": "Rack_StudioDist", "type": "rack", "name": "StudioDist", "real": "Boss DS-1", "category": "Distortion / Overdrive", "model": "dist", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO DISTORTION", "after": "Rack distortion", "controls": [{ "type": "knob", "label": "DRIVE", "param": "gain" }, { "type": "knob", "label": "TONE", "param": "tone" }, { "type": "knob", "label": "LEVEL", "param": "level" }] } },
+    "Rack_StudioEQ": { "key": "Rack_StudioEQ", "type": "rack", "name": "StudioEQ", "real": "7 Band Graphic EQ", "category": "Reverb", "model": "eq", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO EQ", "after": "4 band parametric EQ (as the song's tone sets it)", "controls": [{ "type": "knob", "label": "BASS", "param": "bass" }, { "type": "knob", "label": "FREQ", "param": "bassFreq", "size": "s" }, { "type": "knob", "label": "LO MID", "param": "lomid" }, { "type": "knob", "label": "FREQ", "param": "lomidFreq", "size": "s" }, { "type": "switch", "label": "Q", "param": "lomidQ", "options": [["WIDE", 0.7], ["NARROW", 2]] }, { "type": "knob", "label": "HI MID", "param": "himid" }, { "type": "knob", "label": "FREQ", "param": "himidFreq", "size": "s" }, { "type": "switch", "label": "Q", "param": "himidQ", "options": [["WIDE", 0.7], ["NARROW", 2]] }, { "type": "knob", "label": "TREBLE", "param": "treble" }, { "type": "knob", "label": "FREQ", "param": "trebleFreq", "size": "s" }, { "type": "knob", "label": "LEVEL", "param": "level" }] } },
+    "Rack_StudioFlanger": { "key": "Rack_StudioFlanger", "type": "rack", "name": "StudioFlanger", "real": "Flanger", "category": "Reverb", "model": "flanger", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO FLANGER", "after": "Rack flanger", "controls": [{ "type": "knob", "label": "MANUAL", "param": "manual" }, { "type": "knob", "label": "RATE", "param": "rate" }, { "type": "knob", "label": "DEPTH", "param": "depth" }, { "type": "knob", "label": "FEEDBACK", "param": "feedback" }] } },
+    "Rack_StudioFuzz": { "key": "Rack_StudioFuzz", "type": "rack", "name": "StudioFuzz", "real": "Big Muff", "category": "Distortion / Overdrive", "model": "fuzz", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO FUZZ", "after": "Rack fuzz", "controls": [{ "type": "knob", "label": "DRIVE", "param": "gain" }, { "type": "knob", "label": "TONE", "param": "tone" }, { "type": "knob", "label": "LEVEL", "param": "level" }] } },
+    "Rack_StudioGate": { "key": "Rack_StudioGate", "type": "rack", "name": "StudioGate", "real": "Noise Gate", "category": "Reverb", "model": "", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioGraphicEQ": { "key": "Rack_StudioGraphicEQ", "type": "rack", "name": "StudioGraphicEQ", "model": "eq", "knobs": { "Treble": { "param": "treble", "from": [-12, 12], "to": [-12, 12] }, "MidFreq": { "param": null, "from": [0, 100] }, "HiMid": { "param": null, "from": [0, 100] }, "Bass": { "param": "bass", "from": [-12, 12], "to": [-12, 12] }, "TrebleFreq": { "param": null, "from": [0, 100] }, "HiMidFreq": { "param": null, "from": [0, 100] }, "LoMidFreq": { "param": null, "from": [0, 800] }, "BassFreq": { "param": null, "from": [0, 120] }, "Mid": { "param": "mid", "from": [-12, 12], "to": [-12, 12] }, "LoMid": { "param": null, "from": [0, 100] } }, "params": {}, "real": "7 Band Graphic EQ", "category": "Reverb", "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO EQ", "after": "5 band parametric EQ (as the song's tone sets it)", "controls": [{ "type": "knob", "label": "BASS", "param": "bass" }, { "type": "knob", "label": "FREQ", "param": "bassFreq", "size": "s" }, { "type": "knob", "label": "LO MID", "param": "lomid" }, { "type": "knob", "label": "FREQ", "param": "lomidFreq", "size": "s" }, { "type": "knob", "label": "MID", "param": "mid" }, { "type": "knob", "label": "FREQ", "param": "midFreq", "size": "s" }, { "type": "knob", "label": "HI MID", "param": "himid" }, { "type": "knob", "label": "FREQ", "param": "himidFreq", "size": "s" }, { "type": "knob", "label": "TREBLE", "param": "treble" }, { "type": "knob", "label": "FREQ", "param": "trebleFreq", "size": "s" }, { "type": "knob", "label": "LEVEL", "param": "level" }] } },
+    "Rack_StudioHallReverb": { "key": "Rack_StudioHallReverb", "type": "rack", "name": "StudioHallReverb", "real": "rack", "category": "Reverb", "model": "plate", "params": { "mix": 0.35 }, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO HALL REVERB", "after": "Boss RRV-10 (hall)", "controls": [{ "type": "knob", "label": "MIX", "param": "mix" }, { "type": "knob", "label": "TONE", "param": "tone" }] }, "alt": ["1985 Boss MicroRack RRV-10 Digital Reverb [HALL]"] },
+    "Rack_StudioModChorus": { "key": "Rack_StudioModChorus", "type": "rack", "name": "StudioModChorus", "real": "Chorus", "category": "Reverb", "model": "chorus", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO MOD CHORUS", "after": "Rack chorus", "controls": [{ "type": "knob", "label": "RATE", "param": "rate" }, { "type": "knob", "label": "DEPTH", "param": "depth" }, { "type": "knob", "label": "FEEDBACK", "param": "feedback" }] } },
+    "Rack_StudioModFlange": { "key": "Rack_StudioModFlange", "type": "rack", "name": "StudioModFlange", "real": "Flanger", "category": "Reverb", "model": "flanger", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO MOD FLANGE", "after": "Rack flanger", "controls": [{ "type": "knob", "label": "MANUAL", "param": "manual" }, { "type": "knob", "label": "RATE", "param": "rate" }, { "type": "knob", "label": "DEPTH", "param": "depth" }, { "type": "knob", "label": "FEEDBACK", "param": "feedback" }] } },
+    "Rack_StudioModPhase": { "key": "Rack_StudioModPhase", "type": "rack", "name": "StudioModPhase", "real": "Phaze Nine", "category": "Reverb", "model": "phaser", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO MOD PHASE", "after": "Rack phaser", "controls": [{ "type": "knob", "label": "RATE", "param": "rate" }, { "type": "knob", "label": "DEPTH", "param": "depth" }, { "type": "knob", "label": "FEEDBACK", "param": "feedback" }] } },
+    "Rack_StudioNoise": { "key": "Rack_StudioNoise", "type": "rack", "name": "StudioNoise", "real": "Noise Gate", "category": "Reverb", "model": "", "params": {}, "source": "RS-to-AT5p gear map" },
+    "Rack_StudioOD": { "key": "Rack_StudioOD", "type": "rack", "name": "StudioOD", "real": "Boss SD-1", "category": "Reverb", "model": "od", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO OVERDRIVE", "after": "Rack overdrive", "controls": [{ "type": "knob", "label": "DRIVE", "param": "gain" }, { "type": "knob", "label": "TONE", "param": "tone" }, { "type": "knob", "label": "LEVEL", "param": "level" }] } },
+    "Rack_StudioParametricEQ": { "key": "Rack_StudioParametricEQ", "type": "rack", "name": "StudioParametricEQ", "real": "rack", "category": "Reverb", "model": "eq", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO PARAMETRIC EQ", "after": "GML 8200 Parametric EQ", "controls": [{ "type": "knob", "label": "BASS", "param": "bass" }, { "type": "knob", "label": "FREQ", "param": "bassFreq", "size": "s" }, { "type": "knob", "label": "LO MID", "param": "lomid" }, { "type": "knob", "label": "FREQ", "param": "lomidFreq", "size": "s" }, { "type": "knob", "label": "MID", "param": "mid" }, { "type": "knob", "label": "FREQ", "param": "midFreq", "size": "s" }, { "type": "knob", "label": "HI MID", "param": "himid" }, { "type": "knob", "label": "FREQ", "param": "himidFreq", "size": "s" }, { "type": "knob", "label": "TREBLE", "param": "treble" }, { "type": "knob", "label": "FREQ", "param": "trebleFreq", "size": "s" }, { "type": "knob", "label": "LEVEL", "param": "level" }] }, "alt": ["2001 GML model 8200 Parametric EQ", "2016 Orange Two Stroke"] },
+    "Rack_StudioPhaser": { "key": "Rack_StudioPhaser", "type": "rack", "name": "StudioPhaser", "real": "MXR Phase 90", "category": "Reverb", "model": "phaser", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO PHASER", "after": "Rack phaser", "controls": [{ "type": "knob", "label": "RATE", "param": "rate" }, { "type": "knob", "label": "DEPTH", "param": "depth" }, { "type": "knob", "label": "FEEDBACK", "param": "feedback" }] } },
+    "Rack_StudioPitch": { "key": "Rack_StudioPitch", "type": "rack", "name": "StudioPitch", "real": "Pitch Shifter", "category": "Reverb", "model": "octave", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO PITCH", "after": "Pitch shifter", "controls": [{ "type": "knob", "label": "PITCH", "param": "mix" }, { "type": "knob", "label": "DRY", "param": "dry" }] } },
+    "Rack_StudioPlate": { "key": "Rack_StudioPlate", "type": "rack", "name": "StudioPlate", "real": "Plate Reverb", "category": "Reverb", "model": "plate", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO PLATE", "after": "Plate reverb", "controls": [{ "type": "knob", "label": "MIX", "param": "mix" }, { "type": "knob", "label": "TONE", "param": "tone" }] } },
+    "Rack_StudioPlateReverb": { "key": "Rack_StudioPlateReverb", "type": "rack", "name": "StudioPlateReverb", "real": "rack", "category": "Reverb", "model": "plate", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO PLATE REVERB", "after": "EMT plate / Boss RRV-10 (plate)", "controls": [{ "type": "knob", "label": "MIX", "param": "mix" }, { "type": "knob", "label": "TONE", "param": "tone" }] }, "alt": ["1957 Electrical Audio Studios: An actual plate reverb", "1985 Boss MicroRack RRV-10 Digital Reverb [PLATE]"] },
+    "Rack_StudioReverb": { "key": "Rack_StudioReverb", "type": "rack", "name": "StudioReverb", "real": "'63 Reverb", "category": "Reverb", "model": "room", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO REVERB", "after": "Spring reverb", "controls": [{ "type": "knob", "label": "MIX", "param": "mix" }, { "type": "knob", "label": "TONE", "param": "tone" }] } },
+    "Rack_StudioRoomReverb": { "key": "Rack_StudioRoomReverb", "type": "rack", "name": "StudioRoomReverb", "real": "rack", "category": "Reverb", "model": "room", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO ROOM REVERB", "after": "Room reverb", "controls": [{ "type": "knob", "label": "MIX", "param": "mix" }, { "type": "knob", "label": "TONE", "param": "tone" }] } },
+    "Rack_StudioTapDelay": { "key": "Rack_StudioTapDelay", "type": "rack", "name": "StudioTapDelay", "real": "TapDelay", "category": "Delay / Echo", "model": "delay", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO TAP DELAY", "after": "Rack tap delay", "controls": [{ "type": "knob", "label": "TIME", "param": "time" }, { "type": "knob", "label": "FEEDBACK", "param": "feedback" }, { "type": "knob", "label": "MIX", "param": "mix" }, { "type": "knob", "label": "HI CUT", "param": "tone" }] } },
+    "Rack_StudioTapeDelay": { "key": "Rack_StudioTapeDelay", "type": "rack", "name": "StudioTapeDelay", "real": "Tape Echo", "category": "Delay / Echo", "model": "echo", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO TAPE DELAY", "after": "Rack tape echo", "controls": [{ "type": "knob", "label": "TIME", "param": "time" }, { "type": "knob", "label": "FEEDBACK", "param": "feedback" }, { "type": "knob", "label": "MIX", "param": "mix" }, { "type": "knob", "label": "HI CUT", "param": "tone" }] } },
+    "Rack_StudioTremolo": { "key": "Rack_StudioTremolo", "type": "rack", "name": "StudioTremolo", "real": "Opto Tremolo", "category": "Reverb", "model": "tremolo", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO TREMOLO", "after": "Opto tremolo", "controls": [{ "type": "knob", "label": "RATE", "param": "rate" }, { "type": "knob", "label": "DEPTH", "param": "intensity" }] } },
+    "Rack_StudioVerb": { "key": "Rack_StudioVerb", "type": "rack", "name": "StudioVerb", "real": "Digital Reverb", "category": "Reverb", "model": "room", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO VERB", "after": "Digital reverb", "controls": [{ "type": "knob", "label": "MIX", "param": "mix" }, { "type": "knob", "label": "TONE", "param": "tone" }] } },
+    "Rack_StudioVibrato": { "key": "Rack_StudioVibrato", "type": "rack", "name": "StudioVibrato", "real": "Univibe", "category": "Reverb", "model": "phaser", "params": { "rate": 2, "depth": 0.8, "feedback": 0.3 }, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO VIBRATO", "after": "Rack vibe", "controls": [{ "type": "knob", "label": "RATE", "param": "rate" }, { "type": "knob", "label": "DEPTH", "param": "depth" }, { "type": "knob", "label": "FEEDBACK", "param": "feedback" }] } },
+    "Rack_StudioWah": { "key": "Rack_StudioWah", "type": "rack", "name": "StudioWah", "real": "Cry Baby", "category": "Reverb", "model": "wah", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "STUDIO WAH", "after": "Rack auto-wah", "controls": [{ "type": "knob", "label": "SENS", "param": "sensitivity" }, { "type": "knob", "label": "FREQ", "param": "baseFrequency" }, { "type": "knob", "label": "Q", "param": "resonance" }] } },
+    "Rack_SynthFilter": { "key": "Rack_SynthFilter", "type": "rack", "name": "SynthFilter", "real": "Filter Formant", "category": "Wah / Filter", "model": "wah", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#26292d", "ink": "#d9dde2", "knob": "rack", "title": "SYNTH FILTER", "after": "Formant filter", "controls": [{ "type": "knob", "label": "SENS", "param": "sensitivity" }, { "type": "knob", "label": "CUTOFF", "param": "baseFrequency" }, { "type": "knob", "label": "RESONANCE", "param": "resonance" }] } },
+    "Rack_TapeEcho": { "key": "Rack_TapeEcho", "type": "rack", "name": "TapeEcho", "real": "Tape Echo", "category": "Delay / Echo", "model": "echo", "params": {}, "source": "RS-to-AT5p gear map", "face": { "look": "rack", "color": "#2f3d33", "ink": "#efe6cf", "knob": "chicken", "title": "TAPE ECHO", "after": "Roland Space Echo RE-150", "controls": [{ "type": "knob", "label": "REPEAT RATE", "param": "time", "min": 60, "max": 650 }, { "type": "knob", "label": "INTENSITY", "param": "feedback" }, { "type": "knob", "label": "ECHO VOLUME", "param": "mix" }, { "type": "knob", "label": "TREBLE", "param": "tone" }] }, "alt": ["1974 (1979) Roland Space Echo (RE-150)"] }
+  };
+
+  // src/amp/gear.js
+  var clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   var r32 = (v) => Math.round(v * 1e3) / 1e3;
+  var MODEL_FX = {
+    od: "Overdrive",
+    boost: "Overdrive",
+    dist: "Overdrive",
+    metal: "Overdrive",
+    fuzz: "Overdrive",
+    comp: "Compressor",
+    chorus: "Chorus",
+    flanger: "Chorus",
+    phaser: "Phaser",
+    tremolo: "Tremolo",
+    wah: "WahWah",
+    eq: "EQ",
+    octave: "Octave",
+    delay: "Delay",
+    echo: "Delay",
+    room: "Reverb",
+    plate: "Reverb"
+  };
+  var RE = {
+    octave: /octave|octaver|pitchshift|harmon/i,
+    wah: /wah/i,
+    fuzz: /fuzz|muff/i,
+    metal: /metal|highgain|hi_?gain|grind/i,
+    boost: /boost|treble|clean_?boost/i,
+    dist: /distort|dist\d?|rat\b|crunch/i,
+    od: /overdrive|screamer|drive|od\d|tube/i,
+    flanger: /flang|jet/i,
+    chorus: /chorus|ensemble|ce\d|dimension/i,
+    phaser: /phase|vibe|univibe/i,
+    tremolo: /trem|rotary|leslie|pan\b/i,
+    delay: /delay|echo/i,
+    reverb: /reverb|verb|hall|room|plate|spring|cathedral|ambien/i,
+    comp: /comp|limit|sustain|dynamics/i,
+    eq: /eq\d*\b|graphic|equal|parametric|filter/i
+  };
+  function modelOfGear(key, category = "") {
+    const what = `${key} ${category}`;
+    if (RE.octave.test(what)) return "octave";
+    if (RE.wah.test(what)) return "wah";
+    if (RE.reverb.test(what)) return /plate|hall|cathedral/i.test(what) ? "plate" : "room";
+    if (RE.delay.test(what)) return /tape|echo|analog/i.test(what) ? "echo" : "delay";
+    if (RE.flanger.test(what)) return "flanger";
+    if (RE.chorus.test(what)) return "chorus";
+    if (RE.phaser.test(what)) return "phaser";
+    if (RE.tremolo.test(what)) return "tremolo";
+    if (RE.fuzz.test(what)) return "fuzz";
+    if (RE.metal.test(what)) return "metal";
+    if (RE.boost.test(what)) return "boost";
+    if (RE.dist.test(what)) return "dist";
+    if (RE.od.test(what)) return "od";
+    if (RE.comp.test(what)) return "comp";
+    if (RE.eq.test(what)) return "eq";
+    return "";
+  }
+  function cabSize(cabKey) {
+    const m = /_[A-Za-z]+?0?([1-8])(12|10|15|8|6)0?C?(?:_|$)/.exec(cabKey || "");
+    return m ? [Number(m[1]), Number(m[2])] : null;
+  }
+  function cabOfGear(cabKey, ampKey, { bass = false, kind = "", size = null } = {}) {
+    const k = cabKey || "";
+    if (bass || /^bass_/i.test(k) || /^bass_/i.test(ampKey || "")) return "bass";
+    const sz = size || cabSize(k);
+    const n = sz ? sz[0] : 0, d = sz ? sz[1] : 0;
+    if (k) {
+      if (n === 4 && d === 10) return "bass";
+      if (sz && n <= 1) return "1x12";
+      if (/_(EN|Orange)/i.test(k)) return n === 2 ? "2x12" : "4x12o";
+      if (/_(GB|ENGL|Diezel|Bogner)/i.test(k)) return "4x12g";
+      if (/_(CA|HG|Mesa|Peavey|IBEX)/i.test(k) || /^IBEX/i.test(k)) return n === 1 ? "1x12" : "4x12m";
+      if (/_Marshall(JCM|DSL|JVM|1960TV)/i.test(k)) return "4x12j";
+      if (/_(BT|Marshall)/i.test(k)) return n === 2 ? "2x12" : "4x12";
+      if (/_(Vox|CS)/i.test(k) || n === 2 || n === 3) return "2x12";
+      if (/_(TW|AT|Fender)/i.test(k)) return n >= 4 ? "4x12" : "1x12";
+      if (n >= 4) return kind === "distortion" ? "4x12m" : "4x12";
+    }
+    return kind === "clean" ? "2x12" : kind === "crunch" ? "4x12" : kind === "distortion" ? "4x12m" : "2x12";
+  }
+  var cabBase = (key) => String(key || "").replace(/_(57|Ribbon|Condenser|Tube)_(Cone|Edge|OffAxis)$/i, "");
+  var bandNames = (names) => names.filter((n) => /^\d+(\.\d+)?$/.test(n)).sort((a, b) => a - b).slice(0, 10);
+  function knobName(gearKey, fullKey) {
+    return fullKey.startsWith(gearKey + "_") ? fullKey.slice(gearKey.length + 1) : fullKey.slice(fullKey.lastIndexOf("_") + 1);
+  }
+  var PCT = (to) => ({ from: [0, 100], to });
+  var EQ = (db) => db ? { from: [-12, 12], to: [-12, 12] } : PCT([-12, 12]);
+  var FREQ = (s) => s[1] < 30 ? { from: [0, 20], to: [0, 2e4] } : { from: [0, 2e4], to: [0, 2e4] };
+  var RATE = (lo, hi) => (s, db, type2) => type2 === "rack" && s[1] <= 20 ? { from: [0, 20], to: [0, 20] } : { ...PCT([lo, hi]), curve: 2 };
+  var RULES = {
+    amp: [
+      ["gain", ["gain", "drive", "overdrive", "preamp", "sensitivity"], () => PCT([0, 1])],
+      ["bass", ["bass", "low", "lo"], (s, db) => EQ(db)],
+      ["mid", ["mid", "middle"], (s, db) => EQ(db)],
+      ["treble", ["treble", "high", "hi"], (s, db) => EQ(db)],
+      ["presence", ["pres", "presence"], (s, db) => EQ(db)],
+      ["bright", ["bright", "brite"], (s) => s[1] <= 1 ? { from: [0, 1], to: [0, 6] } : PCT([0, 6])],
+      ["lo", ["lo", "low"], (s, db) => EQ(db)],
+      ["hi", ["hi", "high"], (s, db) => EQ(db)],
+      ["loFreq", ["lofreq", "lowfreq", "bassfreq"], FREQ],
+      ["hiFreq", ["hifreq", "highfreq", "treblefreq"], FREQ],
+      ["midFreq", ["midfreq", "middlefreq"], FREQ]
+    ],
+    Overdrive: [
+      ["gain", ["gain", "drive", "dist", "distortion", "fuzz", "sustain", "overdrive", "boost"], () => PCT([0, 1])],
+      ["tone", ["tone", "treble", "filter"], () => PCT([0, 1])],
+      ["level", ["level", "volume", "output", "vol"], () => PCT([0, 1])]
+    ],
+    Compressor: [
+      ["threshold", ["threshold", "thresh"], (s) => s[0] < 0 ? { from: [-60, 0], to: [-60, 0] } : PCT([-10, -50])],
+      ["ratio", ["ratio"], () => ({ from: [1, 20], to: [1, 20] })],
+      ["attack", ["attack"], () => ({ from: [0, 200], to: [0, 200] })],
+      ["release", ["release"], () => ({ from: [10, 1e3], to: [10, 1e3] })],
+      ["release", ["rate", "speed"], () => PCT([1e3, 20])],
+      // a faster rate lets go sooner
+      ["split", ["filter", "crossover", "xover", "split"], () => ({ from: [0, 1e3], to: [0, 1e3] })],
+      ["threshold", ["compress", "sustain", "comp", "amount"], () => PCT([-10, -50])]
+    ],
+    Chorus: [
+      ["rate", ["rate", "speed"], RATE(0.05, 8)],
+      ["depth", ["depth", "intensity", "width", "mix", "level"], () => PCT([0, 1])],
+      ["feedback", ["feedback", "resonance", "regen", "res"], () => PCT([0, 0.9])],
+      ["mix", ["mix", "blend"], () => PCT([0, 1])],
+      ["manual", ["delay", "manual", "predelay"], () => PCT([1, 15])],
+      ["loCut", ["lofilter", "locut", "lowcut", "hpf"], () => ({ ...PCT([20, 1e3]), curve: 2 })],
+      ["hiCut", ["hifilter", "hicut", "highcut", "lpf"], () => PCT([2e4, 1e3])],
+      ["stereo", ["stereo", "spread"], () => PCT([0, 1])]
+    ],
+    Phaser: [
+      ["rate", ["rate", "speed"], RATE(0.05, 8)],
+      ["depth", ["depth", "intensity", "width", "mix", "level"], () => PCT([0, 1])],
+      ["feedback", ["feedback", "resonance", "regen", "res"], () => PCT([0, 0.9])]
+    ],
+    Tremolo: [
+      ["rate", ["rate", "speed"], RATE(0.1, 11)],
+      ["intensity", ["depth", "intensity", "width", "mix", "level"], () => PCT([0, 1])]
+    ],
+    WahWah: [
+      ["sensitivity", ["sensitivity", "sens", "range"], () => PCT([-1, 1])],
+      ["resonance", ["resonance", "q", "peak"], () => PCT([1, 60])]
+    ],
+    Delay: [
+      ["time", ["time", "delay", "delaytime"], (s) => s[1] > 20 ? { from: [0, 1e3], to: [0, 1e3] } : PCT([0, 1e3])],
+      ["feedback", ["feedback", "repeats", "regen"], () => PCT([0, 0.9])],
+      ["mix", ["mix", "level", "blend"], () => PCT([0, 1])]
+    ],
+    Reverb: [
+      ["mix", ["mix", "level", "blend", "verb"], () => PCT([0, 1])],
+      ["tone", ["tone", "color", "colour"], () => PCT([0, 1])],
+      ["decay", ["time", "decay", "length", "size"], () => PCT([0.3, 6])],
+      ["predelay", ["depth", "predelay", "distance"], () => PCT([0, 80])]
+    ],
+    EQ: [
+      ["bass", ["bass", "low", "lo"], (s, db) => EQ(db)],
+      ["mid", ["mid", "middle"], (s, db) => EQ(db)],
+      ["treble", ["treble", "high", "hi"], (s, db) => EQ(db)],
+      ["lomid", ["lomid", "lowmid"], (s, db) => EQ(db)],
+      ["himid", ["himid", "highmid"], (s, db) => EQ(db)],
+      ["lomidQ", ["lomidq", "lowmidq"], () => ({ from: [0, 1], to: [0.7, 2] })],
+      // 0 wide, 1 narrow
+      ["himidQ", ["himidq", "highmidq"], () => ({ from: [0, 1], to: [0.7, 2] })],
+      ["mid", ["lomid", "himid"], (s, db) => EQ(db)],
+      ["bassFreq", ["bassfreq", "lowfreq", "lofreq"], FREQ],
+      ["lomidFreq", ["lomidfreq", "lowmidfreq"], FREQ],
+      ["midFreq", ["midfreq", "middlefreq"], FREQ],
+      ["himidFreq", ["himidfreq", "highmidfreq"], FREQ],
+      ["trebleFreq", ["treblefreq", "hifreq", "highfreq"], FREQ],
+      ["level", ["level", "volume", "gain", "output"], (s) => s[0] < 0 ? { from: [-12, 12], to: [-12, 12] } : PCT([-12, 12])]
+    ],
+    Octave: [
+      ["mix", ["mix", "level", "blend", "octave"], () => PCT([0, 1])]
+    ]
+  };
+  var TYPE_OF_SLOT = (slot, type2) => {
+    const t = String(type2 || "").toLowerCase();
+    if (slot === "Amp" || t === "amps") return "amp";
+    if (slot === "Cabinet" || t === "cabinets") return "cabinet";
+    if (/^rack/i.test(slot) || t === "racks") return "rack";
+    return "pedal";
+  };
+  var prettyName = (key) => key.replace(/^(bass_)?(amp|cab|pedal|rack)_/i, "").replace(/_/g, " ");
+  function describeGear(type2, key, seen = {}, { category = "", model: forced } = {}) {
+    const bass = /^bass_/i.test(key);
+    const base = { key, type: type2, name: prettyName(key) };
+    if (category) base.category = category;
+    if (type2 === "cabinet") return { ...base, bass, cab: cabOfGear(key, "", { bass }) };
+    const model = type2 === "amp" ? "" : forced !== void 0 ? forced : modelOfGear(key, category);
+    const rules = type2 === "amp" ? RULES.amp : model ? RULES[MODEL_FX[model]] : [];
+    const db = Object.values(seen).some((r) => r[0] < 0);
+    const knobs = {};
+    for (const [name, r] of Object.entries(seen)) knobs[name] = { param: null, from: r[0] < 0 ? [Math.min(-12, r[0]), Math.max(12, r[1])] : [0, Math.max(100, r[1])] };
+    const taken = /* @__PURE__ */ new Set();
+    for (const [param, names, map2] of rules) {
+      if (taken.has(param)) continue;
+      const name = names.map((n) => Object.keys(seen).find((k) => k.toLowerCase() === n)).find(Boolean);
+      if (!name || knobs[name].param) continue;
+      knobs[name] = { param, ...map2(seen[name], db, type2) };
+      taken.add(param);
+    }
+    if (MODEL_FX[model] === "EQ") {
+      bandNames(Object.keys(seen)).forEach((n, i) => {
+        if (!knobs[n].param) knobs[n] = { param: "g" + i, from: [-12, 12], to: [-12, 12] };
+      });
+    }
+    if (type2 === "amp") return { ...base, bass, cab: bass ? "bass" : "", knobs };
+    return { ...base, model, knobs, params: {} };
+  }
+  function gearEntry(slot, g) {
+    const key = g && (g.Key || g.PedalKey) || "";
+    if (!key) return null;
+    if (library_default[key]) return library_default[key];
+    if (TYPE_OF_SLOT(slot, g.Type) === "cabinet" && library_default[cabBase(key)]) return library_default[cabBase(key)];
+    const seen = {};
+    for (const [k, v] of Object.entries(g.KnobValues || {})) {
+      const n = Number(v);
+      if (Number.isFinite(n)) seen[knobName(key, k)] = [n, n];
+    }
+    return describeGear(TYPE_OF_SLOT(slot, g.Type), key, seen, { category: g.Category || "" });
+  }
+  function applyKnobs(entry, knobValues = {}) {
+    const out = { ...entry.params || {} };
+    const seen = {};
+    for (const [k, v] of Object.entries(knobValues || {})) {
+      const n = Number(v);
+      if (Number.isFinite(n)) seen[knobName(entry.key, k)] = [n, n];
+    }
+    const auto = entry.type === "cabinet" ? {} : describeGear(entry.type, entry.key, seen, { model: entry.model || "" }).knobs || {};
+    const knobs = { ...auto };
+    for (const [n, m] of Object.entries(entry.knobs || {})) if (!(m && m.param === null && auto[n])) knobs[n] = m;
+    const mine = new Set(Object.values(entry.knobs || {}).map((m) => m && m.param).filter(Boolean));
+    for (const name of Object.keys(auto)) if (knobs[name] === auto[name] && mine.has(auto[name].param)) delete knobs[name];
+    for (const [k, v] of Object.entries(knobValues || {})) {
+      const m = knobs[knobName(entry.key, k)];
+      const n = Number(v);
+      if (!m || !m.param || !Number.isFinite(n) || !m.to) continue;
+      const [f0, f1] = m.from || [0, 100], [t0, t1] = m.to;
+      let t = f1 === f0 ? 0 : clamp((n - f0) / (f1 - f0), 0, 1);
+      if (m.curve) t = Math.pow(t, m.curve);
+      out[m.param] = r32(t0 + (t1 - t0) * t);
+    }
+    return out;
+  }
+
+  // src/amp/catalog.js
+  var FX = {
+    Overdrive: { knobs: [
+      { k: "gain", label: "DRIVE", min: 0, max: 1, step: 0.01, def: 0.5 },
+      { k: "tone", label: "TONE", min: 0, max: 1, step: 0.01, def: 0.5 },
+      { k: "level", label: "LEVEL", min: 0, max: 1, step: 0.01, def: 0.5 }
+    ] },
+    Compressor: { knobs: [
+      { k: "threshold", label: "THRESH", min: -60, max: 0, step: 0.5, def: -24, unit: "dB" },
+      { k: "ratio", label: "RATIO", min: 1, max: 20, step: 0.1, def: 4, unit: ":1" },
+      { k: "attack", label: "ATTACK", min: 0, max: 200, step: 1, def: 5, unit: "ms" },
+      { k: "release", label: "RELEASE", min: 10, max: 1e3, step: 5, def: 200, unit: "ms" }
+    ] },
+    Chorus: { knobs: [
+      { k: "rate", label: "RATE", min: 0.05, max: 8, step: 0.05, def: 1.5, unit: "Hz" },
+      { k: "depth", label: "DEPTH", min: 0, max: 1, step: 0.01, def: 0.7 },
+      { k: "feedback", label: "FDBK", min: 0, max: 0.95, step: 0.01, def: 0.2 }
+    ] },
+    Phaser: { knobs: [
+      { k: "rate", label: "RATE", min: 0.05, max: 8, step: 0.05, def: 0.6, unit: "Hz" },
+      { k: "depth", label: "DEPTH", min: 0, max: 1, step: 0.01, def: 0.6 },
+      { k: "feedback", label: "RES", min: 0, max: 0.95, step: 0.01, def: 0.5 }
+    ] },
+    Tremolo: { knobs: [
+      { k: "rate", label: "RATE", min: 0.1, max: 11, step: 0.1, def: 5, unit: "Hz" },
+      { k: "intensity", label: "DEPTH", min: 0, max: 1, step: 0.01, def: 0.5 }
+    ] },
+    WahWah: { knobs: [
+      { k: "sensitivity", label: "SENS", min: -1, max: 1, step: 0.01, def: 0.2 },
+      { k: "baseFrequency", label: "FREQ", min: 0, max: 1, step: 0.01, def: 0.3 },
+      { k: "resonance", label: "Q", min: 1, max: 60, step: 0.5, def: 15 }
+    ] },
+    Delay: { knobs: [
+      { k: "time", label: "TIME", min: 20, max: 1e3, step: 5, def: 360, unit: "ms" },
+      { k: "feedback", label: "REPEAT", min: 0, max: 0.9, step: 0.01, def: 0.35 },
+      { k: "mix", label: "LEVEL", min: 0, max: 1, step: 0.01, def: 0.35 },
+      { k: "tone", label: "TONE", min: 0, max: 1, step: 0.01, def: 0.6 }
+    ] },
+    Reverb: { knobs: [
+      { k: "mix", label: "LEVEL", min: 0, max: 1, step: 0.01, def: 0.3 },
+      { k: "tone", label: "TONE", min: 0, max: 1, step: 0.01, def: 0.7 }
+    ] },
+    EQ: { knobs: [
+      { k: "bass", label: "BASS", min: -12, max: 12, step: 0.5, def: 0, unit: "dB" },
+      { k: "mid", label: "MID", min: -12, max: 12, step: 0.5, def: 0, unit: "dB" },
+      { k: "treble", label: "TREBLE", min: -12, max: 12, step: 0.5, def: 0, unit: "dB" },
+      { k: "level", label: "LEVEL", min: -12, max: 12, step: 0.5, def: 0, unit: "dB" }
+    ] },
+    Octave: { knobs: [
+      { k: "mix", label: "OCTAVE", min: 0, max: 1, step: 0.01, def: 0.5 },
+      { k: "dry", label: "DRY", min: 0, max: 1, step: 0.01, def: 1 }
+    ] }
+  };
+  var dBk = (k, label) => ({ k, label, min: -12, max: 12, step: 0.5, def: 0, unit: "dB" });
+  FX.Overdrive.extra = [dBk("bass", "BASS"), dBk("mid", "MID"), dBk("treble", "TREBLE")];
+  FX.Compressor.extra = [dBk("level", "LEVEL"), { k: "split", label: "FILTER", min: 0, max: 1e3, step: 5, def: 0, unit: "Hz" }];
+  FX.Chorus.extra = [
+    { k: "manual", label: "MANUAL", min: 0.5, max: 15, step: 0.1, def: 4.5, unit: "ms" },
+    { k: "mix", label: "MIX", min: 0, max: 1, step: 0.01, def: 1 },
+    { k: "loCut", label: "LO CUT", min: 20, max: 1e3, step: 1, def: 20, unit: "Hz", log: true },
+    { k: "hiCut", label: "HI CUT", min: 1e3, max: 2e4, step: 10, def: 2e4, unit: "Hz", log: true },
+    { k: "stereo", label: "STEREO", min: 0, max: 1, step: 0.01, def: 1 }
+  ];
+  FX.Reverb.extra = [
+    { k: "decay", label: "TIME", min: 0, max: 8, step: 0.05, def: 0, unit: "s" },
+    { k: "predelay", label: "DEPTH", min: 0, max: 100, step: 1, def: 0, unit: "ms" }
+  ];
+  var Hz = (k, label, min, max, def) => ({ k, label, min, max, step: 1, def, unit: "Hz", log: true });
+  FX.EQ.extra = [
+    dBk("lomid", "LO MID"),
+    dBk("himid", "HI MID"),
+    Hz("bassFreq", "BASS FREQ", 30, 500, 120),
+    Hz("lomidFreq", "LO MID FREQ", 100, 2e3, 400),
+    Hz("midFreq", "MID FREQ", 150, 5e3, 800),
+    Hz("himidFreq", "HI MID FREQ", 500, 8e3, 2e3),
+    Hz("trebleFreq", "TREBLE FREQ", 1e3, 16e3, 3200),
+    /* how wide the mid bands are (Q: low = wide) */
+    { k: "lomidQ", label: "LO MID Q", min: 0.3, max: 4, step: 0.05, def: 0.9 },
+    { k: "himidQ", label: "HI MID Q", min: 0.3, max: 4, step: 0.05, def: 0.9 },
+    ...Array.from({ length: 10 }, (_, i) => dBk("g" + i, "BAND " + (i + 1)))
+  ];
+  for (const f of Object.values(FX)) f.extra = f.extra || [];
+  var AMP_KNOBS = [
+    { k: "gain", label: "GAIN", min: 0, max: 1, step: 0.01, def: 0.3 },
+    { k: "bass", label: "BASS", min: -12, max: 12, step: 0.5, def: 0, unit: "dB" },
+    { k: "mid", label: "MIDDLE", min: -12, max: 12, step: 0.5, def: 0, unit: "dB" },
+    { k: "treble", label: "TREBLE", min: -12, max: 12, step: 0.5, def: 0, unit: "dB" },
+    { k: "presence", label: "PRESENCE", min: -12, max: 12, step: 0.5, def: 0, unit: "dB" }
+  ];
+  var AMP_EXTRA = [
+    { k: "bright", label: "BRIGHT", min: 0, max: 9, step: 0.5, def: 0, unit: "dB" },
+    /* a bass head's parametric bands (a low and a high one, and where its middle sits) */
+    { k: "lo", label: "LO", min: -12, max: 12, step: 0.5, def: 0, unit: "dB" },
+    { k: "loFreq", label: "LO FREQ", min: 20, max: 500, step: 1, def: 80, unit: "Hz", log: true },
+    { k: "hi", label: "HI", min: -12, max: 12, step: 0.5, def: 0, unit: "dB" },
+    { k: "hiFreq", label: "HI FREQ", min: 1e3, max: 16e3, step: 1, def: 4e3, unit: "Hz", log: true },
+    { k: "midFreq", label: "MID FREQ", min: 150, max: 5e3, step: 1, def: 750, unit: "Hz", log: true },
+    { k: "depth", label: "DEPTH", min: 0, max: 1, step: 0.01, def: 0 },
+    { k: "reverb", label: "REVERB", min: 0, max: 1, step: 0.01, def: 0 },
+    ...[80, 240, 750, 2200, 6600].map((f, i) => ({ k: "eq" + i, label: f < 1e3 ? String(f) : f / 1e3 + "K", min: -12, max: 12, step: 0.5, def: 0, unit: "dB", hz: f }))
+  ];
+  var AMP_PARAMS = [...AMP_KNOBS, ...AMP_EXTRA];
+  var MODELS = {
+    od: { name: "Tube Drive", group: "Drive", fx: "Overdrive", color: "#3f9a54", tuna: { algorithm: 0 }, params: { gain: 0.45, tone: 0.55, level: 0.6 } },
+    boost: { name: "Warm Boost", group: "Drive", fx: "Overdrive", color: "#c9c2b0", tuna: { algorithm: 4 }, params: { gain: 0.2, tone: 0.6, level: 0.7 } },
+    dist: { name: "Distortion", group: "Drive", fx: "Overdrive", color: "#e07b28", tuna: { algorithm: 3 }, params: { gain: 0.6, tone: 0.5, level: 0.5 } },
+    metal: { name: "Metal", group: "Drive", fx: "Overdrive", color: "#2b2e33", tuna: { algorithm: 0 }, params: { gain: 0.9, tone: 0.45, level: 0.45 } },
+    fuzz: { name: "Fuzz", group: "Drive", fx: "Overdrive", color: "#8a8f99", tuna: { algorithm: 2 }, params: { gain: 0.7, tone: 0.45, level: 0.5 } },
+    comp: { name: "Compressor", group: "Dynamics", fx: "Compressor", color: "#2f6fc0", params: {} },
+    chorus: { name: "Chorus", group: "Modulation", fx: "Chorus", color: "#6fb8d9", params: {} },
+    flanger: { name: "Flanger", group: "Modulation", fx: "Chorus", color: "#9b5fc0", params: { rate: 0.4, depth: 0.8, feedback: 0.75, manual: 2 } },
+    phaser: { name: "Phaser", group: "Modulation", fx: "Phaser", color: "#e0a020", params: {} },
+    tremolo: { name: "Tremolo", group: "Modulation", fx: "Tremolo", color: "#e6cf45", params: {} },
+    wah: { name: "Auto Wah", group: "Filter", fx: "WahWah", color: "#b13b3b", params: {} },
+    eq: { name: "EQ", group: "Filter", fx: "EQ", color: "#d8dde3", params: {} },
+    octave: { name: "Octave Up", group: "Pitch", fx: "Octave", color: "#5a6fd6", params: {} },
+    delay: { name: "Delay", group: "Time", fx: "Delay", color: "#d7d9dc", params: {} },
+    echo: { name: "Tape Echo", group: "Time", fx: "Delay", color: "#7a5a3a", params: { time: 420, feedback: 0.45, mix: 0.35, tone: 0.3 } },
+    room: { name: "Room Reverb", group: "Time", fx: "Reverb", color: "#3a7f8c", ir: "room", params: {} },
+    plate: { name: "Plate Reverb", group: "Time", fx: "Reverb", color: "#26507a", ir: "plate", params: { mix: 0.35, tone: 0.75 } }
+  };
+  var CABS = {
+    "1x12": { name: "1x12 Open back (American)", ir: "c1x12", gain: 2.6 },
+    "2x12": { name: "2x12 Open back (British)", ir: "c2x12", gain: 1.7 },
+    "4x12": { name: "4x12 Vintage (British)", ir: "c4x12", gain: 0.8 },
+    "4x12j": { name: "4x12 Lead (British, 80s)", ir: "c4x12j", gain: 0.76 },
+    "4x12o": { name: "4x12 Closed (English)", ir: "c4x12o", gain: 13.7 },
+    "4x12m": { name: "4x12 Modern (American)", ir: "c4x12m", gain: 0.39 },
+    "4x12g": { name: "4x12 Modern (German)", ir: "c4x12g", gain: 0.89 },
+    "4x12t": { name: "4x12 Classic", ir: "tuna", gain: 1.6 },
+    "bass": { name: "4x10 Tweed / Bass", ir: "cbass", gain: 4.6 },
+    "none": { name: "No cabinet (DI)", ir: "", gain: 0.22 }
+  };
+  var MIC_TYPES = { "57": { hi: 0, lo: 0 }, Ribbon: { hi: -2.5, lo: 1.5 }, Condenser: { hi: 1.5, lo: 0.5 }, Tube: { hi: -0.5, lo: 1.5 } };
+  var MIC_POS = { Cone: 1.5, Edge: -1.5, OffAxis: -3 };
+  var MICS = Object.keys(MIC_TYPES).flatMap((t) => Object.keys(MIC_POS).map((p) => `${t}_${p}`));
+  var VOICES = {
+    generic: { name: "Generic", drive: [0, 1], tight: 70, mid: [750, 0, 0.7], bright: 0, low: 0, fizz: 9e3, cab: "2x12", level: 1 },
+    tweed: { name: "Tweed (50s American)", drive: [0.05, 0.72], tight: 60, mid: [700, 1.5, 0.7], bright: 0.5, low: 1, fizz: 6500, cab: "1x12", level: 1 },
+    american: { name: "American clean", drive: [0.02, 0.45], tight: 60, mid: [500, -4, 0.7], bright: 2.5, low: 1.5, fizz: 8500, cab: "1x12", level: 1.6 },
+    plexi: { name: "British vintage (Plexi)", drive: [0.08, 0.8], tight: 90, mid: [900, 2.5, 0.8], bright: 1.5, low: 0, fizz: 7e3, cab: "4x12", level: 1.15 },
+    jcm: { name: "British lead (JCM)", drive: [0.15, 0.92], tight: 110, mid: [800, 3, 0.9], bright: 1, low: -0.5, fizz: 7e3, cab: "4x12j", level: 1.8 },
+    vox: { name: "British chime (AC)", drive: [0.05, 0.75], tight: 85, mid: [1200, 3, 0.7], bright: 3, low: -1, fizz: 7500, cab: "2x12", level: 1.2 },
+    orange: { name: "English (Orange)", drive: [0.12, 0.92], tight: 90, mid: [600, 2.5, 0.8], bright: -1, low: 1.5, fizz: 6e3, cab: "4x12o", level: 1 },
+    rectifier: { name: "Rectified (Mesa Rect.)", drive: [0.12, 1], tight: 130, mid: [750, -4, 0.7], bright: 1, low: 2, fizz: 6500, cab: "4x12m", level: 2.2 },
+    mark: { name: "Californian lead (Mark)", drive: [0.1, 0.95], tight: 150, mid: [650, 1.5, 0.8], bright: 1.5, low: -1, fizz: 7e3, cab: "4x12m", level: 2.1 },
+    highgain: { name: "Modern high gain", drive: [0.15, 1], tight: 150, mid: [700, -2, 0.8], bright: 0.5, low: 1, fizz: 6e3, cab: "4x12m", level: 2.4 },
+    german: { name: "German (Diezel, ENGL)", drive: [0.12, 1], tight: 140, mid: [850, 1, 0.8], bright: 1, low: 1, fizz: 6500, cab: "4x12g", level: 2 },
+    jazz: { name: "Solid-state clean (JC)", drive: [0, 0.2], tight: 50, mid: [600, -1, 0.7], bright: 2, low: 0, fizz: 9500, cab: "2x12", level: 3.2 },
+    bass: { name: "Bass tube", drive: [0.02, 0.5], tight: 25, mid: [500, 1, 0.7], bright: 0, low: 2, fizz: 5e3, cab: "bass", level: 4, bass: true },
+    bassdi: { name: "Bass DI", drive: [0, 0.15], tight: 25, mid: [800, 0, 0.7], bright: 0, low: 0, fizz: 12e3, cab: "none", level: 6, bass: true },
+    di: { name: "Direct (DI)", drive: [0, 0.1], tight: 40, mid: [800, 0, 0.7], bright: 0, low: 0, fizz: 12e3, cab: "none", level: 3 }
+  };
+  var voiceOf = (id) => VOICES[id] || VOICES.generic;
+  var driveOf = (voice, gain) => {
+    const [a, b] = voiceOf(voice).drive;
+    return a + (b - a) * clamp2(gain, 0, 1);
+  };
+  var gainFor = (voice, t) => {
+    const [a, b] = voiceOf(voice).drive;
+    return b === a ? 0 : clamp2((t - a) / (b - a), 0, 1);
+  };
+  var clamp2 = (v, a, b) => Math.min(b, Math.max(a, v));
+  var r33 = (v) => Math.round(v * 1e3) / 1e3;
+  var uid = 0;
+  var newId = (model) => `${model}-${Date.now().toString(36)}-${(uid++).toString(36)}`;
+  function makePedal(model, params = {}, id = "") {
+    const m = MODELS[model];
+    if (!m) return null;
+    const p = {};
+    for (const kn of FX[m.fx].knobs) {
+      const v = Number(params[kn.k] ?? m.params[kn.k] ?? kn.def);
+      p[kn.k] = r33(clamp2(Number.isFinite(v) ? v : kn.def, kn.min, kn.max));
+    }
+    for (const kn of FX[m.fx].extra) {
+      const v = Number(params[kn.k] ?? m.params[kn.k]);
+      if (Number.isFinite(v)) p[kn.k] = r33(clamp2(v, kn.min, kn.max));
+    }
+    return { id: id || newId(model), model, on: true, params: p };
+  }
+  function emptyBoard(bass = false) {
+    return {
+      amp: {
+        name: bass ? "Bass amp" : "Amp",
+        bassAmp: !!bass,
+        on: true,
+        voice: bass ? "bass" : "generic",
+        gain: 0.3,
+        bass: 0,
+        mid: 0,
+        treble: 0,
+        presence: 0
+      },
+      cab: bass ? "bass" : "2x12",
+      mic: "",
+      cabOn: true,
+      pre: [],
+      loop: [],
+      rack: []
+    };
+  }
+  var KIND_GAIN = { clean: [0, 0.3], crunch: [0.4, 0.71], distortion: [0.75, 1] };
+  var ORDER = (s) => (/^PrePedal/i.test(s) ? 0 : /^LoopPedal/i.test(s) ? 1 : /^Rack/i.test(s) ? 2 : /^PostPedal/i.test(s) ? 3 : 4) * 100 + (parseInt(s.replace(/\D+/g, ""), 10) || 0);
+  function boardFromGear(gl, { bass = false, kind = "" } = {}) {
+    gl = gl && typeof gl === "object" ? gl : {};
+    const ampG = gl.Amp && typeof gl.Amp === "object" ? gl.Amp : null;
+    const ampE = ampG ? gearEntry("Amp", ampG) : null;
+    bass = !!bass || !!(ampE && ampE.bass);
+    const board = emptyBoard(bass);
+    if (ampE) {
+      board.amp.name = ampE.name || board.amp.name;
+      board.amp.gear = ampE.key;
+      if (ampE.real) board.amp.real = ampE.real;
+      if (VOICES[ampE.voice]) board.amp.voice = ampE.voice;
+      const p = applyKnobs(ampE, ampG.KnobValues);
+      for (const kn of AMP_PARAMS) if (Number.isFinite(p[kn.k])) board.amp[kn.k] = r33(p[kn.k]);
+    }
+    const cabG = gl.Cabinet && typeof gl.Cabinet === "object" ? gl.Cabinet : null;
+    const cabE = cabG ? gearEntry("Cabinet", cabG) : null;
+    board.cab = cabE && CABS[cabE.cab] ? cabE.cab : ampE && CABS[ampE.cab] ? ampE.cab : ampE && VOICES[ampE.voice] ? VOICES[ampE.voice].cab : cabOfGear("", ampE ? ampE.key : "", { bass, kind });
+    if (cabE) {
+      board.cabGear = cabG.Key;
+      if (cabE.real) board.cabReal = cabE.real;
+    }
+    const mic = /_((?:57|Ribbon|Condenser|Tube)_(?:Cone|Edge|OffAxis))$/i.exec(cabG && cabG.Key || "");
+    board.mic = mic ? mic[1] : cabE && cabE.mic || "";
+    const slots = Object.keys(gl).filter((s) => s !== "Amp" && s !== "Cabinet" && gl[s] && typeof gl[s] === "object");
+    slots.sort((a, b) => ORDER(a) - ORDER(b));
+    for (const s of slots) {
+      const g = gl[s], e = gearEntry(s, g);
+      if (!e || !MODELS[e.model]) continue;
+      const pedal = makePedal(e.model, applyKnobs(e, g.KnobValues), s.toLowerCase());
+      pedal.gear = e.key;
+      if (e.real) pedal.real = e.real;
+      const names = /* @__PURE__ */ new Set([...Object.keys(e.knobs || {}), ...Object.keys(g.KnobValues || {}).map((k) => knobName(e.key, k))]);
+      const bands = MODELS[e.model].fx === "EQ" ? bandNames([...names]).map(Number) : [];
+      if (bands.length) pedal.bands = bands;
+      (/^PrePedal/i.test(s) ? board.pre : /^Rack/i.test(s) ? board.rack : board.loop).push(pedal);
+    }
+    const range = KIND_GAIN[kind];
+    if (range && !board.pre.some((p) => MODELS[p.model].fx === "Overdrive")) {
+      const v = board.amp.voice, t = clamp2(driveOf(v, board.amp.gain), range[0], range[1]);
+      board.amp.gain = r33(gainFor(v, t));
+    }
+    return board;
+  }
+
+  // src/js/rig.js
+  var DESCRIPTOR_RE = /^\$\[\d+\]\s*/;
+  var KIND_BY_DESCRIPTOR = [
+    [/^(clean|acoustic)$/, "clean"],
+    [/^(crunch|overdrive)$/, "crunch"],
+    [/^(distortion|high gain|fuzz|metal)$/, "distortion"]
+  ];
+  function unit(v, db = false) {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return null;
+    if (db || n < 0) return Math.min(1, Math.max(0, 0.5 + n / 24));
+    return Math.min(1, Math.max(0, n / 100));
+  }
+  var inDb = (gear) => Object.values(gear && gear.KnobValues || {}).some((v) => Number(v) < 0);
+  function knob(gear, ...names) {
+    const kv = gear && gear.KnobValues || {};
+    for (const [k, v] of Object.entries(kv)) {
+      const tail = k.slice(k.lastIndexOf("_") + 1).toLowerCase();
+      if (names.includes(tail)) return Number(v);
+    }
+    return null;
+  }
+  var DRIVE_RE = /overdrive|distort|fuzz|drive|screamer|boost|metal|muff|grind|crunch|dist\d?|od\d/i;
+  var OCTAVE_RE = /octave|octaver|pitchshift|harmon/i;
+  var MOD_RE = /chorus|flang|phase|vibe|vibrato|trem|rotary|ensemble/i;
+  var DELAY_RE = /delay|echo/i;
+  var REVERB_RE = /reverb|verb|hall|room|plate|spring|cathedral|ambien/i;
+  var COMP_RE = /comp|limit|sustain/i;
+  var kindOfGain = (g) => g < 0.35 ? "clean" : g < 0.72 ? "crunch" : "distortion";
+  function descriptorKind(defn) {
+    for (const d of defn && defn.ToneDescriptors || []) {
+      if (typeof d !== "string") continue;
+      const w = d.replace(DESCRIPTOR_RE, "").trim().toLowerCase();
+      for (const [re, kind] of KIND_BY_DESCRIPTOR) if (re.test(w)) return kind;
+    }
+    return "";
+  }
+  function toneRig(defn, { bass = false } = {}) {
+    if (!defn || typeof defn !== "object") return null;
+    const gl = defn.GearList && typeof defn.GearList === "object" ? defn.GearList : {};
+    const gear = Object.entries(gl).filter(([, g]) => g && typeof g === "object" && (g.Key || g.PedalKey));
+    const amp = gl.Amp && (gl.Amp.Key || gl.Amp.PedalKey) ? gl.Amp : null;
+    const rig = {
+      amp: amp ? amp.Key || amp.PedalKey : "",
+      bass: !!bass || /^bass_/i.test(amp && amp.Key || ""),
+      gain: 0.4,
+      drive: 0,
+      octave: 0,
+      comp: 0,
+      mod: 0,
+      delay: 0,
+      reverb: 0,
+      low: 0.5,
+      mid: 0.5,
+      high: 0.5,
+      presence: 0.5,
+      pedals: []
+    };
+    if (amp) {
+      const g = knob(amp, "gain", "drive", "overdrive", "preamp");
+      if (g !== null) rig.gain = unit(g);
+      const lo = knob(amp, "bass", "low", "lo"), mi = knob(amp, "mid", "middle"), hi = knob(amp, "treble", "high", "hi"), pr = knob(amp, "pres", "presence", "bright");
+      const db = inDb(amp);
+      if (lo !== null) rig.low = unit(lo, db);
+      if (mi !== null) rig.mid = unit(mi, db);
+      if (hi !== null) rig.high = unit(hi, db);
+      if (pr !== null) rig.presence = unit(pr, db);
+    }
+    for (const [slot, g] of gear) {
+      if (slot === "Amp" || slot === "Cabinet") continue;
+      const key = g.Key || g.PedalKey || "";
+      const what = `${key} ${g.Category || ""}`;
+      rig.pedals.push(key);
+      if (OCTAVE_RE.test(what)) {
+        const m = knob(g, "mix", "level", "blend");
+        rig.octave = Math.max(rig.octave, m === null ? 0.5 : unit(m));
+      } else if (DRIVE_RE.test(what)) {
+        const d = knob(g, "gain", "drive", "dist", "distortion", "fuzz", "sustain", "overdrive");
+        rig.drive = Math.max(rig.drive, d === null ? 0.6 : unit(d));
+      } else if (MOD_RE.test(what)) {
+        const m = knob(g, "mix", "depth", "intensity", "level");
+        rig.mod = Math.max(rig.mod, m === null ? 0.5 : unit(m));
+      } else if (DELAY_RE.test(what)) {
+        const m = knob(g, "mix", "level", "blend");
+        rig.delay = Math.max(rig.delay, m === null ? 0.3 : unit(m));
+      } else if (REVERB_RE.test(what)) {
+        const m = knob(g, "mix", "level", "blend");
+        rig.reverb = Math.max(rig.reverb, m === null ? 0.3 : unit(m));
+      } else if (COMP_RE.test(what)) {
+        rig.comp = 1;
+      }
+    }
+    const total = 1 - (1 - rig.gain) * (1 - rig.drive * 0.8);
+    const fromGear = rig.bass && !rig.drive && rig.gain < 0.35 ? "clean" : kindOfGain(total);
+    const kind = descriptorKind(defn) || fromGear;
+    rig.total = kind === "clean" ? Math.min(total, 0.3) : kind === "crunch" ? Math.min(Math.max(total, 0.4), 0.71) : Math.max(total, 0.75);
+    for (const k of ["gain", "drive", "octave", "mod", "delay", "reverb", "low", "mid", "high", "presence", "total"]) {
+      rig[k] = Math.round(rig[k] * 1e3) / 1e3;
+    }
+    rig.board = boardFromGear(gl, { bass: rig.bass, kind });
+    rig.gear = {};
+    for (const [slot, g] of gear) {
+      rig.gear[slot] = { Key: g.Key || g.PedalKey, Type: g.Type || "", Category: g.Category || "", KnobValues: g.KnobValues || {} };
+    }
+    return { kind, rig };
+  }
+
+  // src/js/convert.js
+  var r34 = (v) => Math.round(v * 1e3) / 1e3;
   function arrId(name, used) {
     let base = name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "arr";
     let cand = base, i = 2;
@@ -1707,7 +2639,7 @@
       } catch {
         lyric = new TextDecoder("latin1").decode(cut);
       }
-      out.push({ t: r32(time), d: r32(length), w: lyric });
+      out.push({ t: r34(time), d: r34(length), w: lyric });
       off += 60;
     }
     return out;
@@ -1724,8 +2656,8 @@
       }
       if (root.tag !== "vocals") continue;
       const toks = root.children.filter((c) => c.tag === "vocal").map((v) => ({
-        t: r32(parseFloat(v.attrs.time || "0")),
-        d: r32(parseFloat(v.attrs.length || "0")),
+        t: r34(parseFloat(v.attrs.time || "0")),
+        d: r34(parseFloat(v.attrs.length || "0")),
         w: v.attrs.lyric || ""
       }));
       if (toks.length) return { tokens: toks, source: "xml" };
@@ -1756,7 +2688,7 @@
     const lines = [];
     let cur = [], syl = [], start = null, last = 0, prevT = null;
     const flush = () => {
-      if (cur.length) lines.push({ t: r32(start), end: r32(last), text: joinWords(cur), syl });
+      if (cur.length) lines.push({ t: r34(start), end: r34(last), text: joinWords(cur), syl });
       cur = [];
       syl = [];
       start = null;
@@ -1775,7 +2707,7 @@
         if (start === null) start = t;
         const glue = !cur.length || cur[cur.length - 1][1] ? "" : " ";
         cur.push([w, cont]);
-        syl.push([r32(t), r32(d), glue + w]);
+        syl.push([r34(t), r34(d), glue + w]);
         last = Math.max(last, d > 0 ? t + d : t + 0.3);
         prevT = t;
       }
@@ -1800,12 +2732,12 @@
     }
     return "";
   }
-  var DESCRIPTOR_RE = /^\$\[\d+\]\s*/;
+  var DESCRIPTOR_RE2 = /^\$\[\d+\]\s*/;
   function toneRealName(defn, title) {
     const words = [];
     for (const d of defn.ToneDescriptors || []) {
       if (typeof d !== "string") continue;
-      const w = d.replace(DESCRIPTOR_RE, "").trim();
+      const w = d.replace(DESCRIPTOR_RE2, "").trim();
       if (w) words.push(w.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()));
     }
     if (!words.length) return "";
@@ -1813,7 +2745,7 @@
     sep = typeof sep === "string" && sep.trim() ? sep : " - ";
     return title ? `${title}${sep}${words.join(" ")}` : words.join(" ");
   }
-  function tonesForPage(tones, title) {
+  function tonesForPage(tones, title, { bass = false } = {}) {
     const out = { base: "", changes: [], names: {} };
     if (!tones || typeof tones !== "object") return out;
     const defs = (tones.definitions || []).filter((d) => d && typeof d === "object");
@@ -1821,6 +2753,11 @@
       const key = d.Key || d.Name || "";
       if (typeof key !== "string" || !key) continue;
       const entry = { raw: key, real: toneRealName(d, title) };
+      const r = toneRig(d, { bass });
+      if (r) {
+        entry.kind = r.kind;
+        entry.rig = r.rig;
+      }
       out.names[key] = entry;
       if (typeof d.Name === "string" && d.Name) {
         if (!(d.Name in out.names)) out.names[d.Name] = entry;
@@ -1832,7 +2769,7 @@
       if (!c || typeof c.name !== "string") continue;
       const tv = Number(c.t);
       if (!Number.isFinite(tv)) continue;
-      out.changes.push({ t: r32(tv), name: c.name });
+      out.changes.push({ t: r34(tv), name: c.name });
     }
     out.changes.sort((a, b) => a.t - b.t);
     return out;
@@ -1887,7 +2824,9 @@
     const song = xmlMode ? loadSong(files, true) : await loadSongFromExtract(files);
     if (!song.arrangements.length) throw new Error("no playable arrangements found");
     onProgress("Reading tones and lyrics\u2026");
-    const tonesByArr = extractTonesForSong(files, song.arrangements.map((a) => a.name));
+    const sngTones = new Map(song.arrangements.filter((a) => a.sng_tones).map((a) => [a.name, a.sng_tones]));
+    const tonesByArr = extractTonesForSong(files, song.arrangements.map((a) => a.name), sngTones);
+    const centsByArr = manifestCentOffsets(files, song.arrangements.map((a) => a.name));
     const { tokens: tokens2, source } = await parseLyrics(files);
     let lines = lyricsFromTokens(tokens2);
     let lyricError = "";
@@ -1910,8 +2849,8 @@
       arr.tones = tonesByArr.get(arr.name) || null;
       const wire = arrangementToWire(arr);
       if (first) {
-        wire.beats = song.beats.map((b) => ({ time: r32(b.time), measure: b.measure }));
-        wire.sections = song.sections.map((s) => ({ name: s.name, number: s.number, time: r32(s.time) }));
+        wire.beats = song.beats.map((b) => ({ time: r34(b.time), measure: b.measure }));
+        wire.sections = song.sections.map((s) => ({ name: s.name, number: s.number, time: r34(s.time) }));
         first = false;
       }
       wires.push({ arr, aid, wire });
@@ -1920,6 +2859,8 @@
         name: arr.name,
         tuning: arr.tuning,
         capo: arr.capo,
+        // the arrangement XML's <centOffset> wins; a packed song (.sng) only has the manifest's
+        centOffset: Number.isFinite(arr.cent_offset) ? arr.cent_offset : centsByArr.get(arr.name) || 0,
         notes: wire.notes,
         chords: wire.chords,
         templates: wire.templates,
@@ -1930,7 +2871,7 @@
           end_time: p.end_time,
           max_difficulty: p.max_difficulty
         })),
-        tones: tonesForPage(wire.tones, song.title || "")
+        tones: tonesForPage(wire.tones, song.title || "", { bass: /bass/i.test(arr.name) })
       });
     }
     const firstWire = wires[0].wire;
@@ -1941,7 +2882,7 @@
         album: song.album || "",
         year: song.year || 0,
         author: "",
-        duration: r32(song.song_length || 0),
+        duration: r34(song.song_length || 0),
         pack: name,
         converted: true,
         cover: !!hasCover,
@@ -1956,7 +2897,7 @@
     return payload;
   }
 
-  // vendor/js-yaml.mjs
+  // src/vendor/js-yaml.mjs
   /*! js-yaml 4.1.0 https://github.com/nodeca/js-yaml @license MIT */
   function isNothing(subject) {
     return typeof subject === "undefined" || subject === null;
@@ -4579,7 +5520,7 @@
   };
   var js_yaml_default = jsYaml;
 
-  // js/zip.js
+  // src/js/zip.js
   var SIG_EOCD = 101010256;
   var SIG_CENTRAL = 33639248;
   var SIG_LOCAL = 67324752;
@@ -4682,8 +5623,8 @@
     }
   };
 
-  // js/feedpak.js
-  var r33 = (v) => Math.round(v * 1e3) / 1e3;
+  // src/js/feedpak.js
+  var r35 = (v) => Math.round(v * 1e3) / 1e3;
   var utf84 = new TextDecoder("utf-8", { fatal: false });
   var LYRIC_LINE_RE = /^\s*\[(\d+):(\d+(?:\.\d+)?)\]\s*(.*)$/;
   function lyricsFromText(text) {
@@ -4692,11 +5633,11 @@
       const m = LYRIC_LINE_RE.exec(ln);
       if (!m) continue;
       const txt = m[3].trim();
-      if (txt) out.push({ t: r33(parseInt(m[1], 10) * 60 + parseFloat(m[2])), end: 0, text: txt, syl: [] });
+      if (txt) out.push({ t: r35(parseInt(m[1], 10) * 60 + parseFloat(m[2])), end: 0, text: txt, syl: [] });
     }
     for (let i = 0; i < out.length; i++) {
       const next = i + 1 < out.length ? out[i + 1].t : out[i].t + 4;
-      out[i].end = r33(Math.min(next, out[i].t + 8));
+      out[i].end = r35(Math.min(next, out[i].t + 8));
     }
     return out;
   }
@@ -4718,6 +5659,7 @@
         name: a.name || a.id,
         tuning: a.tuning || [0, 0, 0, 0, 0, 0],
         capo: a.capo || 0,
+        centOffset: Number(a.cent_offset ?? a.centOffset) || 0,
         notes: wire.notes || [],
         chords: wire.chords || [],
         templates: wire.templates || [],
@@ -4728,7 +5670,7 @@
           end_time: p.end_time,
           max_difficulty: p.max_difficulty
         })),
-        tones: tonesForPage(wire.tones, m.title || "")
+        tones: tonesForPage(wire.tones, m.title || "", { bass: /bass/i.test(a.name || a.id || "") })
       });
     }
     if (!arrangements.length) throw new Error("the feedpak has no arrangements");
@@ -4768,7 +5710,7 @@
         album: m.album || "",
         year: m.year || 0,
         author: m.author || "",
-        duration: r33(Number(m.duration) || 0),
+        duration: r35(Number(m.duration) || 0),
         pack: name,
         converted: false,
         cover: Boolean(coverBlob),
@@ -4783,7 +5725,7 @@
     return { payload, coverBlob, stems };
   }
 
-  // js/cover.js
+  // src/js/cover.js
   function decodeDds(bytes) {
     const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     if (String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]) !== "DDS ") {
@@ -4902,6 +5844,6 @@
     return out;
   }
 
-  // converter.entry.js
+  // src/converter.entry.js
   window.CDLC = { convertPsarc, convertXmlSet, convertFeedpak, decodeDds, clearXmlCache, xmlStats };
 })();

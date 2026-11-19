@@ -1,0 +1,9 @@
+{
+  "key": "Cab_CS212C",
+  "type": "cabinet",
+  "name": "CS212C",
+  "real": "2x12 Fender Custom Shop",
+  "bass": false,
+  "cab": "2x12",
+  "source": "RS-to-AT5p gear map"
+}

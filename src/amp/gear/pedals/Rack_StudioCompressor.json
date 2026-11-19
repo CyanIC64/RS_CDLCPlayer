@@ -1,0 +1,30 @@
+{
+  "key": "Rack_StudioCompressor",
+  "type": "rack",
+  "name": "StudioCompressor",
+  "category": "Reverb",
+  "model": "comp",
+  "knobs": {
+    "Threshold": { "param": "threshold", "from": [-60, 0], "to": [-60, 0] },
+    "Ratio": { "param": "ratio", "from": [1, 20], "to": [1, 20] },
+    "Attack": { "param": "attack", "from": [0, 200], "to": [0, 200] },
+    "Release": { "param": "release", "from": [10, 1000], "to": [10, 1000] }
+  },
+  "params": {},
+  "real": "Tube Compressor",
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "rack",
+    "color": "#26292d",
+    "ink": "#d9dde2",
+    "knob": "rack",
+    "title": "STUDIO COMPRESSOR",
+    "after": "dbx 160",
+    "controls": [
+      { "type": "knob", "label": "THRESHOLD", "param": "threshold" },
+      { "type": "knob", "label": "COMPRESSION", "param": "ratio" },
+      { "type": "knob", "label": "OUTPUT GAIN", "param": "level" }
+    ]
+  },
+  "alt": ["1976 DBX 160 - VCA compressor/limiter"]
+}

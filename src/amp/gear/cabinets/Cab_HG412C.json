@@ -1,0 +1,9 @@
+{
+  "key": "Cab_HG412C",
+  "type": "cabinet",
+  "name": "HG412C",
+  "real": "4x12 High gain (Mesa/Peavey)",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map"
+}

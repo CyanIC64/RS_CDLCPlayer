@@ -1,0 +1,9 @@
+{
+  "key": "Bass_Cab_EdenD610XST",
+  "type": "cabinet",
+  "name": "EdenD610XST",
+  "real": "Bass",
+  "bass": true,
+  "cab": "bass",
+  "source": "RS-to-AT5p gear map"
+}

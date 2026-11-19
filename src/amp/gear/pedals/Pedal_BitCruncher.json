@@ -1,0 +1,11 @@
+{
+  "key": "Pedal_BitCruncher",
+  "type": "pedal",
+  "name": "BitCruncher",
+  "real": "Tape Cassette",
+  "category": "Special / Synth",
+  "model": "",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "alt": ["2003 Copilot FX Antenna", "Mooer LoFi Machine"]
+}

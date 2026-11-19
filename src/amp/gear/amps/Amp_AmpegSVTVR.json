@@ -1,0 +1,28 @@
+{
+  "key": "Amp_AmpegSVTVR",
+  "type": "amp",
+  "name": "AmpegSVTVR",
+  "real": "SVX-VR",
+  "family": "Other",
+  "voice": "bass",
+  "bass": true,
+  "cab": "bass",
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "head",
+    "theme": "bass",
+    "controls": [
+      { "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 },
+      { "type": "switch", "label": "ULTRA LO", "param": "depth", "options": [
+          ["OFF", 0], ["ON", 0.7]
+        ] },
+      { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 },
+      { "type": "knob", "label": "MIDRANGE", "param": "mid", "scale": 10 },
+      { "type": "switch", "label": "ULTRA HI", "param": "bright", "options": [
+          ["OFF", 0], ["ON", 6]
+        ] },
+      { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 },
+      { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }
+    ]
+  }
+}

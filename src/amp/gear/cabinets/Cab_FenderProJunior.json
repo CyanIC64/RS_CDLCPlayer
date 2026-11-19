@@ -1,0 +1,9 @@
+{
+  "key": "Cab_FenderProJunior",
+  "type": "cabinet",
+  "name": "FenderProJunior",
+  "real": "1x10 Fender",
+  "bass": false,
+  "cab": "1x12",
+  "source": "RS-to-AT5p gear map"
+}

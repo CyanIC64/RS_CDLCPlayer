@@ -1,0 +1,23 @@
+{
+  "key": "Pedal_LineDrive",
+  "type": "pedal",
+  "name": "LineDrive",
+  "real": "Booster",
+  "category": "Distortion / Overdrive",
+  "model": "boost",
+  "params": { "gain": 0.25, "tone": 0.6 },
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "compact",
+    "color": "#e9a024",
+    "knob": "boss",
+    "title": "LINE DRIVE",
+    "after": "Boss OS-2",
+    "controls": [
+      { "type": "knob", "label": "LEVEL", "param": "level" },
+      { "type": "knob", "label": "TONE", "param": "tone" },
+      { "type": "knob", "label": "DRIVE", "param": "gain" }
+    ]
+  },
+  "alt": ["1990 Boss OS-2 Overdrive / Distortion", "Behringer OD300 Overdrive/Distortion"]
+}

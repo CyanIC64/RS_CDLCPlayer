@@ -1,0 +1,22 @@
+{
+  "key": "Rack_StudioTremolo",
+  "type": "rack",
+  "name": "StudioTremolo",
+  "real": "Opto Tremolo",
+  "category": "Reverb",
+  "model": "tremolo",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "rack",
+    "color": "#26292d",
+    "ink": "#d9dde2",
+    "knob": "rack",
+    "title": "STUDIO TREMOLO",
+    "after": "Opto tremolo",
+    "controls": [
+      { "type": "knob", "label": "RATE", "param": "rate" },
+      { "type": "knob", "label": "DEPTH", "param": "intensity" }
+    ]
+  }
+}

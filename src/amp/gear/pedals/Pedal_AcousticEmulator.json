@@ -1,0 +1,24 @@
+{
+  "key": "Pedal_AcousticEmulator",
+  "type": "pedal",
+  "name": "AcousticEmulator",
+  "real": "Acoustic Sim",
+  "category": "Other",
+  "model": "eq",
+  "params": { "bass": -6, "mid": -3, "treble": 6 },
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "compact",
+    "color": "#a8743c",
+    "knob": "boss",
+    "title": "ACOUSTIC EMULATOR",
+    "after": "Rockman Acoustic Guitar pedal",
+    "controls": [
+      { "type": "knob", "label": "BASS", "param": "bass" },
+      { "type": "knob", "label": "MID", "param": "mid" },
+      { "type": "knob", "label": "TREBLE", "param": "treble" },
+      { "type": "knob", "label": "LEVEL", "param": "level" }
+    ]
+  },
+  "alt": ["1994 Rockman Acoustic Guitar Pedal"]
+}

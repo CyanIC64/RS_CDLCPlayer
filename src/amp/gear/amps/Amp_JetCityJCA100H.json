@@ -1,0 +1,23 @@
+{
+  "key": "Amp_JetCityJCA100H",
+  "type": "amp",
+  "name": "JetCityJCA100H",
+  "real": "JCA100H",
+  "family": "Other",
+  "voice": "highgain",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "head",
+    "theme": "highgain",
+    "controls": [
+      { "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 },
+      { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 },
+      { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 },
+      { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 },
+      { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 },
+      { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }
+    ]
+  }
+}

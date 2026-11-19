@@ -1,0 +1,23 @@
+{
+  "key": "Pedal_NPNDelay",
+  "type": "pedal",
+  "name": "NPNDelay",
+  "real": "Delay",
+  "category": "Delay / Echo",
+  "model": "delay",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "compact",
+    "color": "#c2364a",
+    "knob": "boss",
+    "title": "CLASSIC NPN DELAY",
+    "after": "Boss DM-2",
+    "controls": [
+      { "type": "knob", "label": "REPEAT RATE", "param": "time", "min": 20, "max": 300 },
+      { "type": "knob", "label": "ECHO", "param": "mix" },
+      { "type": "knob", "label": "INTENSITY", "param": "feedback" }
+    ]
+  },
+  "alt": ["1981 Boss DM-2", "2009 Young Pedals Time Stomp"]
+}

@@ -1,0 +1,43 @@
+{
+  "key": "Rack_StudioGraphicEQ",
+  "type": "rack",
+  "name": "StudioGraphicEQ",
+  "model": "eq",
+  "knobs": {
+    "Treble": { "param": "treble", "from": [-12, 12], "to": [-12, 12] },
+    "MidFreq": { "param": null, "from": [0, 100] },
+    "HiMid": { "param": null, "from": [0, 100] },
+    "Bass": { "param": "bass", "from": [-12, 12], "to": [-12, 12] },
+    "TrebleFreq": { "param": null, "from": [0, 100] },
+    "HiMidFreq": { "param": null, "from": [0, 100] },
+    "LoMidFreq": { "param": null, "from": [0, 800] },
+    "BassFreq": { "param": null, "from": [0, 120] },
+    "Mid": { "param": "mid", "from": [-12, 12], "to": [-12, 12] },
+    "LoMid": { "param": null, "from": [0, 100] }
+  },
+  "params": {},
+  "real": "7 Band Graphic EQ",
+  "category": "Reverb",
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "rack",
+    "color": "#26292d",
+    "ink": "#d9dde2",
+    "knob": "rack",
+    "title": "STUDIO EQ",
+    "after": "5 band parametric EQ (as the song's tone sets it)",
+    "controls": [
+      { "type": "knob", "label": "BASS", "param": "bass" },
+      { "type": "knob", "label": "FREQ", "param": "bassFreq", "size": "s" },
+      { "type": "knob", "label": "LO MID", "param": "lomid" },
+      { "type": "knob", "label": "FREQ", "param": "lomidFreq", "size": "s" },
+      { "type": "knob", "label": "MID", "param": "mid" },
+      { "type": "knob", "label": "FREQ", "param": "midFreq", "size": "s" },
+      { "type": "knob", "label": "HI MID", "param": "himid" },
+      { "type": "knob", "label": "FREQ", "param": "himidFreq", "size": "s" },
+      { "type": "knob", "label": "TREBLE", "param": "treble" },
+      { "type": "knob", "label": "FREQ", "param": "trebleFreq", "size": "s" },
+      { "type": "knob", "label": "LEVEL", "param": "level" }
+    ]
+  }
+}

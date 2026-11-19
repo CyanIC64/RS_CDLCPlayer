@@ -1,0 +1,26 @@
+{
+  "key": "Pedal_ModernFlanger",
+  "type": "pedal",
+  "name": "ModernFlanger",
+  "real": "Flanger",
+  "category": "Flanger",
+  "model": "flanger",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "wide",
+    "color": "#1d1d1d",
+    "ink": "#e9e2d0",
+    "knob": "chrome",
+    "wood": true,
+    "title": "MODERN FLANGE",
+    "after": "Moog Minifooger MF Flange",
+    "controls": [
+      { "type": "knob", "label": "RATE", "param": "rate" },
+      { "type": "knob", "label": "DEPTH", "param": "depth" },
+      { "type": "knob", "label": "FEEDBACK", "param": "feedback" },
+      { "type": "knob", "label": "MANUAL", "param": "manual" }
+    ]
+  },
+  "alt": ["2014 Moog Minifooger MF Flange"]
+}

@@ -1,0 +1,32 @@
+{
+  "key": "Rack_StudioParametricEQ",
+  "type": "rack",
+  "name": "StudioParametricEQ",
+  "real": "rack",
+  "category": "Reverb",
+  "model": "eq",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "rack",
+    "color": "#26292d",
+    "ink": "#d9dde2",
+    "knob": "rack",
+    "title": "STUDIO PARAMETRIC EQ",
+    "after": "GML 8200 Parametric EQ",
+    "controls": [
+      { "type": "knob", "label": "BASS", "param": "bass" },
+      { "type": "knob", "label": "FREQ", "param": "bassFreq", "size": "s" },
+      { "type": "knob", "label": "LO MID", "param": "lomid" },
+      { "type": "knob", "label": "FREQ", "param": "lomidFreq", "size": "s" },
+      { "type": "knob", "label": "MID", "param": "mid" },
+      { "type": "knob", "label": "FREQ", "param": "midFreq", "size": "s" },
+      { "type": "knob", "label": "HI MID", "param": "himid" },
+      { "type": "knob", "label": "FREQ", "param": "himidFreq", "size": "s" },
+      { "type": "knob", "label": "TREBLE", "param": "treble" },
+      { "type": "knob", "label": "FREQ", "param": "trebleFreq", "size": "s" },
+      { "type": "knob", "label": "LEVEL", "param": "level" }
+    ]
+  },
+  "alt": ["2001 GML model 8200 Parametric EQ", "2016 Orange Two Stroke"]
+}

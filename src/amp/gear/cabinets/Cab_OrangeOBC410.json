@@ -1,0 +1,9 @@
+{
+  "key": "Cab_OrangeOBC410",
+  "type": "cabinet",
+  "name": "OrangeOBC410",
+  "real": "4x10 Orange",
+  "bass": false,
+  "cab": "bass",
+  "source": "RS-to-AT5p gear map"
+}

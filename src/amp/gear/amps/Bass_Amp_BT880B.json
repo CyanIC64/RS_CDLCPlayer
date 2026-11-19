@@ -1,0 +1,34 @@
+{
+  "key": "Bass_Amp_BT880B",
+  "type": "amp",
+  "name": "BT880B",
+  "bass": true,
+  "cab": "bass",
+  "knobs": {
+    "Treble": { "param": "treble", "from": [-12, 12], "to": [-12, 12] },
+    "Gain": { "param": "gain", "from": [0, 100], "to": [0, 1] },
+    "Bass": { "param": "bass", "from": [-12, 12], "to": [-12, 12] },
+    "LoFreq": { "param": null, "from": [0, 130] },
+    "Mid": { "param": "mid", "from": [-12, 12], "to": [-12, 12] },
+    "Lo": { "param": null, "from": [-12, 12] },
+    "Hi": { "param": null, "from": [-12, 12] },
+    "HiFreq": { "param": null, "from": [0, 100] },
+    "MidFreq": { "param": null, "from": [0, 820] }
+  },
+  "face": {
+    "look": "head",
+    "theme": "bass",
+    "controls": [
+      { "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 },
+      { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 },
+      { "type": "knob", "label": "LO", "param": "lo", "scale": 10 },
+      { "type": "knob", "label": "LO FREQ", "param": "loFreq", "size": "s" },
+      { "type": "knob", "label": "MID", "param": "mid", "scale": 10 },
+      { "type": "knob", "label": "MID FREQ", "param": "midFreq", "size": "s" },
+      { "type": "knob", "label": "HI", "param": "hi", "scale": 10 },
+      { "type": "knob", "label": "HI FREQ", "param": "hiFreq", "size": "s" },
+      { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 },
+      { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }
+    ]
+  }
+}

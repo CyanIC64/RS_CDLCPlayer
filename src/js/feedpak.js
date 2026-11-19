@@ -43,13 +43,14 @@ export async function convertFeedpak(bytes, { name = "song.feedpak", onProgress 
     arrangements.push({
       id: a.id, name: a.name || a.id,
       tuning: a.tuning || [0, 0, 0, 0, 0, 0], capo: a.capo || 0,
+      centOffset: Number(a.cent_offset ?? a.centOffset) || 0,
       notes: wire.notes || [], chords: wire.chords || [],
       templates: wire.templates || [], anchors: wire.anchors || [],
       handshapes: wire.handshapes || [],
       phrases: (wire.phrases || []).map((p) => ({
         start_time: p.start_time, end_time: p.end_time, max_difficulty: p.max_difficulty,
       })),
-      tones: tonesForPage(wire.tones, m.title || ""),
+      tones: tonesForPage(wire.tones, m.title || "", { bass: /bass/i.test(a.name || a.id || "") }),
     });
   }
   if (!arrangements.length) throw new Error("the feedpak has no arrangements");

@@ -1,0 +1,28 @@
+{
+  "key": "Pedal_OilCanEcho",
+  "type": "pedal",
+  "name": "OilCanEcho",
+  "real": "Tape Echo",
+  "category": "Delay / Echo",
+  "model": "echo",
+  "params": { "tone": 0.3 },
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "wide",
+    "color": "#2f3238",
+    "knob": "chicken",
+    "title": "OIL CAN ECHO",
+    "after": "Tel-Ray / Morley oil can delay",
+    "controls": [
+      { "type": "knob", "label": "SUSTAIN", "param": "feedback" },
+      { "type": "knob", "label": "DELAY", "param": "time" },
+      { "type": "knob", "label": "VOLUME", "param": "mix" },
+      { "type": "knob", "label": "TONE", "param": "tone" }
+    ],
+    "ink": "#e7d9a8"
+  },
+  "alt": [
+    "1960s Tel-Ray / Morley Ad-N-Echo",
+    "Eventide TimeFactor [Digital Delay]"
+  ]
+}

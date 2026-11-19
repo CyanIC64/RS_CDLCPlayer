@@ -1,0 +1,10 @@
+{
+  "key": "Cab_HG2120C",
+  "type": "cabinet",
+  "name": "HG2120C",
+  "category": "Condenser_Cone",
+  "bass": false,
+  "cab": "4x12m",
+  "real": "2x12 High gain (Mesa/Peavey)",
+  "source": "RS-to-AT5p gear map"
+}

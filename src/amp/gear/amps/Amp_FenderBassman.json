@@ -1,0 +1,23 @@
+{
+  "key": "Amp_FenderBassman",
+  "type": "amp",
+  "name": "FenderBassman",
+  "real": "Fender American Vintage B",
+  "family": "Other",
+  "voice": "tweed",
+  "bass": false,
+  "cab": "bass",
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "head",
+    "theme": "tweed",
+    "controls": [
+      { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 },
+      { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 },
+      { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 },
+      { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 },
+      { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 },
+      { "type": "knob", "label": "BRIGHT", "param": "bright", "scale": 10 }
+    ]
+  }
+}

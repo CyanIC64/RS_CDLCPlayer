@@ -1,0 +1,22 @@
+{
+  "key": "Pedal_MultiPitch",
+  "type": "pedal",
+  "name": "MultiPitch",
+  "real": "Whammy",
+  "category": "Pitch / Octave",
+  "model": "octave",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "wah",
+    "color": "#b7222b",
+    "ink": "#f5f5f5",
+    "title": "MULTIPITCH",
+    "after": "DigiTech Whammy / Boss PS-2",
+    "controls": [
+      { "type": "treadle", "label": "PITCH", "param": "mix" },
+      { "type": "knob", "label": "DRY", "param": "dry", "size": "s" }
+    ]
+  },
+  "alt": ["MoogerFooger MF-102", "1987 Boss PS-2 Digital Pitch Shifter/Delay"]
+}

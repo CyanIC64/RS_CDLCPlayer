@@ -1,0 +1,23 @@
+{
+  "key": "Rack_StudioOD",
+  "type": "rack",
+  "name": "StudioOD",
+  "real": "Boss SD-1",
+  "category": "Reverb",
+  "model": "od",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "rack",
+    "color": "#26292d",
+    "ink": "#d9dde2",
+    "knob": "rack",
+    "title": "STUDIO OVERDRIVE",
+    "after": "Rack overdrive",
+    "controls": [
+      { "type": "knob", "label": "DRIVE", "param": "gain" },
+      { "type": "knob", "label": "TONE", "param": "tone" },
+      { "type": "knob", "label": "LEVEL", "param": "level" }
+    ]
+  }
+}

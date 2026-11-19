@@ -1,0 +1,24 @@
+{
+  "key": "Pedal_VintageFlanger",
+  "type": "pedal",
+  "name": "VintageFlanger",
+  "real": "EHX Mistress",
+  "category": "Flanger",
+  "model": "flanger",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "wide",
+    "color": "#cfd2d4",
+    "knob": "chrome",
+    "title": "VINTAGE FLANGER",
+    "after": "Electro-Harmonix Electric Mistress",
+    "controls": [
+      { "type": "knob", "label": "RATE", "param": "rate" },
+      { "type": "knob", "label": "RANGE", "param": "depth" },
+      { "type": "knob", "label": "COLOR", "param": "feedback" }
+    ],
+    "ink": "#2b3f8a"
+  },
+  "alt": ["1976 Electro-Harmonix Electric Mistress", "1977 A/DA Flanger"]
+}

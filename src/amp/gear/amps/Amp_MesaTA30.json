@@ -1,0 +1,31 @@
+{
+  "key": "Amp_MesaTA30",
+  "type": "amp",
+  "name": "MesaTA30",
+  "real": "TransAtlantic TA-30",
+  "family": "Other",
+  "voice": "mark",
+  "bass": false,
+  "cab": "4x12m",
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "head",
+    "theme": "mesa",
+    "controls": [
+      { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 },
+      { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 },
+      { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 },
+      { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 },
+      { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 },
+      { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 },
+      { "type": "switch", "label": "DEEP", "param": "depth", "options": [
+          ["OFF", 0], ["PULL", 0.5]
+        ] },
+      { "type": "slider", "label": "80", "param": "eq0" },
+      { "type": "slider", "label": "240", "param": "eq1" },
+      { "type": "slider", "label": "750", "param": "eq2" },
+      { "type": "slider", "label": "2.2K", "param": "eq3" },
+      { "type": "slider", "label": "6.6K", "param": "eq4" }
+    ]
+  }
+}

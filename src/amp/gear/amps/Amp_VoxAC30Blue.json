@@ -1,0 +1,22 @@
+{
+  "key": "Amp_VoxAC30Blue",
+  "type": "amp",
+  "name": "VoxAC30Blue",
+  "real": "Vox AC30 (blue)",
+  "family": "Other",
+  "voice": "vox",
+  "bass": false,
+  "cab": "2x12",
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "head",
+    "theme": "vox",
+    "controls": [
+      { "type": "knob", "label": "VOLUME", "param": "gain", "scale": 10 },
+      { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 },
+      { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 },
+      { "type": "knob", "label": "CUT", "param": "presence", "invert": true, "scale": 10 },
+      { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }
+    ]
+  }
+}

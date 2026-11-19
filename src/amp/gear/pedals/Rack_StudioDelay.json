@@ -1,0 +1,28 @@
+{
+  "key": "Rack_StudioDelay",
+  "type": "rack",
+  "name": "StudioDelay",
+  "real": "Delay",
+  "category": "Delay / Echo",
+  "model": "delay",
+  "params": {},
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "rack",
+    "color": "#26292d",
+    "ink": "#d9dde2",
+    "knob": "rack",
+    "title": "STUDIO DELAY",
+    "after": "TC Electronic 2290",
+    "controls": [
+      { "type": "knob", "label": "TIME", "param": "time" },
+      { "type": "knob", "label": "FEEDBACK", "param": "feedback" },
+      { "type": "knob", "label": "MIX", "param": "mix" },
+      { "type": "knob", "label": "HI CUT", "param": "tone" }
+    ]
+  },
+  "alt": [
+    "TC-2290 - Dynamic Digital Delay",
+    "Eventide TimeFactor [FilterPong]"
+  ]
+}

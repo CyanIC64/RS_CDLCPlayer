@@ -6,7 +6,7 @@ Play Song is a single static web page. Drop a custom song (`.psarc`), a `.feedpa
 arrangement `.xml` files onto it, and it plays the song with the notes flying toward a fretboard,
 like a rhythm game, or scrolls along a tab sheet. Everything runs on your own computer: there is no
 server, no upload and no account.
-A
+
 > **Please use only songs you have obtained legally.** Play Song is an independent, non-commercial
 > project. It does not provide any songs, does not open official songs from the game's store, and is
 > not affiliated with any game publisher or rights holder.
@@ -36,9 +36,39 @@ A
 - Loop the current section, or press, hold and drag on the difficulty bars to loop any stretch.
 - Metronome and a note synth that plays the chart's notes.
 - Karaoke-style lyrics, two lines at a time.
-- Tone changes marked on the seek bar, with the current tone shown in the corner.
+- Tone changes marked on the seek bar, with the current tone shown in the corner. Each tone is
+  labelled **clean**, **crunch** or **distortion**, from the author's tags or else from its gear
+  (amp gain, drive pedals); the seek-bar flags take the same colours. Packages without arrangement
+  XML get their tone switches from the chart (`.sng`).
+- **Play through the song's tone** (*Options → Guitar input*, or **A**): the guitar input is heard
+  through a pedalboard set from each tone's gear, in the order of Rocksmith's tone designer: **Pre**
+  (pedals before the amp), **Amp** (voice, gain, EQ), **Loop** (the amp's effects loop, before the
+  cabinet), **Cabinet** (speakers and microphone) and **Rack** (studio effects after the cabinet), with
+  drive, compressor, chorus, flanger, phaser, tremolo, wah, EQ, octave, delay and reverb. It switches tone when the song does. Use headphones.
+- **Pedalboard** (**P**, or *Options → Guitar input → Pedalboard*): every tone of the song, from all
+  its arrangements, is rebuilt from its gear and listed on a bar at the top (the tone in force is
+  underlined; *Follow the song* keeps the board on it). Pick any tone to see and change its amp,
+  cabinet and pedals, even one of another arrangement. Every amp, effect and cabinet of Rocksmith 2014
+  and Rocksmith+ is recognised by its key (from the RS-to-AT5p gear map) and played as the real gear it
+  stands for: the amp's voice (tweed, American clean, Plexi, JCM, AC, Orange, Rectifier, Mark, high
+  gain, German, JC, bass, DI), its cabinet and the microphone on it. Amps and pedals wear the face of
+  the real gear: its enclosure and colours, and its own controls (knobs, faders, switches, a wah's
+  treadle) - a Mark series head has its five-band EQ, a Twin its bright switch and reverb, a Metal Zone
+  its EQ, a rack unit its ears and bypass. The amp's *Model* puts another head on the board, and **+**
+  offers the library's real pedals as well as the plain ones. Turn the knobs (drag around them, the wheel or the arrow keys; double-click
+  puts one back), switch pedals on and off, drag them into another order or into the effects loop, and
+  add pedals with **+**. Changes are kept in this browser per song and tone; *Song's tone* puts the
+  board back as the song has it.
 - Stem picker for `.feedpak` files that carry separated stems.
 - Note-sync offset in 1 ms and 10 ms steps.
+- Guitar input (in progress): plug in the Rocksmith Real Tone Cable, or any audio input, and
+  *Options → Guitar input* shows its level and the note it hears. A cable icon in the control bar shows
+  when the cable is plugged in, and **U** opens a tuner set to the open strings of the arrangement
+  (its tuning and cent offset); click a string there to tune only that one. While the song plays, every note of the chart is checked against
+  what you play (single notes, chords - a finger on the wrong fret is caught - slides, bends and
+  palm mutes): *Notes hit* in the corner counts the notes and chords you got right out of all in
+  the arrangement, and the note-hit light rings green on a hit and red on a miss. *Calibrate* measures the input latency from a few
+  strikes on a click; showing hits and misses on the highway is planned (see `plan.md`).
 
 ### Opening songs
 | What you drop | What happens |
@@ -83,6 +113,9 @@ branch and folder to publish.
 | `T` | Tab view |
 | `C` | Metronome on / off |
 | `N` | Note synth on / off |
+| `G` | Guitar input on / off |
+| `A` | Play the guitar through the song's tone |
+| `U` | Tuner (`Esc` closes it) |
 | `M` | Mute |
 | `O` | Options |
 | `,` / `.` | Note offset −1 / +1 ms |
@@ -96,6 +129,8 @@ index.html                  the whole player: highway, tab view, audio, controls
 web/converter.worker.js     the converter, started as a Web Worker
 web/converter.js            the same converter for the page itself (used when a Worker cannot start)
 web/ww2ogg.bundle.js        audio converter (.wem to Ogg Vorbis) for the in-page converter
+web/pitch.js                guitar input: pitch detection in an AudioWorklet (window.PitchKit)
+web/amp.js                  guitar input: the pedalboard for the song's tones (window.AmpKit)
 ```
 
 The scripts in `web/` are built from the converter sources (`src/` in the development tree)
@@ -133,6 +168,13 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 - ww2ogg-ts, a TypeScript port of ww2ogg by Adam Gashlin, under the BSD-3-Clause licence.
 - [js-yaml](https://github.com/nodeca/js-yaml) 4.1.0, under the MIT licence.
+- [Tuna.js](https://github.com/Theodeus/tuna) 1.1.3 (the pedalboard's effects, and its cabinet and
+  reverb impulse responses), by DinahMoe AB and Oskar Eriksson, under the MIT licence.
+- [JS Rocks](https://github.com/vitaliy-bobrov/js-rocks) by Vitaliy Bobrov, under the MIT licence: the
+  pedalboard's design and knob, and cabinet impulse responses.
+- Which real amp, effect and cabinet each Rocksmith gear key stands for: the gear map of
+  [RS-to-AT5p](https://github.com/zagatozee/RS-to-AT5p) (`gear_mapping_reference.md`), and the community
+  sheet "Rocksmith 2014 / Real World" for the real gear behind each pedal and amp name.
 
 ---
 
@@ -145,4 +187,4 @@ changed. The only data the page stores is your settings, in your browser's `loca
 - the left-handed view and the invert-strings option;
 - raw XML input and the arrangement picker in the control bar;
 - stacked sliders;
-- a gradual note glow;
+- a gradual note glow.

@@ -1,0 +1,9 @@
+{
+  "key": "Cab_EnglE412Standard",
+  "type": "cabinet",
+  "name": "EnglE412Standard",
+  "real": "Orange",
+  "bass": false,
+  "cab": "4x12o",
+  "source": "RS-to-AT5p gear map"
+}

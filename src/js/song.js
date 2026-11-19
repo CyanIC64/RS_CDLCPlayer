@@ -144,6 +144,11 @@ export function parseArrangement(root, topOnly = true) {
   let capo = 0;
   const capoEl = find(root, "capo");
   if (capoEl && textOf(capoEl)) { const c = parseInt(textOf(capoEl), 10); if (!Number.isNaN(c)) capo = c; }
+  /* how far the whole arrangement is tuned off A440, in cents (-50 for a song
+     tuned "half a semitone down", 432 Hz is about -32); null when the XML has none */
+  let centOffset = null;
+  const centEl = find(root, "centOffset");
+  if (centEl && textOf(centEl)) { const c = parseFloat(textOf(centEl)); if (Number.isFinite(c)) centOffset = c; }
 
   const chordTemplates = [];
   const ctContainer = find(root, "chordTemplates");
@@ -323,7 +328,7 @@ export function parseArrangement(root, topOnly = true) {
     represent = int(props, "represent", 0);
   }
   return {
-    name: arrName, tuning, capo, notes, chords, anchors, hand_shapes: handShapes,
+    name: arrName, tuning, capo, cent_offset: centOffset, notes, chords, anchors, hand_shapes: handShapes,
     chord_templates: chordTemplates, phrases, tones: null,
     path_lead, path_rhythm, path_bass, bonus_arr, represent,
   };

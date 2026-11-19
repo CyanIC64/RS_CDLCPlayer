@@ -1,0 +1,24 @@
+{
+  "key": "Amp_Hiwatt",
+  "type": "amp",
+  "name": "Hiwatt",
+  "real": "HiAmp",
+  "family": "Other",
+  "voice": "plexi",
+  "bass": false,
+  "cab": "4x12",
+  "source": "RS-to-AT5p gear map",
+  "face": {
+    "look": "head",
+    "theme": "hiwatt",
+    "controls": [
+      { "type": "knob", "label": "NORMAL", "param": "gain", "scale": 10 },
+      { "type": "knob", "label": "BRILLIANCE", "param": "bright", "scale": 10 },
+      { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 },
+      { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 },
+      { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 },
+      { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 },
+      { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }
+    ]
+  }
+}

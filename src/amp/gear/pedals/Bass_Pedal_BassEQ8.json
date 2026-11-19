@@ -1,0 +1,38 @@
+{
+  "key": "Bass_Pedal_BassEQ8",
+  "type": "pedal",
+  "name": "BassEQ8",
+  "category": "30785",
+  "model": "eq",
+  "knobs": {
+    "30": { "param": "g0", "from": [-12, 12], "to": [-12, 12] },
+    "75": { "param": "g1", "from": [-12, 12], "to": [-12, 12] },
+    "185": { "param": "g2", "from": [-12, 12], "to": [-12, 12] },
+    "460": { "param": "g3", "from": [-12, 12], "to": [-12, 12] },
+    "1100": { "param": "g4", "from": [-12, 12], "to": [-12, 12] },
+    "2700": { "param": "g5", "from": [-12, 12], "to": [-12, 12] },
+    "6800": { "param": "g6", "from": [-12, 12], "to": [-12, 12] },
+    "16000": { "param": "g7", "from": [-12, 12], "to": [-12, 12] }
+  },
+  "params": {},
+  "face": {
+    "look": "tall",
+    "color": "#1d2733",
+    "ink": "#e9eef3",
+    "knob": "mxr",
+    "title": "BASS EQ 8",
+    "after": "8 band bass graphic EQ (MXR M288 style)",
+    "bands": [30, 75, 185, 460, 1100, 2700, 6800, 16000],
+    "controls": [
+      { "type": "slider", "label": "30", "param": "g0" },
+      { "type": "slider", "label": "75", "param": "g1" },
+      { "type": "slider", "label": "185", "param": "g2" },
+      { "type": "slider", "label": "460", "param": "g3" },
+      { "type": "slider", "label": "1.1k", "param": "g4" },
+      { "type": "slider", "label": "2.7k", "param": "g5" },
+      { "type": "slider", "label": "6.8k", "param": "g6" },
+      { "type": "slider", "label": "16k", "param": "g7" },
+      { "type": "slider", "label": "LEVEL", "param": "level" }
+    ]
+  }
+}
