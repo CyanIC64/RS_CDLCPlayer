@@ -280,6 +280,7 @@ function isLight(hex){
 }
 function fmt(kn, v){
   if (kn.scale) return (clamp((v - kn.min) / (kn.max - kn.min), 0, 1) * kn.scale).toFixed(1);   // a real amp's 0..10
+  if (kn.unit === "Hz") return v >= 1000 ? (v / 1000).toFixed(v >= 10000 ? 1 : 2).replace(/\.?0+$/, "") + " kHz" : Math.round(v) + " Hz";
   const span = kn.max - kn.min;
   let s;
   if (!kn.unit && kn.min === 0 && kn.max === 1) s = (v * 10).toFixed(1);                  // 0..10, like the knob's dots
@@ -309,8 +310,13 @@ function knob(kn, value, def, onInput, kind = "knob"){
   root.setAttribute("aria-valuemin", kn.min);
   root.setAttribute("aria-valuemax", kn.max);
   let v = value;
+  /* where a value sits on the control (0..1), and back: linear, or log for a frequency */
+  const toPc = kn.log ? (x) => clamp(Math.log(x / kn.min) / Math.log(kn.max / kn.min), 0, 1)
+                      : (x) => clamp((x - kn.min) / (kn.max - kn.min), 0, 1);
+  const fromPc = kn.log ? (t) => kn.min * Math.pow(kn.max / kn.min, clamp(t, 0, 1))
+                        : (t) => kn.min + clamp(t, 0, 1) * (kn.max - kn.min);
   const paint = () => {
-    const pc = clamp((v - kn.min) / (kn.max - kn.min), 0, 1);
+    const pc = toPc(v);
     root.style.setProperty("--a", Math.round(START + (END - START) * pc) + "deg");
     root.style.setProperty("--p", (pc * 100).toFixed(1) + "%");
     val.textContent = fmt(kn, v);
@@ -326,6 +332,7 @@ function knob(kn, value, def, onInput, kind = "knob"){
     v = x; paint(); onInput(v);
   };
   const stepBig = Math.max(kn.step, (kn.max - kn.min) / 50);
+  const nudge = (n) => put(kn.log ? fromPc(toPc(v) + n * 0.02) : v + n * stepBig);
   let cx = 0, cy = 0;
   dial.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;
@@ -339,7 +346,7 @@ function knob(kn, value, def, onInput, kind = "knob"){
     if (!dial.hasPointerCapture(e.pointerId)) return;
     if (lin){
       const r = dial.getBoundingClientRect();
-      put(kn.min + clamp((r.bottom - e.clientY) / r.height, 0, 1) * (kn.max - kn.min));
+      put(fromPc((r.bottom - e.clientY) / r.height));
       return;
     }
     const x = cx - e.clientX, y = cy - e.clientY;
@@ -348,25 +355,25 @@ function knob(kn, value, def, onInput, kind = "knob"){
     deg -= 90;
     if (x > 0 && y <= 0) deg -= 360;
     deg = clamp(deg, START, END);
-    put(kn.min + (deg - START) / (END - START) * (kn.max - kn.min));
+    put(fromPc((deg - START) / (END - START)));
   });
   const up = (e) => { if (dial.hasPointerCapture(e.pointerId)) dial.releasePointerCapture(e.pointerId); root.classList.remove("busy"); };
   dial.addEventListener("pointerup", up);
   dial.addEventListener("pointercancel", up);
   dial.addEventListener("dblclick", (e) => { e.stopPropagation(); put(def); });
-  root.addEventListener("wheel", (e) => { e.preventDefault(); e.stopPropagation(); put(v + (e.deltaY < 0 ? 1 : -1) * stepBig); }, { passive: false });
+  root.addEventListener("wheel", (e) => { e.preventDefault(); e.stopPropagation(); nudge(e.deltaY < 0 ? 1 : -1); }, { passive: false });
   root.addEventListener("keydown", (e) => {
     const k = e.key;
     let d = 0;
-    if (k === "ArrowUp" || k === "ArrowRight") d = stepBig;
-    else if (k === "ArrowDown" || k === "ArrowLeft") d = -stepBig;
-    else if (k === "PageUp") d = stepBig * 5;
-    else if (k === "PageDown") d = -stepBig * 5;
+    if (k === "ArrowUp" || k === "ArrowRight") d = 1;
+    else if (k === "ArrowDown" || k === "ArrowLeft") d = -1;
+    else if (k === "PageUp") d = 5;
+    else if (k === "PageDown") d = -5;
     else if (k === "Home"){ e.preventDefault(); e.stopPropagation(); put(kn.min); return; }
     else if (k === "End"){ e.preventDefault(); e.stopPropagation(); put(kn.max); return; }
     if (!d) return;
     e.preventDefault(); e.stopPropagation();
-    put(v + d);
+    nudge(d);
   });
   paint();
   return root;

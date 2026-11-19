@@ -26,16 +26,50 @@ describe("gear library", () => {
     const e = describeGear("amp", "Amp_EN30", { Gain: [66, 66], Pres: [45, 45], Bright: [1, 1], Treble: [95, 95] });
     expect(e.knobs.Gain).toEqual({ param: "gain", from: [0, 100], to: [0, 1] });
     expect(e.knobs.Pres.param).toBe("presence");
-    expect(e.knobs.Bright.param).toBeNull();
-    expect(applyKnobs(e, { Amp_EN30_Treble: 95, Amp_EN30_Gain: 66 })).toEqual({ treble: 10.8, gain: 0.66 });
+    expect(e.knobs.Bright).toEqual({ param: "bright", from: [0, 1], to: [0, 6] });
+    expect(applyKnobs(e, { Amp_EN30_Treble: 95, Amp_EN30_Gain: 66, Amp_EN30_Bright: 1 })).toEqual({ treble: 10.8, gain: 0.66, bright: 6 });
   });
   it("describes dB gear and a compressor rack", () => {
     const eq = describeGear("rack", "Rack_StudioGraphicEQ", { Treble: [-6, -6], Mid: [3, 3], BassFreq: [120, 120] });
     expect(eq.model).toBe("eq");
     expect(eq.knobs.Mid).toEqual({ param: "mid", from: [-12, 12], to: [-12, 12] });
-    expect(eq.knobs.BassFreq.param).toBeNull();
+    expect(eq.knobs.BassFreq).toEqual({ param: "bassFreq", from: [0, 20000], to: [0, 20000] });
     const c = describeGear("rack", "Rack_StudioCompressor", { Threshold: [-22.5, -22.5] }, { category: "Dynamics" });
     expect(applyKnobs(c, { Rack_StudioCompressor_Threshold: -22.5 })).toEqual({ threshold: -22.5 });
+  });
+  it("applies a song's whole EQ: five studio bands with their frequencies, a bass head's own bands", () => {
+    /* the values of a real tone (No Need to Explain, bass) */
+    const rack = LIBRARY.Rack_StudioGraphicEQ, K = (p, o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [`${p}_${k}`, v]));
+    expect(applyKnobs(rack, K("Rack_StudioGraphicEQ", { Treble: -6, MidFreq: 0.6, HiMid: 0, Bass: -4, TrebleFreq: 5.2,
+      HiMidFreq: 1.8, LoMidFreq: 800, BassFreq: 120, Mid: 3, LoMid: 0 }))).toEqual({ bass: -4, bassFreq: 120, lomid: 0, lomidFreq: 800,
+      mid: 3, midFreq: 600, himid: 0, himidFreq: 1800, treble: -6, trebleFreq: 5200 });
+    const amp = applyKnobs(LIBRARY.Bass_Amp_BT880B, K("Bass_Amp_BT880B", { Treble: -6, Bass: 3, LoFreq: 130, Mid: 8, Lo: -3, Hi: -2, HiFreq: 3, MidFreq: 820 }));
+    expect(amp).toEqual({ treble: -6, bass: 3, mid: 8, lo: -3, loFreq: 130, hi: -2, hiFreq: 3000, midFreq: 820 });
+  });
+  it("reads a graphic EQ by its knobs' frequencies, and a rack's rate in Hz", () => {
+    /* Wherever I May Roam: an 8-band EQ in the loop, a chorus and a chamber in the rack */
+    const gl = {
+      Amp: { Key: "Amp_HG180", KnobValues: { Amp_HG180_Gain: 100 } },
+      PostPedal1: { Key: "Pedal_EQ8", KnobValues: { Pedal_EQ8_50: 0, Pedal_EQ8_100: 1, Pedal_EQ8_200: -4, Pedal_EQ8_400: -2, Pedal_EQ8_800: -11,
+                                                    Pedal_EQ8_1600: -3, Pedal_EQ8_3200: 1, Pedal_EQ8_6400: 5.5 } },
+      PostPedal2: { Key: "Bass_Pedal_BassEQ8", KnobValues: { Bass_Pedal_BassEQ8_16000: -11, Bass_Pedal_BassEQ8_30: 1, Bass_Pedal_BassEQ8_185: 8 } },
+      Rack1: { Key: "Rack_StudioChorus", KnobValues: { Rack_StudioChorus_Rate: 0.8, Rack_StudioChorus_Depth: 95, Rack_StudioChorus_Mix: 23,
+               Rack_StudioChorus_Delay: 23, Rack_StudioChorus_LoFilter: 34, Rack_StudioChorus_HiFilter: 12, Rack_StudioChorus_Stereo: 46 } },
+      Rack2: { Key: "Rack_StudioChamber", KnobValues: { Rack_StudioChamber_Mix: 45, Rack_StudioChamber_Tone: 32, Rack_StudioChamber_Time: 50,
+               Rack_StudioChamber_Depth: 80 } },
+      Rack3: { Key: "Rack_StudioEQ", KnobValues: { Rack_StudioEQ_LoMid: -2.5, Rack_StudioEQ_LoMidQ: 1, Rack_StudioEQ_HiMidQ: 0 } },
+      PostPedal3: { Key: "Bass_Pedal_MBComp", KnobValues: { Bass_Pedal_MBComp_Filter: 280, Bass_Pedal_MBComp_Compress: 40, Bass_Pedal_MBComp_Rate: 83 } },
+    };
+    const b = boardFromGear(gl);
+    expect(b.loop[0].bands).toEqual([50, 100, 200, 400, 800, 1600, 3200, 6400]);
+    expect(b.loop[0].params).toMatchObject({ g0: 0, g1: 1, g2: -4, g4: -11, g7: 5.5 });
+    expect(b.loop[1].model).toBe("eq");
+    expect(b.loop[1].bands).toEqual([30, 75, 185, 460, 1100, 2700, 6800, 16000]);   // the library knows all eight
+    expect(b.loop[1].params).toMatchObject({ g0: 1, g2: 8, g7: -11 });
+    expect(b.rack[0].params).toMatchObject({ rate: 0.8, depth: 0.95, mix: 0.23, manual: 4.22, loCut: 133.288, hiCut: 17720, stereo: 0.46 });
+    expect(b.rack[1].params).toMatchObject({ mix: 0.45, tone: 0.32, decay: 3.15, predelay: 64 });
+    expect(b.rack[2].params).toMatchObject({ lomid: -2.5, lomidQ: 2, himidQ: 0.7 });
+    expect(b.loop[2].params).toMatchObject({ split: 280, threshold: -26, release: 186.6 });
   });
   it("bends a knob with a curve and clamps it", () => {
     const e = { key: "P", knobs: { Rate: { param: "rate", from: [0, 100], to: [0, 8], curve: 2 } } };

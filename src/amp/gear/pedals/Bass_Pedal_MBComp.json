@@ -18,8 +18,9 @@
     "controls": [
       { "type": "knob", "label": "THRESH", "param": "threshold" },
       { "type": "knob", "label": "RATIO", "param": "ratio" },
+      { "type": "knob", "label": "FILTER", "param": "split", "size": "s" },
       { "type": "knob", "label": "ATTACK", "param": "attack", "size": "s" },
-      { "type": "knob", "label": "RELEASE", "param": "release", "size": "s" },
+      { "type": "knob", "label": "RATE", "param": "release", "size": "s", "invert": true },
       { "type": "knob", "label": "LEVEL", "param": "level" }
     ],
     "ink": "#e7c44a"

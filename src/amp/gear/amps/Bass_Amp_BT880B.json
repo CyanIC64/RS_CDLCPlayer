@@ -20,14 +20,13 @@
     "theme": "bass",
     "controls": [
       { "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 },
-      { "type": "switch", "label": "ULTRA LO", "param": "depth", "options": [
-          ["OFF", 0], ["ON", 0.7]
-        ] },
       { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 },
-      { "type": "knob", "label": "MIDRANGE", "param": "mid", "scale": 10 },
-      { "type": "switch", "label": "ULTRA HI", "param": "bright", "options": [
-          ["OFF", 0], ["ON", 6]
-        ] },
+      { "type": "knob", "label": "LO", "param": "lo", "scale": 10 },
+      { "type": "knob", "label": "LO FREQ", "param": "loFreq", "size": "s" },
+      { "type": "knob", "label": "MID", "param": "mid", "scale": 10 },
+      { "type": "knob", "label": "MID FREQ", "param": "midFreq", "size": "s" },
+      { "type": "knob", "label": "HI", "param": "hi", "scale": 10 },
+      { "type": "knob", "label": "HI FREQ", "param": "hiFreq", "size": "s" },
       { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 },
       { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }
     ]

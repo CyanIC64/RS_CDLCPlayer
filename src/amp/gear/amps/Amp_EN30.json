@@ -20,11 +20,15 @@
     "look": "head",
     "theme": "orange",
     "controls": [
-      { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 },
-      { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 },
-      { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 },
+      { "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 },
       { "type": "knob", "label": "BASS", "param": "bass", "scale": 10 },
-      { "type": "knob", "label": "GAIN", "param": "gain", "scale": 10 }
+      { "type": "knob", "label": "MIDDLE", "param": "mid", "scale": 10 },
+      { "type": "knob", "label": "TREBLE", "param": "treble", "scale": 10 },
+      { "type": "knob", "label": "PRESENCE", "param": "presence", "scale": 10 },
+      { "type": "switch", "label": "BRIGHT", "param": "bright", "options": [
+          ["OFF", 0], ["ON", 6]
+        ] },
+      { "type": "knob", "label": "MASTER", "param": "master", "scale": 10 }
     ]
   },
   "alt": ["Vox AC-30"]

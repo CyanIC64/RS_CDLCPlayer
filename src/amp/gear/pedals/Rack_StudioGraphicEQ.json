@@ -24,18 +24,20 @@
     "color": "#26292d",
     "ink": "#d9dde2",
     "knob": "rack",
-    "title": "STUDIO GRAPHIC EQ",
-    "after": "7 band graphic EQ",
+    "title": "STUDIO EQ",
+    "after": "5 band parametric EQ (as the song's tone sets it)",
     "controls": [
-      { "type": "slider", "label": "100", "param": "g0" },
-      { "type": "slider", "label": "200", "param": "g1" },
-      { "type": "slider", "label": "400", "param": "g2" },
-      { "type": "slider", "label": "800", "param": "g3" },
-      { "type": "slider", "label": "1.6k", "param": "g4" },
-      { "type": "slider", "label": "3.2k", "param": "g5" },
-      { "type": "slider", "label": "6.4k", "param": "g6" },
-      { "type": "slider", "label": "LEVEL", "param": "level" }
-    ],
-    "bands": [100, 200, 400, 800, 1600, 3200, 6400]
+      { "type": "knob", "label": "BASS", "param": "bass" },
+      { "type": "knob", "label": "FREQ", "param": "bassFreq", "size": "s" },
+      { "type": "knob", "label": "LO MID", "param": "lomid" },
+      { "type": "knob", "label": "FREQ", "param": "lomidFreq", "size": "s" },
+      { "type": "knob", "label": "MID", "param": "mid" },
+      { "type": "knob", "label": "FREQ", "param": "midFreq", "size": "s" },
+      { "type": "knob", "label": "HI MID", "param": "himid" },
+      { "type": "knob", "label": "FREQ", "param": "himidFreq", "size": "s" },
+      { "type": "knob", "label": "TREBLE", "param": "treble" },
+      { "type": "knob", "label": "FREQ", "param": "trebleFreq", "size": "s" },
+      { "type": "knob", "label": "LEVEL", "param": "level" }
+    ]
   }
 }

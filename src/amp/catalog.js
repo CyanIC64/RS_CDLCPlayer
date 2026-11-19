@@ -51,9 +51,27 @@ export const FX = {
    a Metal Zone's EQ, a Dyna Comp's output, a flanger's manual, a graphic EQ's sliders */
 const dBk = (k, label) => ({ k, label, min:-12, max:12, step:0.5, def:0, unit:"dB" });
 FX.Overdrive.extra  = [dBk("bass", "BASS"), dBk("mid", "MID"), dBk("treble", "TREBLE")];
-FX.Compressor.extra = [dBk("level", "LEVEL")];
-FX.Chorus.extra     = [{ k:"manual", label:"MANUAL", min:0.5, max:15, step:0.1, def:4.5, unit:"ms" }];
-FX.EQ.extra         = Array.from({ length: 10 }, (_, i) => dBk("g" + i, "BAND " + (i + 1)));
+/* a multi-band compressor squeezes only what is below its split (Hz; 0 = all of it) */
+FX.Compressor.extra = [dBk("level", "LEVEL"), { k:"split", label:"FILTER", min:0, max:1000, step:5, def:0, unit:"Hz" }];
+/* a studio chorus: how much of it (mix), the band it works on (lo / hi cut) and how wide it spreads */
+FX.Chorus.extra     = [{ k:"manual", label:"MANUAL", min:0.5, max:15, step:0.1, def:4.5, unit:"ms" },
+                       { k:"mix",    label:"MIX",    min:0, max:1, step:0.01, def:1 },
+                       { k:"loCut",  label:"LO CUT", min:20, max:1000, step:1, def:20, unit:"Hz", log:true },
+                       { k:"hiCut",  label:"HI CUT", min:1000, max:20000, step:10, def:20000, unit:"Hz", log:true },
+                       { k:"stereo", label:"STEREO", min:0, max:1, step:0.01, def:1 }];
+/* a reverb's length (s; 0 = its own impulse) and how far back the room sits (pre-delay, ms) */
+FX.Reverb.extra     = [{ k:"decay", label:"TIME", min:0, max:8, step:0.05, def:0, unit:"s" },
+                       { k:"predelay", label:"DEPTH", min:0, max:100, step:1, def:0, unit:"ms" }];
+/* a frequency (Hz), turned on a log scale */
+const Hz = (k, label, min, max, def) => ({ k, label, min, max, step:1, def, unit:"Hz", log:true });
+FX.EQ.extra         = [dBk("lomid", "LO MID"), dBk("himid", "HI MID"),
+                       Hz("bassFreq", "BASS FREQ", 30, 500, 120), Hz("lomidFreq", "LO MID FREQ", 100, 2000, 400),
+                       Hz("midFreq", "MID FREQ", 150, 5000, 800), Hz("himidFreq", "HI MID FREQ", 500, 8000, 2000),
+                       Hz("trebleFreq", "TREBLE FREQ", 1000, 16000, 3200),
+                       /* how wide the mid bands are (Q: low = wide) */
+                       { k:"lomidQ", label:"LO MID Q", min:0.3, max:4, step:0.05, def:0.9 },
+                       { k:"himidQ", label:"HI MID Q", min:0.3, max:4, step:0.05, def:0.9 },
+                       ...Array.from({ length: 10 }, (_, i) => dBk("g" + i, "BAND " + (i + 1)))];
 for (const f of Object.values(FX)) f.extra = f.extra || [];
 /** every setting of an effect: its knobs, then the extra ones */
 export const paramsOf = (fx) => (FX[fx] ? [...FX[fx].knobs, ...FX[fx].extra] : []);
@@ -73,6 +91,12 @@ export const AMP_KNOBS = [
    (resonance) knob, the amp's own reverb, and a graphic EQ (a Mark series' five sliders) */
 export const AMP_EXTRA = [
   { k:"bright", label:"BRIGHT", min:0, max:9, step:0.5, def:0, unit:"dB" },
+  /* a bass head's parametric bands (a low and a high one, and where its middle sits) */
+  { k:"lo",      label:"LO",       min:-12, max:12, step:0.5, def:0, unit:"dB" },
+  { k:"loFreq",  label:"LO FREQ",  min:20, max:500, step:1, def:80, unit:"Hz", log:true },
+  { k:"hi",      label:"HI",       min:-12, max:12, step:0.5, def:0, unit:"dB" },
+  { k:"hiFreq",  label:"HI FREQ",  min:1000, max:16000, step:1, def:4000, unit:"Hz", log:true },
+  { k:"midFreq", label:"MID FREQ", min:150, max:5000, step:1, def:750, unit:"Hz", log:true },
   { k:"depth",  label:"DEPTH",  min:0, max:1, step:0.01, def:0 },
   { k:"reverb", label:"REVERB", min:0, max:1, step:0.01, def:0 },
   ...[80, 240, 750, 2200, 6600].map((f, i) => ({ k:"eq" + i, label: f < 1000 ? String(f) : f / 1000 + "K", min:-12, max:12, step:0.5, def:0, unit:"dB", hz:f })),
@@ -155,7 +179,7 @@ export const voiceOf = (id) => VOICES[id] || VOICES.generic;
 export const driveOf = (voice, gain) => { const [a, b] = voiceOf(voice).drive; return a + (b - a) * clamp(gain, 0, 1); };
 export const gainFor = (voice, t) => { const [a, b] = voiceOf(voice).drive; return b === a ? 0 : clamp((t - a) / (b - a), 0, 1); };
 
-import { gearEntry, applyKnobs, cabOfGear } from "./gear.js";
+import { gearEntry, applyKnobs, cabOfGear, bandNames, knobName } from "./gear.js";
 export { modelOfGear, cabOfGear, describeGear, gearEntry, applyKnobs, faceOf, LIBRARY } from "./gear.js";
 
 /* ── helpers ──────────────────────────────────────────────────────────────── */
@@ -234,6 +258,11 @@ export function boardFromGear(gl, { bass = false, kind = "" } = {}) {
     const pedal = makePedal(e.model, applyKnobs(e, g.KnobValues), s.toLowerCase());
     pedal.gear = e.key;
     if (e.real) pedal.real = e.real;
+    /* a graphic EQ: the frequencies its knobs are named by */
+    /* (the entry's knobs and the tone's, so a tone that leaves some out keeps every slider in its place) */
+    const names = new Set([...Object.keys(e.knobs || {}), ...Object.keys(g.KnobValues || {}).map((k) => knobName(e.key, k))]);
+    const bands = MODELS[e.model].fx === "EQ" ? bandNames([...names]).map(Number) : [];
+    if (bands.length) pedal.bands = bands;
     (/^PrePedal/i.test(s) ? board.pre : /^Rack/i.test(s) ? board.rack : board.loop).push(pedal);
   }
   /* the author's label wins over the amp's knob, unless a drive pedal before the amp gives the dirt */

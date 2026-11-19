@@ -45,7 +45,16 @@ also works when opened from disk, and falls back to the in-page converter
 cabinet, pedal and rack: what it is on the pedalboard (`model`, `cab`) and how
 each of its knobs maps to a pedalboard parameter (`param`, `from` -> `to`,
 optional `curve`). Edit a file to change how that piece of gear sounds, then
-rebuild. Gear missing from the library is described on the fly by the same rules.
+rebuild. Gear missing from the library is described on the fly by the same rules,
+and so is a knob a file leaves unwired (`"param": null`; `false` ignores it). EQ
+knobs keep their units: gains in dB, frequencies in Hz or kHz (`BassFreq`,
+`MidFreq`, `LoFreq`...) set the band they belong to. A graphic EQ's knobs are named by
+their frequency (`Pedal_EQ8_800`): each sets its slider. Some readings are
+guesses at what Rocksmith means: a studio EQ's `LoMidQ`/`HiMidQ` (0/1) as wide or
+narrow bands, a chamber's `Time` as its length (0.3-6 s) and `Depth` as a
+pre-delay (0-80 ms), a studio chorus's `LoFilter`/`HiFilter` as low and high cuts
+and `Stereo` as its width, a bass compressor's `Filter` as the frequency below
+which it squeezes (Hz) and `Rate` as how fast it lets go.
 
     node amp/make-gear.mjs <file.psarc | folder> ...   add the gear of these songs
     node amp/make-gear.mjs --force <...>               write every piece again (loses hand edits)

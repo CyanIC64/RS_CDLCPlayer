@@ -41,11 +41,19 @@ const wide = (color, title, after, controls, o = {}) => ({ look: "wide", color, 
 const rack = (title, after, controls, o = {}) => ({ look: "rack", color: "#26292d", ink: "#d9dde2", knob: "rack", title, after, controls, ...o });
 
 const GE7 = [100, 200, 400, 800, 1600, 3200, 6400];
+/* the bands Rocksmith's 8-band EQs name their knobs by */
+const EQ8 = [50, 100, 200, 400, 800, 1600, 3200, 6400];
+const BASS_EQ8 = [30, 75, 185, 460, 1100, 2700, 6800, 16000];
 const bandSliders = (bands) => bands.map((f, i) => SL(f < 1000 ? String(f) : f / 1000 + "k", "g" + i));
 const rackTime = (title, after) => rack(title, after, [K("TIME", "time"), K("FEEDBACK", "feedback"), K("MIX", "mix"), K("HI CUT", "tone")]);
 const rackVerb = (title, after) => rack(title, after, [K("MIX", "mix"), K("TONE", "tone")]);
 const rackMod = (title, after) => rack(title, after, [K("RATE", "rate"), K("DEPTH", "depth"), K("FEEDBACK", "feedback")]);
 const rackDrive = (title, after) => rack(title, after, [K("DRIVE", "gain"), K("TONE", "tone"), K("LEVEL", "level")]);
+/* Rocksmith's studio EQ: five bands, each with its gain and its frequency */
+const S = { size: "s" };
+const Q2 = [["WIDE", 0.7], ["NARROW", 2]];
+const PARAM5 = [K("BASS", "bass"), K("FREQ", "bassFreq", S), K("LO MID", "lomid"), K("FREQ", "lomidFreq", S), K("MID", "mid"), K("FREQ", "midFreq", S),
+                K("HI MID", "himid"), K("FREQ", "himidFreq", S), K("TREBLE", "treble"), K("FREQ", "trebleFreq", S), K("LEVEL", "level")];
 
 export const PEDALS = {
   /* dynamics */
@@ -53,7 +61,8 @@ export const PEDALS = {
   Pedal_Swole:         compact("#2e5fa8", "SWOLE", "Aphex Punch Factory", [K("DRIVE", "threshold", { invert: true }), K("OUTPUT", "level")]),
   Pedal_Limiter:       compact("#4b6f96", "LIMITER", "Boss LM-2", [K("LEVEL", "level"), K("RELEASE", "release"), K("THRESHOLD", "threshold")]),
   Bass_Pedal_MBComp:   compact("#1f2328", "BASS COMP", "Multi-band bass compressor",
-                         [K("THRESH", "threshold"), K("RATIO", "ratio"), K("ATTACK", "attack", { size: "s" }), K("RELEASE", "release", { size: "s" }), K("LEVEL", "level")], { ink: "#e7c44a" }),
+                         [K("THRESH", "threshold"), K("RATIO", "ratio"), K("FILTER", "split", { size: "s" }), K("ATTACK", "attack", { size: "s" }),
+                          K("RATE", "release", { size: "s", invert: true }), K("LEVEL", "level")], { ink: "#e7c44a" }),
   Rack_StudioCompressor: rack("STUDIO COMPRESSOR", "dbx 160", [K("THRESHOLD", "threshold"), K("COMPRESSION", "ratio"), K("OUTPUT GAIN", "level")]),
   Rack_StudioComp:     rack("STUDIO COMP", "FET studio compressor",
                          [K("INPUT", "threshold", { invert: true }), K("OUTPUT", "level"), K("ATTACK", "attack"), K("RELEASE", "release"),
@@ -98,14 +107,20 @@ export const PEDALS = {
   Pedal_EQ5:           { look: "tall", color: "#151515", ink: "#e9e9e9", knob: "mxr", title: "5 BAND EQ", after: "Mesa/Boogie Five-Band Graphic EQ",
                          bands: [80, 240, 750, 2200, 6600], controls: [...bandSliders([80, 240, 750, 2200, 6600]), K("LEVEL", "level", { size: "s" })] },
   Pedal_EQ8:           { look: "tall", color: "#e6e6e2", ink: "#1b1b1b", knob: "mxr", title: "8 BAND EQ", after: "Guyatone 8 band graphic equalizer",
-                         bands: [63, 125, 250, 500, 1000, 2000, 4000, 8000], controls: [...bandSliders([63, 125, 250, 500, 1000, 2000, 4000, 8000]), SL("LEVEL", "level")] },
-  Rack_StudioGraphicEQ: rack("STUDIO GRAPHIC EQ", "7 band graphic EQ", [...bandSliders(GE7), SL("LEVEL", "level")], { bands: GE7 }),
-  Rack_StudioEQ:       rack("STUDIO EQ", "7 band graphic EQ", [...bandSliders(GE7), SL("LEVEL", "level")], { bands: GE7 }),
-  Rack_StudioParametricEQ: rack("STUDIO PARAMETRIC EQ", "GML 8200 Parametric EQ", [K("LOW", "bass"), K("MID", "mid"), K("HIGH", "treble"), K("OUTPUT", "level")]),
+                         bands: EQ8, controls: [...bandSliders(EQ8), SL("LEVEL", "level")] },
+  Bass_Pedal_BassEQ8:  { look: "tall", color: "#1d2733", ink: "#e9eef3", knob: "mxr", title: "BASS EQ 8", after: "8 band bass graphic EQ (MXR M288 style)",
+                         bands: BASS_EQ8, controls: [...bandSliders(BASS_EQ8), SL("LEVEL", "level")] },
+  Rack_StudioGraphicEQ: rack("STUDIO EQ", "5 band parametric EQ (as the song's tone sets it)", PARAM5),
+  Rack_StudioEQ:       rack("STUDIO EQ", "4 band parametric EQ (as the song's tone sets it)",
+                         [K("BASS", "bass"), K("FREQ", "bassFreq", S), K("LO MID", "lomid"), K("FREQ", "lomidFreq", S), SW("Q", "lomidQ", Q2),
+                          K("HI MID", "himid"), K("FREQ", "himidFreq", S), SW("Q", "himidQ", Q2), K("TREBLE", "treble"), K("FREQ", "trebleFreq", S), K("LEVEL", "level")]),
+  Rack_StudioParametricEQ: rack("STUDIO PARAMETRIC EQ", "GML 8200 Parametric EQ", PARAM5),
   /* modulation */
   Pedal_Chorus:        compact("#6fb8e0", "CHORUS", "Boss CE-2", [K("RATE", "rate"), K("DEPTH", "depth")]),
   Pedal_Chorus20:      wide("#5d7d99", "CHORUS 2.0", "Fulltone Deja Vibe / Roland CE-1", [K("INTENSITY", "depth"), K("RATE", "rate")], { ink: "#f2f2f2" }),
-  Rack_StudioChorus:   rackMod("STUDIO CHORUS", "Boss RCE-10 Chorus Ensemble"),
+  Rack_StudioChorus:   rack("STUDIO CHORUS", "Boss RCE-10 Chorus Ensemble",
+                         [K("RATE", "rate"), K("DEPTH", "depth"), K("DELAY", "manual", S), K("MIX", "mix"),
+                          K("LO CUT", "loCut", S), K("HI CUT", "hiCut", S), K("STEREO", "stereo", S)]),
   Rack_StudioModChorus: rackMod("STUDIO MOD CHORUS", "Rack chorus"),
   Pedal_BakedRotatoe:  wide("#5b1f24", "BAKED ROTATOE", "Leslie rotary speaker / Boss RT-20",
                          [SW("SPEED", "rate", [["SLOW", 0.8], ["FAST", 6.5]]), K("DEPTH", "depth"), K("DRIVE", "feedback")], { ink: "#f0d9a0" }),
@@ -157,7 +172,8 @@ export const PEDALS = {
   Pedal_SpringReverb:  mxr("#c8cbcf", "SPRING REVERB", "Electro-Harmonix Holy Grail", [K("REVERB", "mix", { size: "l" })], { ink: "#1b1b1b", knob: "chrome" }),
   Pedal_TubeSpring:    { look: "wide", color: "#181818", ink: "#d9d9d9", knob: "skirt", tolex: "brown", title: "TUBE SPRING REVERB", after: "Fender '63 Reverb",
                          controls: [K("MIXER", "mix", { scale: 10 }), K("TONE", "tone", { scale: 10 })] },
-  Rack_StudioChamber:  rackVerb("STUDIO CHAMBER REVERB", "Echo chamber"),
+  Rack_StudioChamber:  rack("STUDIO CHAMBER REVERB", "Echo chamber",
+                         [K("MIX", "mix"), K("TONE", "tone"), K("TIME", "decay"), K("DEPTH", "predelay")]),
   Rack_StudioHallReverb: rackVerb("STUDIO HALL REVERB", "Boss RRV-10 (hall)"),
   Rack_StudioPlate:    rackVerb("STUDIO PLATE", "Plate reverb"),
   Rack_StudioPlateReverb: rackVerb("STUDIO PLATE REVERB", "EMT plate / Boss RRV-10 (plate)"),
@@ -168,7 +184,7 @@ export const PEDALS = {
 
 /* ── amps: a theme each (the look of its panel) and the controls of the real head ─ */
 const M = K("MASTER", "master");
-const head = (theme, controls, o = {}) => ({ look: "head", theme, controls: controls.map((c) => (c.type === "knob" ? { ...c, scale: 10 } : c)), ...o });
+const head = (theme, controls, o = {}) => ({ look: "head", theme, controls: controls.map((c) => (c.type === "knob" && !/Freq$/.test(c.param) ? { ...c, scale: 10 } : c)), ...o });
 const BRIGHT = SW("BRIGHT", "bright", [["OFF", 0], ["ON", 6]]);
 const T = {
   blackface: (mid = true, reverb = true) => head("blackface", [BRIGHT, K("VOLUME", "gain"), K("TREBLE", "treble"), ...(mid ? [K("MIDDLE", "mid")] : []), K("BASS", "bass"), ...(reverb ? [K("REVERB", "reverb")] : [])]),
@@ -218,7 +234,12 @@ export const AMPS = {
   Amp_Peavey5150: head("highgain", [K("PRE GAIN", "gain"), K("LOW", "bass"), K("MID", "mid"), K("HIGH", "treble"), K("POST GAIN", "master"),
                                     K("RESONANCE", "depth"), K("PRESENCE", "presence")]),
   Amp_DiezelVH4: T.highgain("DEEP"), Amp_EnglE650: T.highgain("DEPTH"), Amp_EnglPowerball: T.highgain("DEPTH"),
-  Amp_AmpegSVTVR: T.svt(), Amp_Ampeg: T.svt(), Bass_Amp_BT880B: T.svt(),
+  Amp_AmpegSVTVR: T.svt(), Amp_Ampeg: T.svt(),
+  /* its tone has a parametric EQ: a low and a high band and a sweepable middle, each with its frequency */
+  Bass_Amp_BT880B: head("bass", [K("GAIN", "gain"), K("BASS", "bass"), K("LO", "lo"), K("LO FREQ", "loFreq", S), K("MID", "mid"), K("MID FREQ", "midFreq", S),
+                                  K("HI", "hi"), K("HI FREQ", "hiFreq", S), K("TREBLE", "treble"), M]),
+  Amp_EN30: head("orange", [K("GAIN", "gain"), K("BASS", "bass"), K("MIDDLE", "mid"), K("TREBLE", "treble"), K("PRESENCE", "presence"),
+                            SW("BRIGHT", "bright", [["OFF", 0], ["ON", 6]]), M]),
   Amp_AmpegB15: head("bass", [K("VOLUME", "gain"), K("BASS", "bass"), K("TREBLE", "treble")]),
   DI_Amp_BassDriver: head("di", [K("LEVEL", "master"), K("TREBLE", "treble"), K("PRESENCE", "presence"), K("DRIVE", "gain"), K("BASS", "bass")]),
   DI_Amp_TubePre: head("di", [K("GAIN", "gain"), K("BASS", "bass"), K("MID", "mid"), K("TREBLE", "treble"), M]),

@@ -16,7 +16,9 @@
     "after": "Echo chamber",
     "controls": [
       { "type": "knob", "label": "MIX", "param": "mix" },
-      { "type": "knob", "label": "TONE", "param": "tone" }
+      { "type": "knob", "label": "TONE", "param": "tone" },
+      { "type": "knob", "label": "TIME", "param": "decay" },
+      { "type": "knob", "label": "DEPTH", "param": "predelay" }
     ]
   },
   "alt": ["Krown DM-200 Echo Chamber", "Keeley Abbey Chamber Verb"]

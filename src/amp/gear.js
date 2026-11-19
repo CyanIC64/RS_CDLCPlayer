@@ -47,7 +47,7 @@ const RE = {
   delay: /delay|echo/i,
   reverb: /reverb|verb|hall|room|plate|spring|cathedral|ambien/i,
   comp: /comp|limit|sustain|dynamics/i,
-  eq: /eq\b|graphic|equal|parametric|filter/i,
+  eq: /eq\d*\b|graphic|equal|parametric|filter/i,
 };
 /** which model a piece of gear is, from its key and category ("" = none) */
 export function modelOfGear(key, category = "") {
@@ -99,6 +99,9 @@ export function cabOfGear(cabKey, ampKey, { bass = false, kind = "", size = null
 /** a cabinet key without its microphone: "Cab_CA412C_57_Edge" -> "Cab_CA412C" */
 export const cabBase = (key) => String(key || "").replace(/_(57|Ribbon|Condenser|Tube)_(Cone|Edge|OffAxis)$/i, "");
 
+/** the knobs of a graphic EQ named by their frequency, low to high (at most ten) */
+export const bandNames = (names) => names.filter((n) => /^\d+(\.\d+)?$/.test(n)).sort((a, b) => a - b).slice(0, 10);
+
 /** a knob's short name: "Amp_CA100_Gain" of Amp_CA100 -> "Gain" */
 export function knobName(gearKey, fullKey) {
   return fullKey.startsWith(gearKey + "_") ? fullKey.slice(gearKey.length + 1) : fullKey.slice(fullKey.lastIndexOf("_") + 1);
@@ -109,13 +112,23 @@ export function knobName(gearKey, fullKey) {
    mapping given what the knob was seen holding (its lowest and highest). */
 const PCT = (to) => ({ from: [0, 100], to });
 const EQ = (db) => (db ? { from: [-12, 12], to: [-12, 12] } : PCT([-12, 12]));
+/* a frequency knob: Hz as they are, or kHz (values under 30) */
+const FREQ = (s) => (s[1] < 30 ? { from: [0, 20], to: [0, 20000] } : { from: [0, 20000], to: [0, 20000] });
+/* a rate: a rack's knob is in Hz (0.8), a pedal's goes 0..100 */
+const RATE = (lo, hi) => (s, db, type) => (type === "rack" && s[1] <= 20 ? { from: [0, 20], to: [0, 20] } : { ...PCT([lo, hi]), curve: 2 });
 const RULES = {
   amp: [
     ["gain",     ["gain", "drive", "overdrive", "preamp", "sensitivity"], () => PCT([0, 1])],
     ["bass",     ["bass", "low", "lo"],                    (s, db) => EQ(db)],
     ["mid",      ["mid", "middle"],                        (s, db) => EQ(db)],
     ["treble",   ["treble", "high", "hi"],                 (s, db) => EQ(db)],
-    ["presence", ["pres", "presence", "bright"],           (s, db) => EQ(db)],
+    ["presence", ["pres", "presence"],                     (s, db) => EQ(db)],
+    ["bright",   ["bright", "brite"],                      (s) => (s[1] <= 1 ? { from: [0, 1], to: [0, 6] } : PCT([0, 6]))],
+    ["lo",       ["lo", "low"],                            (s, db) => EQ(db)],
+    ["hi",       ["hi", "high"],                           (s, db) => EQ(db)],
+    ["loFreq",   ["lofreq", "lowfreq", "bassfreq"],        FREQ],
+    ["hiFreq",   ["hifreq", "highfreq", "treblefreq"],     FREQ],
+    ["midFreq",  ["midfreq", "middlefreq"],                FREQ],
   ],
   Overdrive: [
     ["gain",  ["gain", "drive", "dist", "distortion", "fuzz", "sustain", "overdrive", "boost"], () => PCT([0, 1])],
@@ -127,20 +140,27 @@ const RULES = {
     ["ratio",     ["ratio"],                () => ({ from: [1, 20], to: [1, 20] })],
     ["attack",    ["attack"],               () => ({ from: [0, 200], to: [0, 200] })],
     ["release",   ["release"],              () => ({ from: [10, 1000], to: [10, 1000] })],
+    ["release",   ["rate", "speed"],        () => PCT([1000, 20])],                      // a faster rate lets go sooner
+    ["split",     ["filter", "crossover", "xover", "split"], () => ({ from: [0, 1000], to: [0, 1000] })],
     ["threshold", ["compress", "sustain", "comp", "amount"], () => PCT([-10, -50])],
   ],
   Chorus: [
-    ["rate",     ["rate", "speed"],                               () => ({ ...PCT([0.05, 8]), curve: 2 })],
+    ["rate",     ["rate", "speed"],                               RATE(0.05, 8)],
     ["depth",    ["depth", "intensity", "width", "mix", "level"], () => PCT([0, 1])],
     ["feedback", ["feedback", "resonance", "regen", "res"],       () => PCT([0, 0.9])],
+    ["mix",      ["mix", "blend"],                                () => PCT([0, 1])],
+    ["manual",   ["delay", "manual", "predelay"],                 () => PCT([1, 15])],
+    ["loCut",    ["lofilter", "locut", "lowcut", "hpf"],          () => ({ ...PCT([20, 1000]), curve: 2 })],
+    ["hiCut",    ["hifilter", "hicut", "highcut", "lpf"],         () => PCT([20000, 1000])],
+    ["stereo",   ["stereo", "spread"],                            () => PCT([0, 1])],
   ],
   Phaser: [
-    ["rate",     ["rate", "speed"],                               () => ({ ...PCT([0.05, 8]), curve: 2 })],
+    ["rate",     ["rate", "speed"],                               RATE(0.05, 8)],
     ["depth",    ["depth", "intensity", "width", "mix", "level"], () => PCT([0, 1])],
     ["feedback", ["feedback", "resonance", "regen", "res"],       () => PCT([0, 0.9])],
   ],
   Tremolo: [
-    ["rate",      ["rate", "speed"],                               () => ({ ...PCT([0.1, 11]), curve: 2 })],
+    ["rate",      ["rate", "speed"],                               RATE(0.1, 11)],
     ["intensity", ["depth", "intensity", "width", "mix", "level"], () => PCT([0, 1])],
   ],
   WahWah: [
@@ -153,12 +173,26 @@ const RULES = {
     ["mix",      ["mix", "level", "blend"],        () => PCT([0, 1])],
   ],
   Reverb: [
-    ["mix", ["mix", "level", "blend", "verb"], () => PCT([0, 1])],
+    ["mix",  ["mix", "level", "blend", "verb"], () => PCT([0, 1])],
+    ["tone", ["tone", "color", "colour"],       () => PCT([0, 1])],
+    ["decay",    ["time", "decay", "length", "size"], () => PCT([0.3, 6])],
+    ["predelay", ["depth", "predelay", "distance"],   () => PCT([0, 80])],
   ],
   EQ: [
     ["bass",   ["bass", "low", "lo"],                    (s, db) => EQ(db)],
-    ["mid",    ["mid", "middle", "lomid", "himid"],      (s, db) => EQ(db)],
+    ["mid",    ["mid", "middle"],                        (s, db) => EQ(db)],
     ["treble", ["treble", "high", "hi"],                 (s, db) => EQ(db)],
+    ["lomid",  ["lomid", "lowmid"],                      (s, db) => EQ(db)],
+    ["himid",  ["himid", "highmid"],                     (s, db) => EQ(db)],
+    ["lomidQ", ["lomidq", "lowmidq"],                    () => ({ from: [0, 1], to: [0.7, 2] })],   // 0 wide, 1 narrow
+    ["himidQ", ["himidq", "highmidq"],                   () => ({ from: [0, 1], to: [0.7, 2] })],
+    ["mid",    ["lomid", "himid"],                       (s, db) => EQ(db)],
+    ["bassFreq",   ["bassfreq", "lowfreq", "lofreq"],    FREQ],
+    ["lomidFreq",  ["lomidfreq", "lowmidfreq"],          FREQ],
+    ["midFreq",    ["midfreq", "middlefreq"],            FREQ],
+    ["himidFreq",  ["himidfreq", "highmidfreq"],         FREQ],
+    ["trebleFreq", ["treblefreq", "hifreq", "highfreq"], FREQ],
+    ["level",  ["level", "volume", "gain", "output"],    (s) => (s[0] < 0 ? { from: [-12, 12], to: [-12, 12] } : PCT([-12, 12]))],
   ],
   Octave: [
     ["mix", ["mix", "level", "blend", "octave"], () => PCT([0, 1])],
@@ -195,8 +229,12 @@ export function describeGear(type, key, seen = {}, { category = "", model: force
     if (taken.has(param)) continue;
     const name = names.map((n) => Object.keys(seen).find((k) => k.toLowerCase() === n)).find(Boolean);
     if (!name || knobs[name].param) continue;
-    knobs[name] = { param, ...map(seen[name], db) };
+    knobs[name] = { param, ...map(seen[name], db, type) };
     taken.add(param);
+  }
+  /* a graphic EQ's knobs are named by their frequency ("800", "1600"): its sliders, low to high */
+  if (MODEL_FX[model] === "EQ") {
+    bandNames(Object.keys(seen)).forEach((n, i) => { if (!knobs[n].param) knobs[n] = { param: "g" + i, from: [-12, 12], to: [-12, 12] }; });
   }
   if (type === "amp") return { ...base, bass, cab: bass ? "bass" : "", knobs };
   return { ...base, model, knobs, params: {} };
@@ -224,10 +262,13 @@ export function applyKnobs(entry, knobValues = {}) {
   const seen = {};
   for (const [k, v] of Object.entries(knobValues || {})) { const n = Number(v); if (Number.isFinite(n)) seen[knobName(entry.key, k)] = [n, n]; }
   const auto = entry.type === "cabinet" ? {} : describeGear(entry.type, entry.key, seen, { model: entry.model || "" }).knobs || {};
-  const knobs = { ...auto, ...(entry.knobs || {}) };
+  /* the entry's own knobs win; one it leaves unwired ("param": null) goes by the rules
+     (set "param": false to ignore a knob for good) */
+  const knobs = { ...auto };
+  for (const [n, m] of Object.entries(entry.knobs || {})) if (!(m && m.param === null && auto[n])) knobs[n] = m;
   /* a parameter one of the entry's own knobs sets is not set again by a rule */
   const mine = new Set(Object.values(entry.knobs || {}).map((m) => m && m.param).filter(Boolean));
-  for (const name of Object.keys(auto)) if (!(entry.knobs || {})[name] && mine.has(auto[name].param)) delete knobs[name];
+  for (const name of Object.keys(auto)) if (knobs[name] === auto[name] && mine.has(auto[name].param)) delete knobs[name];
   for (const [k, v] of Object.entries(knobValues || {})) {
     const m = knobs[knobName(entry.key, k)];
     const n = Number(v);

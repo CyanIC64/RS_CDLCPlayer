@@ -71,7 +71,7 @@ async function setup(ctx){
   await Promise.all(Object.entries(IR_BYTES).map(async ([k, bytes]) => {
     try { irs[k] = await ctx.decodeAudioData(bytes.slice().buffer); } catch (e) { irs[k] = null; }
   }));
-  s = { tuna: new Tuna(ctx), irs };
+  s = { tuna: new Tuna(ctx), irs, made: new Map() };
   perCtx.set(ctx, s);
   return s;
 }
@@ -123,6 +123,29 @@ function part(ctx, build){
   };
 }
 
+/* a reverb tail of `sec` seconds (stereo noise falling 60 dB), as loud as the impulse `like`; made once per length */
+function tailIR(ctx, S, sec, like){
+  const k = Math.round(clamp(sec, 0.1, 8) * 10) / 10, key = k + (like ? ":" + like.length : "");
+  if (S.made.has(key)) return S.made.get(key);
+  const sr = ctx.sampleRate, len = Math.round(sr * k), buf = ctx.createBuffer(2, len, sr);
+  let want = 0;
+  if (like) for (let c = 0; c < like.numberOfChannels; c++){ const d = like.getChannelData(c); for (let i = 0; i < d.length; i++) want += d[i] * d[i]; }
+  let got = 0;
+  for (let c = 0; c < 2; c++){
+    const d = buf.getChannelData(c);
+    let lp = 0;
+    for (let i = 0; i < len; i++){
+      lp += 0.35 * ((Math.random() * 2 - 1) - lp);          // a little darker than white noise
+      d[i] = lp * Math.exp(-6.9 * i / len);
+      got += d[i] * d[i];
+    }
+  }
+  const scale = Math.sqrt((want || 1) / got * (2 / Math.max(1, like ? like.numberOfChannels : 2)));
+  for (let c = 0; c < 2; c++){ const d = buf.getChannelData(c); for (let i = 0; i < len; i++) d[i] *= scale; }
+  S.made.set(key, buf);
+  return buf;
+}
+
 /* the curve amount of Tuna's soft clipper for a slope of `k` at the centre */
 const curveFor = (k) => clamp(k / (k + 2), 0, 0.9999);
 
@@ -155,16 +178,47 @@ const BUILD = {
     return part(ctx, (N) => {
       const c = new S.tuna.Compressor({ threshold: p.threshold, ratio: p.ratio, attack: p.attack, release: p.release,
                                         knee: 6, automakeup: true });
-      const out = N.g(dB(p.level || 0));
-      c.output.connect(out);
-      const set = (k, v) => { if (k === "level") N.ramp(out.gain, dB(v)); else { c[k] = v; c.automakeup = true; } };
-      return { input: c.input, output: out, set, close: () => closeTuna(c) };
+      /* a split (a multi-band bass compressor's FILTER): only the lows below it are squeezed, the rest passes */
+      const input = N.g(1), out = N.g(dB(p.level || 0)), lo = N.bq("lowpass", 20000, 0, 0.707), hi = N.bq("highpass", 20, 0, 0.707), hiG = N.g(0);
+      input.connect(lo); lo.connect(c.input); c.output.connect(out);
+      input.connect(hi); hi.connect(hiG); hiG.connect(out);
+      const split = (v) => {
+        if (v > 0){ N.ramp(lo.frequency, v); N.ramp(hi.frequency, v); N.ramp(hiG.gain, 1); }
+        else { N.ramp(lo.frequency, 20000); N.ramp(hiG.gain, 0); }
+      };
+      const set = (k, v) => {
+        if (k === "level") N.ramp(out.gain, dB(v));
+        else if (k === "split") split(v);
+        else { c[k] = v; c.automakeup = true; }
+      };
+      split(p.split || 0);
+      return { input, output: out, set, close: () => closeTuna(c) };
     });
   },
   Chorus(ctx, S, model, p){
-    return part(ctx, () => {
+    return part(ctx, (N) => {
       const c = new S.tuna.Chorus({ rate: p.rate, depth: p.depth, feedback: p.feedback, delay: p.manual / 1000 });
-      return { input: c.input, output: c.output, set: (k, v) => { if (k === "manual") c.delay = v / 1000; else c[k] = v; }, close: () => closeTuna(c) };
+      /* a studio chorus's mix, the band the chorus is heard in, and its width (0 = mono, 1 = as wide as it is) */
+      const input = N.g(1), out = N.g(1), dry = N.g(0), wet = N.g(1);
+      const hp = N.bq("highpass", p.loCut || 20, 0, 0.707), lp = N.bq("lowpass", p.hiCut || 20000, 0, 0.707);
+      const split = ctx.createChannelSplitter(2), merge = ctx.createChannelMerger(2);
+      N.all.push(split, merge);
+      const LL = N.g(1), RR = N.g(1), LR = N.g(0), RL = N.g(0);
+      input.connect(dry); dry.connect(out);
+      input.connect(c.input); c.output.connect(hp); hp.connect(lp); lp.connect(split);
+      split.connect(LL, 0); split.connect(LR, 0); split.connect(RR, 1); split.connect(RL, 1);
+      LL.connect(merge, 0, 0); RL.connect(merge, 0, 0); RR.connect(merge, 0, 1); LR.connect(merge, 0, 1);
+      merge.connect(wet); wet.connect(out);
+      const set = (k, v) => {
+        if (k === "manual") c.delay = v / 1000;
+        else if (k === "mix"){ N.ramp(wet.gain, v); N.ramp(dry.gain, 1 - v); }
+        else if (k === "loCut") N.ramp(hp.frequency, v);
+        else if (k === "hiCut") N.ramp(lp.frequency, v);
+        else if (k === "stereo"){ const a = (1 + v) / 2, b = (1 - v) / 2; N.ramp(LL.gain, a); N.ramp(RR.gain, a); N.ramp(LR.gain, b); N.ramp(RL.gain, b); }
+        else c[k] = v;
+      };
+      for (const k of ["mix", "stereo"]) set(k, p[k]);
+      return { input, output: out, set, close: () => closeTuna(c) };
     });
   },
   Phaser(ctx, S, model, p){
@@ -201,13 +255,31 @@ const BUILD = {
   },
   Reverb(ctx, S, model, p){
     return part(ctx, (N) => {
-      const input = N.g(1), output = N.g(1), dry = N.g(1), hp = N.bq("highpass", 140), cv = N.conv(S.irs[model.ir || "room"]),
+      const own = S.irs[model.ir || "room"];
+      /* the impulse: the model's own, or a tail of the length TIME asks for */
+      const irFor = (sec) => (sec > 0 ? tailIR(ctx, S, sec, own) : own);
+      const input = N.g(1), output = N.g(1), dry = N.g(1), hp = N.bq("highpass", 140), pre = ctx.createDelay(0.2),
             lp = N.bq("lowpass", 6000), wet = N.g(0);
+      N.all.push(pre);
+      pre.delayTime.value = (p.predelay || 0) / 1000;
+      let cv = N.conv(irFor(p.decay || 0)), wait = 0;
       input.connect(dry); dry.connect(output);
-      input.connect(hp); hp.connect(cv); cv.connect(lp); lp.connect(wet); wet.connect(output);
+      input.connect(hp); hp.connect(pre); pre.connect(cv); cv.connect(lp); lp.connect(wet); wet.connect(output);
+      /* a new length means a new impulse: swap the convolver once the knob rests */
+      const decay = (v) => {
+        clearTimeout(wait);
+        wait = setTimeout(() => {
+          const n = N.conv(irFor(v));
+          pre.connect(n); n.connect(lp);
+          try { cv.disconnect(); } catch (e) {}
+          cv = n;
+        }, 150);
+      };
       const set = (k, v) => {
         if (k === "mix") N.ramp(wet.gain, v * 0.9);
         else if (k === "tone") N.ramp(lp.frequency, 1500 * Math.pow(2, v * 3.3));
+        else if (k === "predelay") N.ramp(pre.delayTime, clamp(v, 0, 100) / 1000);
+        else if (k === "decay") decay(v);
       };
       set("mix", p.mix); set("tone", p.tone);
       return { input, output, set };
@@ -216,17 +288,25 @@ const BUILD = {
   EQ(ctx, S, model, p){
     return part(ctx, (N) => {
       const lo = N.bq("lowshelf", 120), mid = N.bq("peaking", 800, 0, 0.8), hi = N.bq("highshelf", 3200), lvl = N.g(1);
+      /* a parametric EQ's low and high mids (Rocksmith's studio EQ has five bands, each with its frequency) */
+      const loMid = N.bq("peaking", 400, 0, 0.9), hiMid = N.bq("peaking", 2000, 0, 0.9);
+      const FREQ = { bassFreq: lo, lomidFreq: loMid, midFreq: mid, himidFreq: hiMid, trebleFreq: hi };
       /* a graphic EQ's sliders (g0, g1...) at the bands of its face; flat unless set */
       const bands = (model.bands || EQ_BANDS).slice(0, 10).map((f, i, all) =>
         N.bq("peaking", f, 0, all.length > 7 ? 1.8 : 1.2));
       let at = lo;
-      for (const n of [mid, hi, ...bands]){ at.connect(n); at = n; }
+      for (const n of [loMid, mid, hiMid, hi, ...bands]){ at.connect(n); at = n; }
       at.connect(lvl);
       const set = (k, v) => {
         if (k === "bass") N.ramp(lo.gain, v);
         else if (k === "mid") N.ramp(mid.gain, v);
         else if (k === "treble") N.ramp(hi.gain, v);
         else if (k === "level") N.ramp(lvl.gain, dB(v));
+        else if (k === "lomid") N.ramp(loMid.gain, v);
+        else if (k === "himid") N.ramp(hiMid.gain, v);
+        else if (k === "lomidQ"){ if (v > 0) N.ramp(loMid.Q, v); }
+        else if (k === "himidQ"){ if (v > 0) N.ramp(hiMid.Q, v); }
+        else if (FREQ[k]){ if (v > 0) N.ramp(FREQ[k].frequency, v); }
         else if (/^g\d$/.test(k) && bands[+k[1]]) N.ramp(bands[+k[1]].gain, v);
       };
       for (const kn of paramsOf("EQ")) set(kn.k, p[kn.k]);
@@ -265,13 +345,14 @@ function buildAmp(ctx, S, board){
           hi = N.bq("highshelf", bass ? 2500 : 3000), pres = N.bq("peaking", 4500, 0, 1);
     /* what some real heads add: a bright switch, a depth knob, a graphic EQ, a reverb (flat and dry unless set) */
     const brt = N.bq("highshelf", 2500), deep = N.bq("lowshelf", 90);
+    const loB = N.bq("peaking", 80, 0, 0.9), hiB = N.bq("peaking", 4000, 0, 0.9);
     const face = faceOf(a.gear);
     const geq = AMP_PARAMS.filter((kn) => kn.hz).map((kn, i) => N.bq("peaking", (face && face.bands && face.bands[i]) || kn.hz, 0, 1.1));
     const out = N.g(1), rvWet = N.g(0), rvHp = N.bq("highpass", 200), rv = N.conv(S.irs[bass ? "room" : "plate"]), rvLp = N.bq("lowpass", 5000);
     tight.connect(od.input); od.output.connect(post);
     post.connect(brt); brt.connect(vLow); vLow.connect(vMid); vMid.connect(vBright);
     let at = vBright;
-    for (const n of [lo, mid, hi, ...geq, pres, deep]){ at.connect(n); at = n; }
+    for (const n of [lo, loB, mid, hi, hiB, ...geq, pres, deep]){ at.connect(n); at = n; }
     at.connect(out);
     at.connect(rvHp); rvHp.connect(rv); rv.connect(rvLp); rvLp.connect(rvWet); rvWet.connect(out);
     const set = (k, v) => {
@@ -286,6 +367,11 @@ function buildAmp(ctx, S, board){
       else if (k === "treble") N.ramp(hi.gain, v * 0.67);
       else if (k === "presence") N.ramp(pres.gain, v * 0.4);
       else if (k === "bright") N.ramp(brt.gain, v);
+      else if (k === "lo") N.ramp(loB.gain, v);
+      else if (k === "hi") N.ramp(hiB.gain, v);
+      else if (k === "loFreq"){ if (v > 0) N.ramp(loB.frequency, v); }
+      else if (k === "hiFreq"){ if (v > 0) N.ramp(hiB.frequency, v); }
+      else if (k === "midFreq"){ if (v > 0) N.ramp(mid.frequency, v); }
       else if (k === "depth") N.ramp(deep.gain, v * 9);
       else if (k === "reverb") N.ramp(rvWet.gain, v * 0.8);
       else if (/^eq\d$/.test(k) && geq[+k[2]]) N.ramp(geq[+k[2]].gain, v);
@@ -329,8 +415,8 @@ function buildChain(ctx, S, board){
     if (!make) return;
     const params = { ...p.params };
     for (const kn of paramsOf(m.fx)) if (!Number.isFinite(params[kn.k])) params[kn.k] = Number.isFinite(m.params[kn.k]) ? m.params[kn.k] : kn.def;
-    const face = faceOf(p.gear);
-    add(p.id, make(ctx, S, face && face.bands ? { ...m, bands: face.bands } : m, params), p.on);
+    const face = faceOf(p.gear), bands = (Array.isArray(p.bands) && p.bands.length && p.bands) || (face && face.bands);
+    add(p.id, make(ctx, S, bands ? { ...m, bands } : m, params), p.on);
   };
   /* the Rocksmith tone designer's chain: pre -> amp -> loop -> cabinet -> rack */
   for (const p of board.pre) pedal(p);
