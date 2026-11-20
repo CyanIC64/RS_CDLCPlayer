@@ -169,13 +169,13 @@ function detChartTime(ctxTime){
     - Falsos onsets da mão nas cordas (a −49 dBFS) aparecem às vezes; só contam se caírem na janela de uma nota.
     - Ficam como testes em `cable.test.js`, com o onset de cada corda na gravação do G3.
   - **Testes** (`harness.test.js`, 56 no total): acordes certos E5, A5, G, Am, A, C, G5 passam; falham um G2 sozinho por um Sol, um G5 por E5, Lá maior por Lá menor e vice-versa, um Sol com o B2 um traste acima e um Dó com o baixo um traste abaixo. Slide 5→7 passa, e falha a começar 4 trastes acima; bend de um tom passa; palm mute certo passa e numa corda errada falha; acorde abafado passa só com o ataque. Baixo (janela 16384): linha certa ≥ 7/8, um traste acima ≤ 1/8. No browser, com o synth no lugar do cabo: 4 acordes, slide, bend e 2 palm mutes 8/8; com um dedo errado no Am e no C e o palm mute noutra corda, só esses três falham.
-- [ ] **Fase 5 — Feedback e pontuação**
-  - Highway: a cabeça da nota fica verde (acerto) ou escura com contorno vermelho (falha).
-  - Tab view: a mesma marcação.
-  - Hit light: verde no acerto, vermelho na falha.
-  - HUD: precisão e streak.
-  - Barras de frase: percentagem de acerto em cada frase.
-  - Resumo no fim da música, no `songEnded`.
+- [x] **Fase 5 — Feedback e pontuação** (feita e testada no browser com resultados simulados; falta ver com o cabo real)
+  - Highway: no plano das cordas, a nota acertada fica com a cabeça verde e a falhada escura com contorno vermelho; desvanecem em 0,45 s / 0,75 s a partir do veredicto (que chega um pouco depois de a nota passar). Um acorde repetido, sem cabeças próprias, mostra o veredicto na moldura. Uma nota já acertada antes de chegar ao plano fica verde.
+  - Tab view: o momento acertado fica com fundo verde; o falhado, escuro com contorno vermelho. As marcas voltam ao reconstruir a tab e limpam-se num `seek` para trás.
+  - Hit light e HUD: feitos na fase 3b.
+  - Barras de frase: cada frase jogada fica da cor da sua pontuação (vermelho → verde), com a percentagem por cima.
+  - Resumo no fim da música (`songEnded`, sem loop): percentagem, acertos, falhas, melhor streak, quanto da música foi jogado, e as 3 frases mais fracas (com pelo menos 3 notas e menos de 90 %); um clique leva à frase. *Play again* recomeça.
+  - Tudo lê os veredictos do `Verifier` (`IN.ver.targets`, indexados por tempo em `IN.byT`).
 - [ ] **Fase 6 — Wasm** (só se o benchmark da fase 3 o exigir)
   - Porte do núcleo DSP para Rust, com exports `extern "C"` simples.
   - O `.wasm` vai embutido em base64 no bundle.
