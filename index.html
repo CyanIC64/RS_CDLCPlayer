@@ -32,6 +32,11 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 .tabrow .thl{fill:#d9f2e1;opacity:0;transition:opacity .12s}
 .tabrow .te.on .thl{opacity:1;transition:none}
 .tabrow .te.on .tf{fill:#0e7a33;stroke:#d9f2e1}
+/* with the guitar input: a moment hit (green) or missed (dark, ringed in red) */
+.tabrow .te.ok .thl{opacity:1;fill:#c6f2d3;transition:none}
+.tabrow .te.ok .tf{fill:#0b8a38;stroke:#c6f2d3}
+.tabrow .te.bad .thl{opacity:1;fill:#262b31;stroke:#e5332a;stroke-width:1.6;transition:none}
+.tabrow .te.bad .tf{fill:#ff8a80;stroke:#262b31}
 .tabrow .tl{stroke:#c9c9c9;stroke-width:1}
 .tabrow .tb{stroke:#b9b9b9;stroke-width:1}
 .tabrow .tn{font:600 10px Arial,Helvetica,sans-serif;fill:#9a9a9a}
@@ -214,6 +219,27 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 #bCable .cq{display:none;position:absolute;right:3px;top:2px;font:700 9px "Segoe UI",system-ui,sans-serif;
   font-style:normal;color:#c3cdd7}
 #bCable.unk .cq{display:block}
+
+/* the summary at the end of a song played with the guitar input */
+#sum{position:fixed;left:50%;top:12%;transform:translateX(-50%);width:min(460px,calc(100vw - 32px));
+  background:#101317f2;border:1px solid #2b3138;border-radius:8px;box-shadow:0 12px 32px #000a;
+  padding:12px 18px 16px;display:none;z-index:36;color:#dfe7ef;font:13px "Segoe UI",system-ui,sans-serif}
+#sum.show{display:block}
+#sum .suhead{display:flex;justify-content:space-between;align-items:center;gap:10px;color:var(--dim);
+  font-size:11px;letter-spacing:.09em;text-transform:uppercase}
+#sumClose{background:none;border:0;color:var(--dim);font-size:20px;line-height:1;cursor:pointer;padding:0 2px}
+#sumSong{margin:4px 0 6px;color:#c3cdd7;font-size:13px;text-align:center}
+#sumPct{font:700 46px "Century Gothic","Futura","Segoe UI",sans-serif;text-align:center;line-height:1.1}
+#sum .sugrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0 6px;text-align:center}
+#sum .sugrid b{display:block;font-size:19px;color:#fff;font-weight:700}
+#sum .sugrid span{color:var(--dim);font-size:11px}
+#sum h4{margin:12px 0 2px;color:var(--dim);font-size:11px;letter-spacing:.09em;text-transform:uppercase;font-weight:600}
+#sumWeak button{display:flex;justify-content:space-between;gap:10px;width:100%;background:#171b20;border:1px solid #2b3138;
+  color:#c3cdd7;border-radius:4px;padding:5px 9px;margin-top:4px;cursor:pointer;font:12px "Segoe UI",system-ui,sans-serif;text-align:left}
+#sumWeak button:hover{border-color:#4a5560;color:#fff}
+#sum .subtns{display:flex;justify-content:flex-end;margin-top:14px}
+#sum .subtns button{background:#1b2533;border:1px solid #3f8ce0;color:#fff;border-radius:4px;padding:5px 14px;cursor:pointer;
+  font:12px "Segoe UI",system-ui,sans-serif}
 
 /* the tuner (U) */
 #tuner{position:fixed;left:50%;top:12%;transform:translateX(-50%);width:min(440px,calc(100vw - 32px));
@@ -489,6 +515,17 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 <div id="tlhint"></div>
 <div id="drop"><div>Drop to play this song<small>.psarc, .feedpak, or arrangement .xml with its audio - only songs you have obtained legally</small></div></div>
 
+<div id="sum" role="dialog" aria-label="Song summary">
+  <div class="suhead"><span>Song played</span><button id="sumClose" title="Close (Esc)">×</button></div>
+  <div id="sumSong"></div>
+  <div id="sumPct">—</div>
+  <div class="sugrid">
+    <div><b id="sumHit">0</b><span>hit</span></div><div><b id="sumMiss">0</b><span>missed</span></div>
+    <div><b id="sumBest">0</b><span>best streak</span></div><div><b id="sumPlayed">0</b><span>of the song</span></div>
+  </div>
+  <h4 id="sumWeakH">Practise these phrases</h4><div id="sumWeak"></div>
+  <div class="subtns"><button id="sumAgain">Play again</button></div>
+</div>
 <div id="tuner" role="dialog" aria-label="Tuner">
   <div class="tuhead"><span>Tuner</span><span id="tuTun"></span><button id="tuClose" title="Close (U or Esc)">×</button></div>
   <div class="tunote"><b id="tuNote">—</b><span id="tuCents"></span></div>
@@ -1209,7 +1246,7 @@ function stopSources(){
 }
 function songEnded(){
   if (S.loop) { startAt(Math.max(0, S.loopA - LOOP_LEAD)); }
-  else { A.playing = false; S.playing = false; pump(); }
+  else { A.playing = false; S.playing = false; pump(); inputSummary(); }
 }
 
 function startAt(t){
@@ -1699,6 +1736,17 @@ function drawHead(x, y, ang, hw, hh, col, n, a, gk){
   ctx.setTransform(dpr*c0, dpr*s0, dpr*ex, dpr*ey, dpr*x, dpr*y);
   ctx.drawImage(sp.c, -sp.cx*k, -sp.cy*k, sp.w*k, sp.h*k);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.globalAlpha = 1;
+}
+/* the guitar input's verdict on a note, at the hit plane: a green head for a
+   hit, a dark one ringed in red for a miss (a: how much of it is left) */
+function judgedHead(cx, cy, ang, hw, hh, ok, a){
+  if (ok) glow("#4dff8f", cx, cy, hw*2.8, hh*4.6, 0.65*a);
+  ctx.save(); headFrame(cx, cy, ang);
+  ctx.globalAlpha = a*S.vis; ctx.lineJoin = "round";
+  rr(-hw, -hh, hw*2, hh*2, hh*0.32);
+  ctx.fillStyle = ok ? "#2fd46f" : "#14181d"; ctx.fill();
+  ctx.strokeStyle = ok ? "#d4ffe1" : "#ff4d42"; ctx.lineWidth = Math.max(1.6, hh*(ok ? 0.26 : 0.40)); ctx.stroke();
+  ctx.restore(); ctx.globalAlpha = 1;
 }
 /* the picture of one notehead, drawn around the origin of `g` - used to make its sprite */
 function headShape(g, hw, hh, col, n, marks, gk){
@@ -2851,6 +2899,9 @@ function drawPhraseBars(t, off){
   gFut.addColorStop(0, "#d63cff"); gFut.addColorStop(1, "#b40fe8");
   /* the bars picked for looping (or being picked right now, while the mouse is held) */
   const sel = selRange();
+  /* with the guitar input: each phrase played is coloured by its score, red to green, with its % above */
+  const judged = IN.link && S.inScore && IN.phr && IN.phr.length === ph.length ? IN.phr : null;
+  const fsP = clamp(BARS.h*0.27, 8, 12);
   for (let pi = 0; pi < ph.length; pi++){
     const p = ph[pi];
     const xa = BARS.x0 + span*clamp((p.t0 + off)/D, 0, 1), xb = BARS.x0 + span*clamp((p.t1 + off)/D, 0, 1);
@@ -2863,8 +2914,9 @@ function drawPhraseBars(t, off){
     }
     const cur = t >= p.t0 && t < p.t1, past = t >= p.t1;
     const bh = Math.max(p.lv > 0 ? 3 : 0, BARS.h*p.lv);
+    const ps = judged && judged[pi].done > 0 ? judged[pi] : null, pct = ps ? ps.hit/ps.done : 0;
     if (bh > 0){
-      ctx.fillStyle = past ? "#3a1c4e" : cur ? "#ff5cf4" : gFut;
+      ctx.fillStyle = ps && !cur ? "hsl(" + Math.round(pct*125) + ",70%," + (past ? 36 : 48) + "%)" : past ? "#3a1c4e" : cur ? "#ff5cf4" : gFut;
       ctx.fillRect(xa, base - bh, w, bh);
       if (cur){                                     // the part of the phrase already played
         ctx.fillStyle = "#4a1fd0";
@@ -2873,6 +2925,13 @@ function drawPhraseBars(t, off){
     }
     ctx.fillStyle = picked ? "#7ff0ff" : past ? "#4b4b55" : cur ? "#20b8cc" : "#ff8a00";
     ctx.fillRect(xa, base + tick, w, picked ? tick*1.6 : tick);
+    if (ps && w >= 14){
+      const y = Math.max(BARS.top + fsP*0.5, base - bh - 3);
+      ctx.font = "700 " + fsP.toFixed(1) + 'px "Segoe UI",system-ui,sans-serif';
+      ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+      ctx.fillStyle = "hsl(" + Math.round(pct*125) + ",85%,66%)";
+      ctx.fillText(Math.round(pct*100) + (w >= 28 ? "%" : ""), xa + w/2, y);
+    }
     if (picked && bh > 0){                          // and the bar itself brightens
       ctx.fillStyle = "rgba(255,255,255,0.22)";
       ctx.fillRect(xa, base - bh, w, bh);
@@ -3269,6 +3328,7 @@ function draw(dt){
   const lpA = S.loop && S.loopB ? S.loopA - off0 - 0.005 : -Infinity;
   const lpB = S.loop && S.loopB ? S.loopB - off0 - 0.005 : Infinity;
   const outside = (tt) => tt < lpA || tt >= lpB;
+  const judging = !!(IN.link && IN.ver && S.inScore);           // the guitar input is checking the notes
   const items = [];
   const act = new Array(nStr).fill(0);
   for (let i = lowerBound(S.all, "t", t - S.maxSus - 0.3); i < S.all.length; i++){
@@ -3499,7 +3559,7 @@ function draw(dt){
     setSkew(P(xc, y + PITCH*0.4, z), P(xc, y - PITCH*0.4, z));
     const gk = sstep(1 - d/1.4);                                // 0 far away .. 1 at the fretboard
     if (gk > 0.01 && !grey) glow(col, cx, cy2, hw*2.3, hh*3.6, 0.40*gk*gk*al, true);
-    drawHead(cx, cy2, slope, hw, hh, col, n, al, grey ? 0 : gk);
+    drawHead(cx, cy2, slope, hw, hh, judging && n.hit === true ? "#4dff8f" : col, n, al, grey ? 0 : gk);
 
     /* fret number on the floor in front of the note */
     if (S.showNums && n.lab){
@@ -3546,6 +3606,52 @@ function draw(dt){
     if (held || d < 0){ ctx.fillStyle = rgba(col, held ? 0.45 : 0.35); ctx.fill(); }
     ctx.strokeStyle = (held || d < 0.12) ? tint(col, 0.55) : col; ctx.lineWidth = lw; ctx.stroke();
     ctx.restore(); ctx.globalAlpha = 1;
+  }
+
+  /* ── 7c. the guitar input's verdicts at the hit plane: a green head for a
+          note hit, a dark one ringed in red for a miss, fading out. A
+          verdict comes a little after the note lands (the detector's delay). */
+  if (judging){
+    const now = performance.now();
+    for (let i = lowerBound(S.all, "t", t - 2); i < S.all.length && S.all[i].t < t + 0.4; i++){
+      const n = S.all[i];
+      if (n.hit === undefined || !n.hitAt || n.hide) continue;
+      const age = (now - n.hitAt)/(n.hit ? 450 : 750);
+      if (age >= 1 || age < 0) continue;
+      const s = clamp(n.s, 0, nStr - 1), y = yOf(s);
+      let xc, half;
+      if (n.f > 0){ xc = noteX(n, 0, 0); half = FW*0.34; }
+      else {                                        // an open string: across its anchor
+        const an = A[anchorIdx(n.t + 0.002)];
+        const ax0 = fretX(an.fret - 1), ax1 = fretX(Math.min(24, an.fret + an.width - 1));
+        xc = (ax0 + ax1)/2; half = (ax1 - ax0)/2;
+      }
+      const pl = P(xc - half, y, 0), pr = P(xc + half, y, 0);
+      if (!pl || !pr) continue;
+      const lane = setSkew(P(xc, y + PITCH*0.40, 0), P(xc, y - PITCH*0.40, 0));
+      const hw = Math.hypot(pr.x - pl.x, pr.y - pl.y)/2, hh = lane > 0 ? lane/2 : hw*(PITCH*0.40)/(FW*0.34);
+      judgedHead((pl.x + pr.x)/2, (pl.y + pr.y)/2, Math.atan2(pr.y - pl.y, pr.x - pl.x), hw, n.f > 0 ? hh : hh*0.6, n.hit, 1 - age*age);
+    }
+    /* a repeated chord has no heads of its own: its frame takes the verdict */
+    for (let i = lowerBound(S.chords, "t", t - 2); i < S.chords.length && S.chords[i].t < t + 0.4; i++){
+      const ev = S.chords[i];
+      if (!ev.rep) continue;
+      const g = IN.byT && IN.byT.get(Math.round(ev.t*1000));
+      if (!g || g.result === null || !g.at) continue;
+      const age = (now - g.at)/(g.result ? 450 : 750);
+      if (age >= 1 || age < 0) continue;
+      const an = A[anchorIdx(ev.t + 0.002)];
+      const x0 = fretX(an.fret - 1), x1 = fretX(Math.min(24, an.fret + an.width - 1)), top = YLO + PITCH*1.25;
+      const pa = P(x0, 0, 0), pb = P(x1, 0, 0), pc = P(x1, top, 0), pd = P(x0, top, 0);
+      if (!pa || !pb || !pc || !pd) continue;
+      const k = 1 - age*age, col = g.result ? "#4dff8f" : "#ff4d42";
+      if (g.result) glow(col, (pa.x + pb.x)/2, (pa.y + pd.y)/2, Math.abs(pb.x - pa.x)*0.7, Math.abs(pa.y - pd.y)*0.9, 0.5*k);
+      ctx.globalAlpha = k*S.vis;
+      ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.lineTo(pc.x, pc.y); ctx.lineTo(pd.x, pd.y); ctx.closePath();
+      ctx.fillStyle = g.result ? "rgba(47,212,111,0.28)" : "rgba(20,24,29,0.6)"; ctx.fill();
+      ctx.strokeStyle = col; ctx.lineWidth = clamp(pa.s*FW*0.05, 2, 6); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
   }
 
   /* ── 7b. what the fretting hand holds right now: a marker per finger on
@@ -3952,6 +4058,7 @@ function tabBuild(){
   page.innerHTML = html + '<div id="tabcur"></div>';
   TAB.groups = [];
   for (const g of page.querySelectorAll("g.te")) TAB.groups[+g.dataset.e] = g;
+  if (IN.ver) tabMarksAll();
   TAB.lit = new Set();
   TAB.maxLen = evs.reduce((m, e) => Math.max(m, e.end - e.t), 0);
   page.style.height = (top + 40) + "px";
@@ -4500,7 +4607,82 @@ function inputConfigure(){
   if (IN.ver) IN.ver.seek(chartTime());
   IN.link.expect([]);
   IN.dirty = true;
+  inputIndex();
 }
+
+/* the verdicts are read by time: the highway (a repeated chord's frame), the
+   tab view and the phrase bars all look a note's group up here */
+function inputIndex(){
+  IN.byT = new Map();
+  if (IN.ver) for (const g of IN.ver.targets) IN.byT.set(Math.round(g.t*1000), g);
+  inputPhraseStats(); tabMarksAll();
+}
+/* each phrase's notes and chords: how many, judged, hit */
+function inputPhraseStats(){
+  const ph = S.phrases;
+  IN.phr = null;
+  if (!IN.ver || !ph.length) return;
+  const st = ph.map(() => ({ n:0, done:0, hit:0 }));
+  let i = 0;
+  for (const g of IN.ver.targets){
+    while (i < ph.length - 1 && g.t >= ph[i].t1) i++;
+    const s = st[i];
+    s.n++;
+    if (g.result !== null){ s.done++; if (g.result) s.hit++; }
+  }
+  IN.phr = st;
+}
+/* the tab view's mark for a group: green when hit, dark and ringed in red when missed */
+function tabMark(g){
+  if (!TAB.groups || !TAB.evs.length) return;
+  const k = lowerBound(TAB.evs, "t", g.t - 0.002), e = TAB.evs[k];
+  if (!e || Math.abs(e.t - g.t) > 0.002 || !TAB.groups[k]) return;
+  const on = S.inScore && !!IN.link;
+  TAB.groups[k].classList.toggle("ok", on && g.result === true);
+  TAB.groups[k].classList.toggle("bad", on && g.result === false);
+}
+function tabMarksAll(){
+  if (!TAB.groups) return;
+  if (IN.ver && S.inScore && IN.link) for (const g of IN.ver.targets) tabMark(g);
+  else for (const el of TAB.groups) if (el) el.classList.remove("ok", "bad");
+}
+
+/* the end of the song, played with the guitar input: the score, and the
+   phrases most worth practising (a click goes there) */
+function inputSummary(){
+  if (!(IN.link && IN.ver && S.inScore)) return;
+  IN.ver.update(1e9);                                      // the last notes, still waiting for their window to pass
+  let hit = 0, miss = 0;
+  for (const g of IN.ver.targets){ if (g.result === true) hit++; else if (g.result === false) miss++; }
+  if (!hit && !miss) return;
+  const T = IN.ver.targets.length, pct = hit/(hit + miss);
+  inEl("sumSong").textContent = [inEl("title").textContent, currentArr() ? currentArr().name || "" : ""].filter((x) => x && x !== "—").join(" · ");
+  const P = inEl("sumPct");
+  P.textContent = Math.round(pct*100) + "%";
+  P.style.color = "hsl(" + Math.round(pct*125) + ",80%,60%)";
+  inEl("sumHit").textContent = hit;
+  inEl("sumMiss").textContent = miss;
+  inEl("sumBest").textContent = IN.ver.stats.best;
+  inEl("sumPlayed").textContent = Math.round(100*(hit + miss)/T) + "%";
+  const box = inEl("sumWeak"), off = S.offMs/1000;
+  box.textContent = "";
+  const weak = (IN.phr || []).map((s, i) => ({ s, i, p: s.done ? s.hit/s.done : 1 }))
+    .filter((x) => x.s.done >= 3 && x.p < 0.9).sort((a, b) => a.p - b.p).slice(0, 3);
+  for (const w of weak){
+    const ph = S.phrases[w.i], sec = sectionAt(ph.t0 + off);
+    const b = document.createElement("button");
+    const l = document.createElement("span"), r = document.createElement("b");
+    l.textContent = [sec && S.sections[sec.idx] ? secLabel(S.sections[sec.idx].name) : "", "phrase " + (w.i + 1)].filter(Boolean).join(" · ");
+    r.textContent = Math.round(w.p*100) + "%  (" + w.s.hit + "/" + w.s.done + ")";
+    b.append(l, r);
+    b.title = "Go to this phrase";
+    b.onclick = () => { sumShow(false); seek(Math.max(0, ph.t0 + off - 1)); };
+    box.appendChild(b);
+  }
+  inEl("sumWeakH").hidden = !weak.length;
+  sumShow(true);
+}
+function sumShow(on){ inEl("sum").classList.toggle("show", !!on); }
 
 /* chart time of a moment on the audio clock. A chart second lasts 1/S.rate
    real seconds, and what the player plays answers what they heard
@@ -4537,6 +4719,10 @@ function inputPump(){
 /* a note or chord was just judged: blink the counter and the hit light */
 function inputResult(g){
   IN.dirty = true;
+  g.at = performance.now();                                // when: the marks on the highway fade from here
+  for (const x of g.notes) x.n.hitAt = g.at;
+  tabMark(g);
+  inputPhraseStats();
   IN.flash = { ok: g.result, at: performance.now() };
   const el = inEl("hudHit");
   el.classList.remove("hit", "miss");
@@ -4547,7 +4733,7 @@ function inputResult(g){
 }
 
 function inputSeek(){
-  if (IN.ver){ IN.ver.seek(S.time - S.offMs/1000); IN.dirty = true; }
+  if (IN.ver){ IN.ver.seek(S.time - S.offMs/1000); IN.dirty = true; inputPhraseStats(); tabMarksAll(); }
 }
 
 /* the score line in the options, and the latency the hits suggest:
@@ -5120,10 +5306,12 @@ inEl("vAmp").oninput = (e) => {
 };
 inEl("fInScore").onchange = (e) => {
   S.inScore = e.target.checked; savePrefs();
-  if (S.inScore) inputSeek();
+  if (S.inScore) inputSeek(); else tabMarksAll();
 };
 inEl("fInLat").onchange = (e) => inputSetLatency(+e.target.value || 0);
 inEl("bInCal").onclick = () => calStart();
+inEl("sumClose").onclick = () => sumShow(false);
+inEl("sumAgain").onclick = () => { sumShow(false); seek(0); if (!A.playing) togglePlay(); };
 inEl("bInSug").onclick = () => { const v = inputSuggestedLatency(); if (v !== null) inputSetLatency(v); };
 inEl("fInDev").onchange = async (e) => {
   S.inDevice = e.target.value; savePrefs();
@@ -5172,6 +5360,7 @@ window.addEventListener("keydown", (e) => {
   else if (k === "u" || k === "U"){ tunerShow(!TU.open); }
   else if (k === "p" || k === "P"){ rigShow(!(AMP.ui && AMP.ui.open)); }
   else if (k === "Escape" && TU.open){ tunerShow(false); }
+  else if (k === "Escape" && inEl("sum").classList.contains("show")){ sumShow(false); }
   else if (k === "ArrowLeft"){ seek(S.time - (e.shiftKey ? 5 : 1)); }
   else if (k === "ArrowRight"){ seek(S.time + (e.shiftKey ? 5 : 1)); }
   else if (k === "["){ const s = sectionAt(S.time - 0.25); seek(s ? (s.start > S.time - 0.6 ? (sectionAt(s.start - 0.1) || s).start : s.start) : 0); }
