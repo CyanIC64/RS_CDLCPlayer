@@ -45,8 +45,11 @@ server, no upload and no account.
   (its tuning and cent offset); click a string there to tune only that one. While the song plays, every note of the chart is checked against
   what you play (single notes, chords - a finger on the wrong fret is caught - slides, bends and
   palm mutes): *Notes hit* in the corner counts the notes and chords you got right out of all in
-  the arrangement, and the note-hit light rings green on a hit and red on a miss. *Calibrate* measures the input latency from a few
-  strikes on a click; showing hits and misses on the highway is planned (see `plan.md`).
+  the arrangement, and the note-hit light rings green on a hit and red on a miss. Each note turns green on the
+  highway when you hit it, or dark and ringed in red when you miss it, and the tab view marks it the same way;
+  the phrase bars at the top take the colour of your score in each phrase, with its percentage. At the end of the
+  song a summary gives your score, best streak and the phrases most worth practising (click one to go there).
+  *Calibrate* measures the input latency from a few strikes on a click.
 
 ### Opening songs
 | What you drop | What happens |
