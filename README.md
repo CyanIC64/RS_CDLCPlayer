@@ -95,7 +95,7 @@ Only CDLC's are supported.
 Open `index.html` in Chrome, Edge or Firefox. It works straight from disk (`file://`); nothing needs to be installed.
 
 ### Host it
-The folder is a plain static site: `index.html` and the `web/` folder. Put it on any static host,
+The folder is a plain static site: `index.html` and the `app/` and `web/` folders. Put it on any static host,
 such as GitHub Pages, Vercel, Netlify or your own web server. No build step or server code is needed.
 
 **GitHub Pages:** push this folder to a repository, then go to *Settings → Pages* and choose the
@@ -119,6 +119,7 @@ branch and folder to publish.
 | `G` | Guitar input on / off |
 | `A` | Play the guitar through the song's tone |
 | `U` | Tuner (`Esc` closes it) |
+| `P` | Pedalboard |
 | `M` | Mute |
 | `O` | Options |
 | `,` / `.` | Note offset −1 / +1 ms |
@@ -128,7 +129,11 @@ branch and folder to publish.
 ## Files
 
 ```
-index.html                  the whole player: highway, tab view, audio, controls
+index.html                  the page: its markup, and the scripts below in order
+app/app.css                 the page's styles
+app/*.js                    the player, one concern per file (see "The page's scripts")
+app/highway/*.js            the 3-D note highway: camera, canvas helpers, draw() and its passes
+web/chart.js                the page's pure helpers, tested (window.ChartKit)
 web/converter.worker.js     the converter, started as a Web Worker
 web/converter.js            the same converter for the page itself (used when a Worker cannot start)
 web/ww2ogg.bundle.js        audio converter (.wem to Ogg Vorbis) for the in-page converter
@@ -142,6 +147,40 @@ with esbuild:
 ```bash
 ESBUILD=/path/to/node_modules/esbuild node build.mjs
 ```
+
+### The page's scripts
+
+`app/` holds plain scripts (no modules, no build): they work from `file://` and share one global
+scope, so **the order of the `<script>` tags in `index.html` matters** for anything run while the
+page loads. A file may call functions of any other file from inside a function, but at load time
+only use what the files before it define.
+
+| File | What it holds |
+|---|---|
+| `ui.js` | `$(id)`, the status pill (`busy`/`notice`/`idle`), `Store` (everything kept in `localStorage`) |
+| `loader.js` | server probe, the converter (Worker or in-page), opening `.psarc`/`.feedpak`/XML locally |
+| `core.js` | highway geometry constants, the song state `S` |
+| `prefs.js` | the options that are remembered, and putting the controls in step with them |
+| `audio.js` | the song's audio (`A`): play, pause, seek, slowed playback, metronome |
+| `synth.js` | `NoteSynth` (`synth`): plays the chart's notes |
+| `highway/camera.js`, `canvas.js` | projection, canvas, glow and text sprites, noteheads |
+| `song.js` | arrangements, tunings, hand shapes, phrases, lyrics, loading a song |
+| `session.js` | start-up, showing a song, drag and drop |
+| `timeline.js` | the seek bar and its sections |
+| `highway/passes.js`, `draw.js` | `draw()`: one frame, as a series of passes back to front |
+| `loop.js` | `LoopSelection` (`loopSel`): looping bars picked on the phrase bars |
+| `hud.js` | lyrics and the corner display |
+| `tabview.js` | `TabView` (`tabView`): the tablature view |
+| `frame.js` | the frame loop and automatic resolution |
+| `controls.js` | the control bar and the options panel |
+| `input.js` | `GuitarInput` (`guitarInput`) and `Calibration` (`calibration`) |
+| `rig.js` | `Pedalboard` (`pedalboard`) and `RigStore` (`rigs`) |
+| `tuner.js` | `Tuner` (`tuner`) |
+| `input-ui.js` | `CableWatch` (`cable`) and the guitar input's options |
+| `main.js` | the keyboard (`KEYS`), then start |
+
+`web/chart.js` is built from `src/chart/` (`npm test` runs its tests). Open the page with `?debug`
+to get what the server probe found as `window.__probe`.
 
 ---
 

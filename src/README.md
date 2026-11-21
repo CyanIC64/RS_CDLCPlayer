@@ -39,6 +39,12 @@ also works when opened from disk, and falls back to the in-page converter
 
     node build.mjs
 
+Besides the converter, the note detection and the pedalboard, this builds
+`web/chart.js` (window.ChartKit) from `chart/`: the page's pure helpers -
+numbers and colours, tunings and chord names, the tab view's bars and note
+values. They have no state and no DOM, so they are tested here (`npm test`);
+the page passes them the song state.
+
 ## Gear library
 
 `amp/gear/{amps,cabinets,pedals}/<Key>.json` hold one file per Rocksmith amp,
