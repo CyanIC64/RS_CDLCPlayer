@@ -551,7 +551,7 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
   <div class="row"><label for="fFingers">Finger positions</label><input id="fFingers" type="checkbox" checked></div>
   <div class="row"><label for="fChord">Chord names</label><input id="fChord" type="checkbox" checked></div>
   <div class="row"><label for="fDiag">Chord diagram</label><input id="fDiag" type="checkbox" checked></div>
-  <div class="row"><label for="fHit">Note-hit light</label><input id="fHit" type="checkbox" checked></div>
+  <div class="row"><label for="fHit" title="A light that blinks when a note is struck; with the guitar input checking the notes, also the green (hit) and red-ringed (miss) heads on the strings">Note-hit light</label><input id="fHit" type="checkbox"></div>
 
   <h4>Performance</h4>
   <div class="row"><label for="fScale">Render scale</label>
@@ -979,7 +979,7 @@ const S = {
   duration:0, time:0, playing:false, loop:false, muted:false, offMs:0,
   master:1.0, clickLevel:0.4, clickOn:false, rate:1, vis:1, visTo:1, resting:false, synthOn:false, synthLevel:0.6, syn:[],
   speed:2.0, zoom:1.0, showCells:true, showNums:true, showLabels:true, autoPan:true,
-  showFingers:true, invert:false, lefty:false, tabView:false, showChord:true, showDiagram:true, showHit:true, camRate:0.5, holds:[], hits:[],
+  showFingers:true, invert:false, lefty:false, tabView:false, showChord:true, showDiagram:true, showHit:false, camRate:0.5, holds:[], hits:[],
   lyrics:[], lyrPairs:[], showLyrics:true,
   inOn:false, inDevice:"",                        // guitar input: switched on last time, and which input
   inScore:true, inLatMs:60,                       // check notes against the chart; input + output latency (ms)
@@ -3559,7 +3559,7 @@ function draw(dt){
     setSkew(P(xc, y + PITCH*0.4, z), P(xc, y - PITCH*0.4, z));
     const gk = sstep(1 - d/1.4);                                // 0 far away .. 1 at the fretboard
     if (gk > 0.01 && !grey) glow(col, cx, cy2, hw*2.3, hh*3.6, 0.40*gk*gk*al, true);
-    drawHead(cx, cy2, slope, hw, hh, judging && n.hit === true ? "#4dff8f" : col, n, al, grey ? 0 : gk);
+    drawHead(cx, cy2, slope, hw, hh, judging && S.showHit && n.hit === true ? "#4dff8f" : col, n, al, grey ? 0 : gk);
 
     /* fret number on the floor in front of the note */
     if (S.showNums && n.lab){
@@ -3610,8 +3610,9 @@ function draw(dt){
 
   /* ── 7c. the guitar input's verdicts at the hit plane: a green head for a
           note hit, a dark one ringed in red for a miss, fading out. A
-          verdict comes a little after the note lands (the detector's delay). */
-  if (judging){
+          verdict comes a little after the note lands (the detector's delay).
+          Only with the note-hit light on. */
+  if (judging && S.showHit){
     const now = performance.now();
     for (let i = lowerBound(S.all, "t", t - 2); i < S.all.length && S.all[i].t < t + 0.4; i++){
       const n = S.all[i];
