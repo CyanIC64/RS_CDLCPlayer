@@ -1,10 +1,6 @@
 "use strict";
 /* ── formatting ──────────────────────────────────────────────────────────── */
-function fmt(t){
-  t = Math.max(0, t || 0);
-  const m = Math.floor(t/60), s = Math.floor(t%60);
-  return m + ":" + String(s).padStart(2, "0");
-}
+const { fmt } = ChartKit;                     // seconds as m:ss
 function paintClock(){
   $("tcur").textContent = fmt(S.time);
   $("tdur").textContent = fmt(S.duration);

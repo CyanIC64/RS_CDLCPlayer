@@ -38,37 +38,11 @@ const LOOK = 12.0;                  // seconds of anchors the camera frames ahea
 const REPEAT_GAP = 3.0;            // a repeated note this soon carries no fret number
 const INLAY = new Set([3,5,7,9,12,15,17,19,21,24]);
 
-const clamp = (v,a,b) => v < a ? a : v > b ? b : v;
-const lerp  = (a,b,t) => a + (b-a)*t;
-const sstep = (u) => { u = clamp(u, 0, 1); return u*u*(3 - 2*u); };
+/* numbers, colours and search: web/chart.js (src/chart/util.js) */
+const { clamp, lerp, sstep, lowerBound, rgb, rgba, shade, tint } = ChartKit;
 
 const fretX   = (f) => f*FW;                 // x of fret wire f (0 = the nut)
 const fretMid = (f) => (f - 0.5)*FW;         // middle of the space a fretted note is played in
-
-/* colour helpers (all take #rrggbb) */
-const _cc = new Map();
-function rgb(hex){
-  let v = _cc.get(hex);
-  if (!v){ const n = parseInt(hex.slice(1), 16); v = [(n >> 16) & 255, (n >> 8) & 255, n & 255]; _cc.set(hex, v); }
-  return v;
-}
-function rgba(hex, a){ const c = rgb(hex); return "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + a.toFixed(3) + ")"; }
-function shade(hex, k){                       // k < 1 darkens
-  const c = rgb(hex);
-  return "rgb(" + Math.round(c[0]*k) + "," + Math.round(c[1]*k) + "," + Math.round(c[2]*k) + ")";
-}
-function tint(hex, k){                        // mix toward white
-  const c = rgb(hex);
-  return "rgb(" + Math.round(c[0] + (255-c[0])*k) + "," + Math.round(c[1] + (255-c[1])*k) + ","
-                + Math.round(c[2] + (255-c[2])*k) + ")";
-}
-
-/* first index whose key is >= v, in an array sorted by that key */
-function lowerBound(arr, key, v){
-  let lo = 0, hi = arr.length;
-  while (lo < hi){ const m = (lo + hi) >> 1; if (arr[m][key] < v) lo = m + 1; else hi = m; }
-  return lo;
-}
 
 /* ── state ───────────────────────────────────────────────────────────────── */
 const S = {

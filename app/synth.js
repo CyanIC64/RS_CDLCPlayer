@@ -19,7 +19,7 @@
      harmonic       the string's harmonic at that fret; pinch: two octaves up
      tremolo        the note is re-struck quickly
      accent         louder                                                     */
-const OPEN_GTR = [40, 45, 50, 55, 59, 64], OPEN_BASS = [28, 33, 38, 43];   // MIDI numbers of the open strings
+const { OPEN_GTR, OPEN_BASS } = ChartKit;                                 // MIDI numbers of the open strings
 const HARMONIC = { 12:12, 24:24, 7:19, 19:19, 5:24, 4:28, 9:28, 16:28, 3:31 };   // semitones above the open string
 /* The pitch an event of S.syn really sounds at: a natural harmonic rings at its
    node's interval above the open string, a pinch harmonic two octaves up. Shared

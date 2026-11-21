@@ -168,18 +168,9 @@ function selectArrangement(i){
 
 /* The tuning of the arrangement on screen, for the song info: its usual name,
    the open strings from the lowest, and the capo if there is one. */
-const NOTE_NAMES = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"];
-const NAMED_TUNINGS = { "-2,0,0,0,-2,-2":"DADGAD", "-2,-2,0,0,0,-2":"Open G", "-2,0,0,-1,-2,-2":"Open D",
-                        "0,2,2,1,0,0":"Open E", "0,0,2,2,2,0":"Open A" };
-function tuningText(a){
-  const open = S.nStr === 4 ? OPEN_BASS : OPEN_GTR;
-  const t = open.map((_, i) => +((a.tuning || [])[i]) || 0);
-  const nm = (i) => NOTE_NAMES[(((open[i] + t[i]) % 12) + 12) % 12];
-  let name = NAMED_TUNINGS[t.join(",")] || "Custom tuning";
-  if (t.every(v => v === t[0])) name = nm(0) + " Standard";
-  else if (t[0] === t[1] - 2 && t.slice(1).every(v => v === t[1])) name = "Drop " + nm(0);
-  return { name, notes: open.map((_, i) => nm(i)).join(" "), capo: S.capo > 0 ? "Capo " + S.capo : "" };
-}
+/* names of notes, tunings and chords: web/chart.js (src/chart/music.js) */
+const { NOTE_NAMES, chordLabel } = ChartKit;
+const tuningText = (a) => ChartKit.tuningText(a, S.nStr, S.capo);
 function showTuning(a){
   const el = $("tuning"), T = tuningText(a);
   el.textContent = "";
@@ -189,9 +180,6 @@ function showTuning(a){
 }
 
 /* chord names with proper accidentals: A♭ sus 4, F♯5 */
-function chordLabel(s){
-  return String(s || "").trim().replace(/(^|\/)([A-G])b/g, "$1$2♭").replace(/#/g, "♯");
-}
 
 /* What the fretting hand is holding, for the finger markers and the chord
    name at the neck. Every hand shape points at a chord template, and the
