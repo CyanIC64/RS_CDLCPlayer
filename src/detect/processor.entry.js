@@ -11,7 +11,12 @@ const RMS_GATE = 0.01, MIN_CLARITY = 0.8;
    diferença entre amostras (x[n] − x[n−1]); esta pesa os harmónicos agudos do
    ataque e apanha uma nota tocada sobre outra que ainda soa alto. */
 const ONSET_GATE = 1e-5;        // energia simples mínima (−50 dBFS): abaixo é ruído ou a mão nas cordas
-const ONSET_RATIO = 4;          // +6 dB sobre a referência
+const ONSET_RATIO = 4;          // energia simples: +6 dB sobre a referência
+/* energia da diferença: +4 dB. Uma corda tocada enquanto as anteriores ainda soam
+   (arpejo, gravação note-A2-open_to_note-E4-open.wav) sobe só 2,5–3× nesta medida,
+   e menos ainda na energia simples; o ruído de fundo de várias cordas a soar fica
+   abaixo de 2× nesta medida, mas oscila até 2,5× na energia simples. */
+const ONSET_RATIO_D = 2.5;
 const ONSET_HOLD = 0.05;        // s: um onset no máximo a cada 50 ms
 const HIST = 16;                // blocos guardados
 
@@ -84,7 +89,7 @@ class PitchProcessor extends AudioWorkletProcessor {
     for (let k = 8; k < 16; k++){ rE += hE[at(k)]; rD += hD[at(k)]; }
     sE /= 3; sD /= 3; rE /= 8; rD /= 8;
     this.hi = (this.hi + 1) % HIST;
-    if (sE > ONSET_GATE && (sE > ONSET_RATIO * rE || sD > ONSET_RATIO * rD)
+    if (sE > ONSET_GATE && (sE > ONSET_RATIO * rE || sD > ONSET_RATIO_D * rD)
         && currentTime - this.lastOnset > ONSET_HOLD){
       this.lastOnset = currentTime;
       this.port.postMessage({ type: "onset", time: currentTime, energy: sE });

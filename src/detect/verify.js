@@ -10,9 +10,11 @@ export const DEFAULTS = {
   fundamental: 0.01,   // presença mínima da própria fundamental (um G2 sozinho não faz o D3 de um acorde de Sol)
   veto: 1.5,           // o meio tom ao lado com 1,5× a presença da nota: é a vizinha que está a soar
   harmonics: 3,        // fundamental + 2 harmónicos
-  rescue: 0.25,        // presença (soma dos harmónicos) que aceita uma nota simples sem pitch MPM certo
+  rescue: 0.15,        // presença (soma dos harmónicos) que aceita uma nota simples sem pitch MPM certo
   long: 0,             // s: duração da janela longa da presença (0 = presença ao tempo do frame)
   pmCents: 150,        // palm mute: só um pitch claro mais longe do que isto conta como nota errada
+  vetoFloor: 0.25,     // × presence: presença mínima do meio tom ao lado para vetar uma nota
+  pmChord: 0.5,        // acorde em palm mute: os limiares de presença e de fundamental × isto
 };
 
 const near = (a, b) => Math.abs(1200 * Math.log2(a / b)) < 50;
@@ -298,10 +300,21 @@ export class Verifier {
    * uma nota nunca presente e com o meio tom ao lado a dominar em minFrames
    * frames é um dedo no traste errado. Na tentativa antecipada (`early`) exigem-se
    * todas as notas, porque o veto ainda não teve frames para se provar.
+   *
+   * O veto conta frames: uma nota é errada quando o meio tom ao lado a domina em
+   * pelo menos minFrames frames e em mais frames do que ela se ouve. Só conta um
+   * vizinho com presença >= vetoFloor × presence: com o limiar antigo (½), a terça
+   * de um Mi maior passava num Mi menor (gravações chord-E/chord-Em pelo cabo).
+   *
+   * Palm mute (pm-E5-chug.wav): abafado, o acorde soa fraco e o E2 quase sem
+   * fundamental, por isso os limiares descem (× pmChord); e no ataque a corda sobe
+   * de afinação o bastante para o meio tom ao lado dominar, por isso não há veto,
+   * tal como uma nota simples em palm mute é tolerante ao pitch (pmOk).
    */
   chordOk(g, from, to, early = false){
-    const { presence: P, fundamental: P1, veto, chordShare, minFrames } = this.o;
-    const n = g.notes.length, present = new Array(n).fill(false), vetoed = new Array(n).fill(0);
+    const { veto, chordShare, minFrames, vetoFloor } = this.o, k = g.pm ? this.o.pmChord : 1;
+    const P = this.o.presence * k, P1 = this.o.fundamental * k, floor = this.o.presence * vetoFloor;
+    const n = g.notes.length, present = new Array(n).fill(0), vetoed = new Array(n).fill(0);
     const others = g.notes.map((x, i) => {
       const o = [];
       g.notes.forEach((y, j) => { if (j !== i) for (let h = 1; h <= 6; h++) o.push(y.hz * h); });
@@ -310,13 +323,14 @@ export class Verifier {
     for (const f of this.longFrames(from, to)){
       for (let i = 0; i < n; i++){
         const x = this.noteIn(f, g.notes[i].hz, others[i]);
-        if (x.nb >= veto * x.own && x.nb >= P / 2) vetoed[i]++;
-        else if (x.sum >= P && x.h1 >= P1) present[i] = true;
+        if (!g.pm && x.nb >= veto * x.own && x.nb >= floor) vetoed[i]++;
+        else if (x.sum >= P && x.h1 >= P1) present[i]++;
       }
     }
-    const count = present.filter(Boolean).length;
+    const count = present.filter((p) => p > 0).length;
     if (early) return count === n && vetoed.every((v) => v === 0);
-    const wrong = present.some((p, i) => !p && vetoed[i] >= minFrames);
+    // um dedo no traste errado: o meio tom ao lado domina a nota em mais frames do que ela se ouve
+    const wrong = vetoed.some((v, i) => v >= minFrames && v > present[i]);
     return count >= Math.ceil(chordShare * n) && !wrong;
   }
 }
