@@ -168,7 +168,7 @@ function drawPhraseBars(t, off){
   const gFut = ctx.createLinearGradient(0, BARS.top, 0, base);
   gFut.addColorStop(0, "#d63cff"); gFut.addColorStop(1, "#b40fe8");
   /* the bars picked for looping (or being picked right now, while the mouse is held) */
-  const sel = selRange();
+  const sel = loopSel.range();
   /* with the guitar input: each phrase played is coloured by its score, red to green, with its % above */
   const judged = IN.link && S.inScore && IN.phr && IN.phr.length === ph.length ? IN.phr : null;
   const fsP = clamp(BARS.h*0.27, 8, 12);

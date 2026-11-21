@@ -21,7 +21,7 @@ document.getElementById("bNext").onclick = () => {
 /* The loop button loops the section the song is in (the sections of the seek
    bar). If bars are selected on the difficulty bars, it switches that loop off. */
 document.getElementById("bLoop").onclick = (e) => {
-  if (S.loopSel){ clearLoopBars(); return; }
+  if (S.loopSel){ loopSel.clear(); return; }
   S.loop = !S.loop;
   document.getElementById("bLoop").classList.toggle("on", S.loop);
   const s = sectionAt(S.time);

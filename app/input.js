@@ -105,17 +105,17 @@ function inputPhraseStats(){
 }
 /* the tab view's mark for a group: green when hit, dark and ringed in red when missed */
 function tabMark(g){
-  if (!TAB.groups || !TAB.evs.length) return;
-  const k = lowerBound(TAB.evs, "t", g.t - 0.002), e = TAB.evs[k];
-  if (!e || Math.abs(e.t - g.t) > 0.002 || !TAB.groups[k]) return;
+  if (!tabView.groups || !tabView.evs.length) return;
+  const k = lowerBound(tabView.evs, "t", g.t - 0.002), e = tabView.evs[k];
+  if (!e || Math.abs(e.t - g.t) > 0.002 || !tabView.groups[k]) return;
   const on = S.inScore && !!IN.link;
-  TAB.groups[k].classList.toggle("ok", on && g.result === true);
-  TAB.groups[k].classList.toggle("bad", on && g.result === false);
+  tabView.groups[k].classList.toggle("ok", on && g.result === true);
+  tabView.groups[k].classList.toggle("bad", on && g.result === false);
 }
 function tabMarksAll(){
-  if (!TAB.groups) return;
+  if (!tabView.groups) return;
   if (IN.ver && S.inScore && IN.link) for (const g of IN.ver.targets) tabMark(g);
-  else for (const el of TAB.groups) if (el) el.classList.remove("ok", "bad");
+  else for (const el of tabView.groups) if (el) el.classList.remove("ok", "bad");
 }
 
 /* the end of the song, played with the guitar input: the score, and the

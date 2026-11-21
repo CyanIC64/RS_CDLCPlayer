@@ -153,7 +153,7 @@ function selectArrangement(i){
   buildHolds(tpl);
   synth.build(a);
   inputConfigure();
-  clearLoopBars();
+  loopSel.clear();
   buildPhrases();
   if (!S.keepCam) S.camC = null;                  // a new chart cuts the camera, unless it should glide over
   S.tones = a.tones || { base:"", changes:[], names:{} };
@@ -163,7 +163,7 @@ function selectArrangement(i){
   showTuning(a);
   document.getElementById("bpm").textContent = S.bpm ? S.bpm.toFixed(1) : "—";
   applyOffset(S.offMs);
-  tabInvalidate();
+  tabView.invalidate();
 }
 
 /* The tuning of the arrangement on screen, for the song info: its usual name,
@@ -341,9 +341,7 @@ function applyOffset(ms){
   hudSecIdx = -2;
   if (S.clickOn) syncBeats();
   synth.kill(); synth.sync();
-  if (S.loopSel && SEL.i0 >= 0 && S.phrases[SEL.i1]){
-    S.loopA = Math.max(0, S.phrases[SEL.i0].t0 + S.offMs/1000); S.loopB = S.phrases[SEL.i1].t1 + S.offMs/1000;
-  }
+  loopSel.follow();
 }
 
 /* Lyric lines are shown two at a time: the pair stays up

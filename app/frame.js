@@ -68,7 +68,7 @@ function frame(now){
     if (S.loopB && S.time >= S.loopB - 0.02) seek(Math.max(0, S.loopA - LOOP_LEAD));
   }
 
-  if (TAB.on) tabFollow(); else draw(dt);
+  if (tabView.on) tabView.follow(); else draw(dt);
   paintClock();
   updateHeadPct();
   updateLyrics();

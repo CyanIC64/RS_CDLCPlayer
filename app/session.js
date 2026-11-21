@@ -23,16 +23,14 @@ function restChart(){
   S.anchors = [{ t:0, t0:0, fret:6, width:4, row:false }];      // frets 6-9: centred on the 7th fret line
   S.maxSus = 0; S.capo = 0; S.resting = true;
   S.time = 0; A.offset = 0;
-  SEL.i0 = SEL.i1 = -1; SEL.drag = null;
-  S.loop = false; S.loopSel = false; S.loopB = 0;
-  document.getElementById("bLoop").classList.remove("on");
+  loopSel.reset();
   lyrPair = null; document.getElementById("lyr").style.display = "none";
   hudSecIdx = -2; hudToneKey = undefined;
   document.getElementById("hudArr").textContent = "—";
   document.getElementById("tuning").textContent = "";
   document.getElementById("stem").style.display = "none";          // no song, no stems to pick
   renderTimeline(); paintClock();
-  tabInvalidate();
+  tabView.invalidate();
 }
 function startFrames(){
   if (!framesRunning){ framesRunning = true; requestAnimationFrame(frame); }

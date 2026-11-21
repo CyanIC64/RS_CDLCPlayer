@@ -34,7 +34,7 @@ function syncControls(){
   $("fCells").checked = S.showCells; $("fNums").checked = S.showNums; $("fLabels").checked = S.showLabels;
   $("fLyrics").checked = S.showLyrics; $("fPan").checked = S.autoPan;
   $("fFingers").checked = S.showFingers; $("fInvert").checked = S.invert; $("fLefty").checked = S.lefty;
-  if (typeof TAB !== "undefined" && S.tabView !== TAB.on) setTabView(S.tabView); $("fAuto").checked = S.autoScale; $("fChord").checked = S.showChord; $("fDiag").checked = S.showDiagram; $("fHit").checked = S.showHit;
+  if (typeof tabView !== "undefined" && S.tabView !== tabView.on) tabView.set(S.tabView); $("fAuto").checked = S.autoScale; $("fChord").checked = S.showChord; $("fDiag").checked = S.showDiagram; $("fHit").checked = S.showHit;
   $("fInScore").checked = S.inScore; $("fInLat").value = S.inLatMs;
   $("fAmpOn").checked = S.ampOn; $("vAmp").value = Math.round(S.ampLevel*100); $("rvAmp").textContent = Math.round(S.ampLevel*100) + "%";
   $("fFx").checked = S.fx;
