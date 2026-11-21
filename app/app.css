@@ -1,0 +1,346 @@
+:root{
+  --bg:#0c0e16; --panel:#101216; --panel2:#191d23; --line:#2b3138; --ink:#e6edf3; --dim:#8b97a3;
+  --accent:#3fb950; --playhead:#e05a5a; --bar:#0a0b0d;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,sans-serif;
+     display:grid;grid-template-rows:minmax(0,1fr) auto;grid-template-columns:minmax(0,1fr);height:100vh;overflow:hidden;user-select:none}
+
+/* ── highway ───────────────────────────────────────────────────────────── */
+#stage{position:relative;min-height:0;overflow:hidden;background:#000}
+#hw{display:block;width:100%;height:100%}
+/* tab view: replaces the highway, as on a page of tablature */
+#tabview{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;background:#fff;display:none;color:#222}
+#stage.tabmode #tabview{display:block}
+#stage.tabmode #hw,#stage.tabmode #lyr,#stage.tabmode #lyrErr,#stage.tabmode #hud{display:none!important}
+#tabpage{position:relative;min-height:100%}
+.tabrow{position:absolute;left:0;cursor:pointer}
+.tabempty{padding:48px;color:#777;font:15px "Segoe UI",system-ui,sans-serif;text-align:center}
+/* the pointer: a thin line gliding with the music, through rests and empty
+   bars alike; the notes sounding at the moment are marked themselves */
+#tabcur{position:absolute;left:0;top:0;width:2px;margin-left:-1px;background:#2fae4e;border-radius:1px;
+  pointer-events:none;display:none;box-shadow:0 0 6px rgba(47,174,78,.55);will-change:transform}
+.tabrow .thl{fill:#d9f2e1;opacity:0;transition:opacity .12s}
+.tabrow .te.on .thl{opacity:1;transition:none}
+.tabrow .te.on .tf{fill:#0e7a33;stroke:#d9f2e1}
+/* with the guitar input: a moment hit (green) or missed (dark, ringed in red) */
+.tabrow .te.ok .thl{opacity:1;fill:#c6f2d3;transition:none}
+.tabrow .te.ok .tf{fill:#0b8a38;stroke:#c6f2d3}
+.tabrow .te.bad .thl{opacity:1;fill:#262b31;stroke:#e5332a;stroke-width:1.6;transition:none}
+.tabrow .te.bad .tf{fill:#ff8a80;stroke:#262b31}
+.tabrow .tl{stroke:#c9c9c9;stroke-width:1}
+.tabrow .tb{stroke:#b9b9b9;stroke-width:1}
+.tabrow .tn{font:600 10px Arial,Helvetica,sans-serif;fill:#9a9a9a}
+.tabrow .tsec{font:italic 15px Georgia,"Times New Roman",serif;fill:#333}
+.tabrow .tch{font:700 11px Arial,Helvetica,sans-serif;fill:#555;text-anchor:middle}
+.tabrow .tpm{font:11px Arial,Helvetica,sans-serif;fill:#555;text-anchor:middle}
+.tabrow .tpml{font:11px Arial,Helvetica,sans-serif;fill:#555}
+.tabrow .tdash{stroke:#888;stroke-dasharray:3 3;stroke-width:1}
+.tabrow .tthin{stroke:#666;fill:none;stroke-width:1}
+.tabrow .tf{font:700 12.5px Arial,Helvetica,sans-serif;fill:#1a1a1a;text-anchor:middle;
+  paint-order:stroke;stroke:#fff;stroke-width:5px;stroke-linejoin:round}
+.tabrow .tarc{fill:none;stroke:#444;stroke-width:1}
+.tabrow .tslide{stroke:#333;stroke-width:1.3}
+.tabrow .tbend{fill:none;stroke:#333;stroke-width:1.1}
+.tabrow .tarrow{fill:#333}
+.tabrow .tbl{font:10px Arial,Helvetica,sans-serif;fill:#333;text-anchor:middle}
+.tabrow .tacc{font:700 12px Arial,Helvetica,sans-serif;fill:#333;text-anchor:middle}
+.tabrow .tstem{stroke:#9a9a9a;stroke-width:1}
+.tabrow .tbeam{stroke:#9a9a9a;stroke-width:2.5}
+.tabrow .tdot{fill:#9a9a9a}
+.tabrow .ttri{font:9px Arial,Helvetica,sans-serif;fill:#888;text-anchor:middle}
+.tabrow .tly{font:13px Arial,Helvetica,sans-serif;fill:#8a8a8a}
+#bTab{width:auto;padding:0 11px;gap:7px;font:600 12.5px "Segoe UI",system-ui,sans-serif;border-color:#2b3138;margin-left:6px}
+/* what the player is busy with: starting, converting, reading, decoding */
+#msg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:11px;
+     max-width:80%;padding:11px 18px;border-radius:999px;background:rgba(10,13,18,.88);border:1px solid #2b3138;
+     color:#dfe7ef;font-size:13.5px;pointer-events:none;box-shadow:0 8px 28px #000a}
+#msg.hide{display:none}
+/* the welcome card - what a visitor sees first: how to get a song in */
+#hint{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);width:min(560px,86%);text-align:center;
+  padding:30px 34px 26px;border:2px dashed #35507a;border-radius:18px;background:rgba(10,14,22,.86);
+  color:#e6edf3;font-family:"Segoe UI",system-ui,sans-serif;box-shadow:0 14px 40px #000a}
+#hint.hide{display:none}
+#hint svg{width:46px;height:46px;color:#4b8fe6}
+#hint h2{margin:10px 0 6px;font:700 23px/1.25 "Segoe UI",system-ui,sans-serif}
+#hint p{margin:0 0 16px;color:#aab6c2;font-size:14px;line-height:1.5}
+#hint p b{color:#e6edf3;font-weight:600}
+#hint button{background:#2f6fd0;border:0;color:#fff;font:600 14px "Segoe UI",system-ui,sans-serif;
+  padding:9px 20px;border-radius:8px;cursor:pointer}
+#hint button:hover{background:#3b7fe6}
+#hint #hintLegal{margin-top:14px;padding-top:12px;border-top:1px solid #2b3138;color:#9aa7b2;font-size:12px;line-height:1.5}
+#hint #hintLegal b{color:#e6edf3;font-weight:600}
+#hint p.sub{font-size:12.5px;color:#9aa7b2;margin-top:-4px}
+#hint small{display:block;margin-top:16px;color:#6f7c89;font-size:12px;line-height:1.5}
+#bOpen{width:auto;padding:0 11px;gap:7px;font:600 12.5px "Segoe UI",system-ui,sans-serif;border-color:#2b3138}
+/* drop a song anywhere on the window to play it */
+#drop{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;
+  background:rgba(6,9,14,.78);pointer-events:none}
+#drop.show{display:flex}
+#drop div{border:2px dashed #4b8fe6;border-radius:16px;padding:34px 46px;color:#e6edf3;text-align:center;
+  font:600 20px/1.4 "Segoe UI",system-ui,sans-serif;background:rgba(16,22,32,.9)}
+#drop small{display:block;font:13px/1.5 "Segoe UI",system-ui,sans-serif;color:#8b97a3;margin-top:6px}
+#msg .spin{width:15px;height:15px;flex:none;border-radius:50%;border:2px solid #2f6fd0;border-top-color:transparent;
+     animation:spin .8s linear infinite}
+#msg.plain .spin{display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* lyrics and the corner read-out use a geometric sans */
+#lyr,#hud{font-family:"Century Gothic","Futura","Tw Cen MT","Trebuchet MS","Segoe UI",sans-serif;
+  pointer-events:none;text-shadow:0 2px 6px #000, 0 0 2px #000}
+#lyr{position:absolute;left:8%;top:17%;max-width:62%;display:none}
+#lyr .ln{font-weight:600;font-size:clamp(17px,4.5vh,46px);line-height:1.16;white-space:pre-wrap;
+  letter-spacing:.01em;min-height:1.16em;transition:color .18s}
+#lyr .ln.next{color:#b9bec4}
+#lyr .ln.done{color:#3d4046}
+/* When a line is over its syllables go from the light grey of "sung" straight
+   to the dark grey of "done". They need a colour of their own here: without
+   one they would fall back to the line's colour, which is still on its way
+   from white to dark, and flash white for an instant. */
+#lyr .ln.done span{color:#3d4046;transition:color .22s}
+#lyr .ln.live{color:#fff}
+#lyr .ln.live span.sung{color:#8b9097}
+#lyr .ln.live span.now{color:#1ea3ff}
+/* shown instead of lyrics that cannot be displayed */
+#lyrErr{position:absolute;left:8%;top:17%;max-width:60%;pointer-events:none;opacity:0;transition:opacity .8s;
+  font-family:"Century Gothic","Futura","Tw Cen MT","Trebuchet MS","Segoe UI",sans-serif;text-shadow:0 2px 6px #000}
+#lyrErr.show{opacity:1;transition:none}      /* appears at once, fades away */
+#lyrErr b{display:block;color:#ff6b5e;font-size:clamp(15px,3.2vh,34px);font-weight:700}
+#lyrErr span{display:block;color:#aab3bd;font:clamp(11px,1.7vh,16px)/1.4 "Segoe UI",system-ui,sans-serif;margin-top:.3em}
+#hud{position:absolute;right:5.2%;top:16%;text-align:right;color:#fff;max-width:36%}
+#hud .k{font-weight:600;font-size:clamp(10px,1.8vh,19px);line-height:1.1;letter-spacing:.02em}
+#hud .v{font-weight:700;font-size:clamp(13px,2.9vh,31px);line-height:1.1;margin-bottom:.42em;
+  text-transform:uppercase;white-space:nowrap}
+/* tone read-out: the tone's display name, with its raw key under it.
+   It lights up at a tone switch and settles back. */
+#hudToneRow{opacity:.55;transition:opacity 1.6s}
+/* guitar input: notes hit out of the notes in the song; the number blinks
+   green on a hit and red on a miss */
+#hud #hudHit{transition:color .5s}
+#hud #hudHit.hit{color:#5dff9a;transition:none}
+#hud #hudHit.miss{color:#ff5a4f;transition:none}
+#hudToneRow.flash{opacity:1;transition:opacity .12s}
+#hud .v.tone{text-transform:none;white-space:normal;font-size:clamp(12px,2.4vh,26px);margin-bottom:.08em}
+#hud .raw{font:600 clamp(9px,1.45vh,14px)/1.2 "Cascadia Mono",Consolas,monospace;color:#8fa6ba;
+  margin-bottom:.75em;word-break:break-all}
+/* what kind of tone it is (clean / crunch / distortion), read from its gear */
+.tkind{display:inline-block;font:700 clamp(9px,1.5vh,14px)/1 "Segoe UI",system-ui,sans-serif;letter-spacing:.08em;
+  padding:.28em .55em;border-radius:3px;margin:.15em 0 .3em;color:#0b0d10;background:#9aa6b2}
+.tkind:empty{display:none}
+.tkind.clean{background:#7fd4ff}
+.tkind.crunch{background:#ffc35a}
+.tkind.distortion{background:#ff6a4f}
+
+/* ── control panel ───────────────────────────────────────────────────────
+   Two rows. The seek bar has a row to itself, so every section gets as much
+   width as the window can give; the controls sit under it in three groups:
+   the song on the left, transport in the middle, sound and options right. */
+#bar{display:grid;grid-template-rows:auto auto;min-width:0;overflow:hidden;
+     background:linear-gradient(#0e1014,#08090b);border-top:1px solid #1a1e24}
+#seek{display:flex;align-items:center;gap:12px;padding:9px 16px 5px;min-width:0}
+.t{font:600 14px/1 "Cascadia Mono",Consolas,monospace;font-variant-numeric:tabular-nums;
+   color:#e6edf3;flex:none;min-width:42px;text-align:center}
+#tdur{color:#8b97a3}
+
+/* section timeline */
+#tl{position:relative;flex:1;min-width:0;height:30px;background:#050608;
+    border:1px solid #1b2027;border-radius:5px;cursor:pointer}
+#tlsec{position:absolute;inset:0;border-radius:4px;overflow:hidden}
+#tlsec .s{position:absolute;top:0;bottom:0;overflow:hidden;border-right:1px solid #00000080;
+  font:600 11px/28px "Segoe UI",system-ui,sans-serif;color:#e3ecf4;text-align:center;white-space:nowrap}
+#tlsec .s.tight span{visibility:hidden}          /* a name that does not fit is left out, not cut off */
+#tlsec .s.cur{filter:brightness(1.22);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.85)}
+#tlsec .s.gap{background:#0d1014}
+#tlplayed{position:absolute;left:0;top:0;bottom:0;width:0;background:rgba(0,0,0,.42);
+  border-radius:4px 0 0 4px;pointer-events:none}
+/* tone switches: a small pale-yellow flag on the top edge of the seek bar */
+#tltone{position:absolute;inset:0;pointer-events:none}
+/* The dark rim is a bigger triangle behind the flag, not a CSS filter. A filter
+   is redrawn every time the playhead next to it moves - every frame - and with
+   the 74 tone switches of Through the Fire and Flames that alone pulled the
+   page from 60 down to about 40 frames a second. */
+#tltone .tn{position:absolute;top:-2px;width:0;height:0;margin-left:-5px;border:5px solid transparent;
+  border-top:9px solid rgba(0,0,0,.75)}
+#tltone .tn::after{content:"";position:absolute;left:-4px;top:-8px;width:0;height:0;
+  border:4px solid transparent;border-top:7px solid #ffe9a8}
+#tltone .tn.clean::after{border-top-color:#7fd4ff}
+#tltone .tn.crunch::after{border-top-color:#ffc35a}
+#tltone .tn.distortion::after{border-top-color:#ff6a4f}
+#tlhead{position:absolute;top:-3px;bottom:-3px;left:-1px;width:2px;background:#fff;border-radius:1px;
+  box-shadow:0 0 6px #fffa;will-change:transform;pointer-events:none}
+#tlhint{position:fixed;transform:translate(-50%,-100%);background:#0b0d10;border:1px solid var(--line);
+  border-radius:4px;padding:3px 8px;font:12px/1.35 "Segoe UI",system-ui,sans-serif;color:#dfe7ef;display:none;
+  white-space:nowrap;z-index:50;pointer-events:none}
+#tlhint b{font:600 12px "Cascadia Mono",Consolas,monospace;margin-right:7px;color:#fff}
+
+#ctl{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:18px;
+     padding:3px 16px 9px}
+#song{display:flex;align-items:center;gap:11px;min-width:0}
+#cover{width:58px;height:58px;flex:none;background:#000;display:flex;align-items:center;border-radius:4px;
+       justify-content:center;overflow:hidden;border:1px solid #1b2027}
+#cover img{width:100%;height:100%;object-fit:cover;display:block}
+#cover .ph{color:#2f3742;font-size:8px;letter-spacing:.08em}
+#meta{min-width:0}
+#title{font:700 15.5px/1.25 "Segoe UI",system-ui,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#sub{font-size:12px;color:#aab6c2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+#album{color:var(--dim)}
+#tuning{font-size:11.5px;color:#8fa6ba;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+#tuning b{color:#c8d2dc;font-weight:600}
+/* two sliders to a stack, one above the other, each with its button and value */
+.stack{flex:none;display:flex;flex-direction:column;gap:2px}
+.stack .vol{height:27px}
+.stack .ib{width:27px;height:27px;border-radius:5px}
+.stack .ib svg{width:16px;height:16px}
+.stack .val{min-width:36px}
+#spd input[type=range]{background:#b0782a}
+#album:not(:empty)::before{content:"·";margin:0 6px}
+
+#btns{display:flex;align-items:center;gap:4px;flex:none}
+.ib{width:34px;height:34px;display:flex;align-items:center;justify-content:center;flex:none;
+  background:transparent;border:1px solid transparent;border-radius:6px;cursor:pointer;padding:0;color:#dfe7ef}
+.ib:hover{background:#171b20;border-color:#2b3138}
+.ib:active{background:#232930}
+.ib svg{width:18px;height:18px;display:block}
+.ib.on{background:#1b2533;border-color:#35507a}
+/* the guitar cable: grey when plugged in, green while listening (glowing with the
+   signal), red for a moment when unplugged, "?" until the browser names its inputs */
+#bCable{position:relative;color:#7d8996}
+#bCable[hidden]{display:none}
+#bCable.live{color:#3fbf6f;border-color:#2a5a3c;background:#13201a}
+#bCable.lost{color:#e0453f;border-color:#6a2a28}
+#bCable .cq{display:none;position:absolute;right:3px;top:2px;font:700 9px "Segoe UI",system-ui,sans-serif;
+  font-style:normal;color:#c3cdd7}
+#bCable.unk .cq{display:block}
+
+/* the summary at the end of a song played with the guitar input */
+#sum{position:fixed;left:50%;top:12%;transform:translateX(-50%);width:min(460px,calc(100vw - 32px));
+  background:#101317f2;border:1px solid #2b3138;border-radius:8px;box-shadow:0 12px 32px #000a;
+  padding:12px 18px 16px;display:none;z-index:36;color:#dfe7ef;font:13px "Segoe UI",system-ui,sans-serif}
+#sum.show{display:block}
+#sum .suhead{display:flex;justify-content:space-between;align-items:center;gap:10px;color:var(--dim);
+  font-size:11px;letter-spacing:.09em;text-transform:uppercase}
+#sumClose{background:none;border:0;color:var(--dim);font-size:20px;line-height:1;cursor:pointer;padding:0 2px}
+#sumSong{margin:4px 0 6px;color:#c3cdd7;font-size:13px;text-align:center}
+#sumPct{font:700 46px "Century Gothic","Futura","Segoe UI",sans-serif;text-align:center;line-height:1.1}
+#sum .sugrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0 6px;text-align:center}
+#sum .sugrid b{display:block;font-size:19px;color:#fff;font-weight:700}
+#sum .sugrid span{color:var(--dim);font-size:11px}
+#sum h4{margin:12px 0 2px;color:var(--dim);font-size:11px;letter-spacing:.09em;text-transform:uppercase;font-weight:600}
+#sumWeak button{display:flex;justify-content:space-between;gap:10px;width:100%;background:#171b20;border:1px solid #2b3138;
+  color:#c3cdd7;border-radius:4px;padding:5px 9px;margin-top:4px;cursor:pointer;font:12px "Segoe UI",system-ui,sans-serif;text-align:left}
+#sumWeak button:hover{border-color:#4a5560;color:#fff}
+#sum .subtns{display:flex;justify-content:flex-end;margin-top:14px}
+#sum .subtns button{background:#1b2533;border:1px solid #3f8ce0;color:#fff;border-radius:4px;padding:5px 14px;cursor:pointer;
+  font:12px "Segoe UI",system-ui,sans-serif}
+
+/* the tuner (U) */
+#tuner{position:fixed;left:50%;top:12%;transform:translateX(-50%);width:min(440px,calc(100vw - 32px));
+  background:#101317f2;border:1px solid #2b3138;border-radius:8px;box-shadow:0 12px 32px #000a;
+  padding:12px 18px 14px;display:none;z-index:35;text-align:center}
+#tuner.show{display:block}
+#tuner .tuhead{display:flex;justify-content:space-between;align-items:center;gap:10px;color:var(--dim);
+  font-size:11px;letter-spacing:.09em;text-transform:uppercase}
+#tuTun{text-transform:none;letter-spacing:0;color:#c3cdd7;font-size:12px}
+#tuClose{background:none;border:0;color:var(--dim);font-size:20px;line-height:1;cursor:pointer;padding:0 2px}
+#tuClose:hover{color:var(--ink)}
+#tuner .tunote{margin:8px 0 2px;display:flex;align-items:baseline;justify-content:center;gap:12px}
+#tuNote{font:700 54px/1 "Segoe UI",system-ui,sans-serif;color:var(--ink);min-width:2.2ch}
+#tuNote sub{font-size:20px;color:var(--dim);vertical-align:baseline;margin-left:2px}
+#tuCents{font:600 15px "Cascadia Mono",Consolas,monospace;color:var(--dim);min-width:6ch;text-align:left}
+#tuner.ok #tuNote,#tuner.ok #tuCents{color:#3fbf6f}
+#tuner.far #tuCents{color:#e0a43f}
+#tuner .tuscale{position:relative;height:30px;margin:10px 4px 3px;border-bottom:1px solid #2b3138}
+#tuner .tuok{position:absolute;left:45%;width:10%;top:0;bottom:0;background:#3fbf6f1f;
+  border-left:1px solid #3fbf6f55;border-right:1px solid #3fbf6f55}
+#tuner .tumid{position:absolute;left:50%;top:0;bottom:0;width:1px;background:#4a5560}
+#tuNeedle{position:absolute;left:50%;top:-3px;bottom:-3px;width:3px;margin-left:-1.5px;border-radius:2px;
+  background:#e6edf3;opacity:0}
+#tuner.ok #tuNeedle{background:#3fbf6f}
+#tuner.far #tuNeedle{background:#e0a43f}
+#tuner .tulabels{display:flex;justify-content:space-between;color:#6f7c89;font:10px "Cascadia Mono",Consolas,monospace;
+  margin:0 0 12px}
+#tuner .tustrings{display:flex;justify-content:center;gap:6px;flex-wrap:wrap}
+#tuner .tustrings span{min-width:40px;padding:5px 4px;border:1px solid #2b3138;border-radius:5px;color:#8b97a3;
+  font:600 13px "Segoe UI",system-ui,sans-serif}
+#tuner .tustrings span.cur{border-color:#3f8ce0;color:var(--ink);background:#1b2533}
+#tuner .tustrings span.done{color:#3fbf6f}
+#tuner .tustrings span.done::after{content:" ✓"}
+#tuner .tustrings span{cursor:pointer}
+#tuner .tustrings span.lock{border-color:#d8a24a;box-shadow:inset 0 -2px 0 #d8a24a}
+#tuner .tuhz{margin-top:10px;color:#8b97a3;font:11px "Cascadia Mono",Consolas,monospace;min-height:1.4em}
+#tuner .tumsg{color:#6f7c89;font-size:11px;min-height:1.4em}
+#tuner .turec{margin-top:6px;text-align:right}
+#tuRec{background:#171b20;border:1px solid #2b3138;color:#8b97a3;border-radius:3px;padding:2px 8px;font:11px inherit;cursor:pointer}
+#tuRec:hover{border-color:#4a5560;color:var(--ink)}
+#tuRec.on{border-color:#e0453f;color:#e0453f}
+#bPlay{width:44px;height:44px;border-radius:50%;background:#e9eef4;margin:0 6px}
+#bPlay:hover{background:#fff;border-color:transparent}
+#bPlay svg{width:20px;height:20px}
+#bPlay.on{background:#e9eef4;border-color:transparent}
+#bMute.on{background:#3a1d1d;border-color:#7a3030}
+
+#tools{display:flex;align-items:center;justify-content:flex-end;gap:14px;min-width:0}
+#stem{flex:none;display:flex;align-items:center;gap:6px;background:#0e1114;border:1px solid #1e242b;
+  border-radius:6px;padding:0 8px;height:32px}
+#stem select{background:transparent;border:0;color:#dfe7ef;font:12.5px "Segoe UI",system-ui,sans-serif;
+  outline:none;cursor:pointer;max-width:118px}
+#stem select option{background:#14181d;color:#e6edf3}
+/* the arrangement picker, left of Restart */
+#path{flex:none;display:flex;align-items:center;gap:5px;background:#0e1114;border:1px solid #1e242b;
+  border-radius:6px;padding:0 4px 0 8px;height:32px;margin-right:6px;color:#9fb0c0}
+#path svg{width:15px;height:15px;flex:none}
+#path select{background:transparent;border:0;color:#dfe7ef;font:600 12.5px "Segoe UI",system-ui,sans-serif;
+  outline:none;cursor:pointer;max-width:120px}
+#path select option{background:#14181d;color:#e6edf3;font-weight:400}
+#path.one{opacity:.75}
+#path.one select{cursor:default}
+.vol{flex:none;display:flex;align-items:center;gap:6px}
+.vol input[type=range]{-webkit-appearance:none;appearance:none;width:84px;height:4px;border-radius:2px;
+  background:#2a64c8;outline:none;cursor:pointer}
+.vol input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+  background:#e9eef4;border:0;cursor:pointer}
+.vol input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:#e9eef4;
+  border:0;cursor:pointer}
+.vol .val{font:600 12px/1 "Cascadia Mono",Consolas,monospace;min-width:30px;text-align:right;color:#c8d2dc}
+#stats{flex:none;text-align:right;font:600 11px/1.45 "Cascadia Mono",Consolas,monospace}
+#bpm{color:#c8d2dc}
+#fps{color:var(--accent)}
+#bCfg{width:auto;padding:0 11px;gap:7px;font:600 12.5px "Segoe UI",system-ui,sans-serif;border-color:#2b3138}
+
+/* options popover */
+#cfg{position:fixed;right:12px;bottom:130px;width:300px;max-height:calc(100vh - 144px);overflow-y:auto;background:#101317;border:1px solid #2b3138;
+  border-radius:6px;box-shadow:0 12px 32px #000a;padding:12px;display:none;z-index:40}
+#cfg.show{display:block}
+#cfg h4{margin:0 0 9px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);
+  font-weight:600}
+#cfg h4:not(:first-child){margin-top:13px}
+#cfg .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 0}
+#cfg .row label{color:#c3cdd7;font-size:12.5px}
+#cfg select{background:#171b20;border:1px solid #2b3138;color:var(--ink);border-radius:3px;
+  padding:2px 6px;font:inherit;outline:none;max-width:150px}
+#cfg input[type=range]{width:120px;accent-color:#3f8ce0}
+#cfg .hint{margin-top:9px;padding-top:8px;border-top:1px solid #1e242b;color:#6f7c89;font-size:11px;line-height:1.5}
+#syncoff{display:none;font:600 11px/1 "Cascadia Mono",Consolas,monospace;color:#d8a24a;
+  white-space:nowrap;flex:none;border:1px solid #5a4520;border-radius:4px;padding:3px 5px}
+#cfg .rv{color:#8b97a3;font:600 11px "Cascadia Mono",Consolas,monospace;margin-left:6px}
+#cfg .offwrap{display:flex;align-items:center;gap:3px}
+#cfg input[type=number]{width:58px;background:#171b20;border:1px solid #2b3138;color:var(--ink);
+  border-radius:3px;padding:2px 5px;font:inherit;outline:none;text-align:right}
+#cfg .nudge{background:#171b20;border:1px solid #2b3138;color:#c3cdd7;border-radius:3px;
+  padding:1px 6px;font-size:11px;cursor:pointer}
+#cfg .nudge:hover{border-color:#4a5560}
+#cfg button{background:#171b20;border:1px solid #2b3138;color:#dfe7ef;border-radius:3px;
+  padding:3px 10px;font:inherit;cursor:pointer}
+#cfg button:hover{border-color:#4a5560}
+#fInDev{max-width:170px}
+#cfg .inmeter{display:block;width:120px;height:6px;background:#171b20;border:1px solid #2b3138;border-radius:3px;overflow:hidden}
+#cfg .inmeter i{display:block;height:100%;width:0;background:#3fbf6f;transition:width 60ms linear}
+#cfg .inmeter i.hot{background:#e0453f}
+#bInCal.on{border-color:#d8a24a;color:#d8a24a}
+#cfg .row[hidden]{display:none}
+
+/* narrow windows: drop the least important controls instead of clipping them */
+@media (max-width:1180px){ #stats{display:none} }
+@media (max-width:1040px){ .vol input[type=range]{width:64px} #bCfg span,#bOpen span,#bTab span{display:none} }
+@media (max-width:900px){ #stem{display:none} .stack .val{display:none} .vol input[type=range]{width:56px} }
+@media (max-width:720px){ #path svg{display:none} #path{padding:0 2px 0 6px;margin-right:2px} #path select{max-width:76px} #album{display:none} #vMaster,#vClick,#vSynth{display:none} #bRestart{display:none} #ctl{gap:8px} }
