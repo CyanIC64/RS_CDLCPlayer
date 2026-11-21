@@ -170,7 +170,7 @@ function drawPhraseBars(t, off){
   /* the bars picked for looping (or being picked right now, while the mouse is held) */
   const sel = loopSel.range();
   /* with the guitar input: each phrase played is coloured by its score, red to green, with its % above */
-  const judged = IN.link && S.inScore && IN.phr && IN.phr.length === ph.length ? IN.phr : null;
+  const judged = guitarInput.link && S.inScore && guitarInput.phr && guitarInput.phr.length === ph.length ? guitarInput.phr : null;
   const fsP = clamp(BARS.h*0.27, 8, 12);
   for (let pi = 0; pi < ph.length; pi++){
     const p = ph[pi];
@@ -236,7 +236,7 @@ function drawHitLight(t){
   const k = hitFlash(t);
   if (k > 0) glow("#49e9ff", cx, cy, r*4.5, r*4.5, 0.95*k);
   /* with the guitar input on: a green ring for a note hit, red for a miss */
-  const f = IN.flash, fk = f ? 1 - (performance.now() - f.at)/450 : 0;
+  const f = guitarInput.flash, fk = f ? 1 - (performance.now() - f.at)/450 : 0;
   if (fk > 0){
     const col = f.ok ? "#4dff8f" : "#ff4d42";
     glow(col, cx, cy, r*5.5, r*5.5, 0.9*fk);
@@ -598,7 +598,7 @@ function draw(dt){
   const lpA = S.loop && S.loopB ? S.loopA - off0 - 0.005 : -Infinity;
   const lpB = S.loop && S.loopB ? S.loopB - off0 - 0.005 : Infinity;
   const outside = (tt) => tt < lpA || tt >= lpB;
-  const judging = !!(IN.link && IN.ver && S.inScore);           // the guitar input is checking the notes
+  const judging = !!(guitarInput.link && guitarInput.ver && S.inScore);           // the guitar input is checking the notes
   const items = [];
   const act = new Array(nStr).fill(0);
   for (let i = lowerBound(S.all, "t", t - S.maxSus - 0.3); i < S.all.length; i++){
@@ -907,7 +907,7 @@ function draw(dt){
     for (let i = lowerBound(S.chords, "t", t - 2); i < S.chords.length && S.chords[i].t < t + 0.4; i++){
       const ev = S.chords[i];
       if (!ev.rep) continue;
-      const g = IN.byT && IN.byT.get(Math.round(ev.t*1000));
+      const g = guitarInput.byT && guitarInput.byT.get(Math.round(ev.t*1000));
       if (!g || g.result === null || !g.at) continue;
       const age = (now - g.at)/(g.result ? 450 : 750);
       if (age >= 1 || age < 0) continue;

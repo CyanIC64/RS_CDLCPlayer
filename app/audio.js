@@ -181,7 +181,7 @@ function stopSources(){
 }
 function songEnded(){
   if (S.loop) { startAt(Math.max(0, S.loopA - LOOP_LEAD)); }
-  else { A.playing = false; S.playing = false; pump(); inputSummary(); }
+  else { A.playing = false; S.playing = false; pump(); guitarInput.summary(); }
 }
 
 function startAt(t){
@@ -233,7 +233,7 @@ function seek(t){
   A.offset = clamp(t, 0, S.duration || 0);
   S.time = A.offset;
   if (was) startAt(A.offset); else { beatIdx = 0; syncBeats(); }
-  inputSeek();
+  guitarInput.seek();
   paintClock();
 }
 

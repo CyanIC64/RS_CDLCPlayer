@@ -30,7 +30,7 @@ window.addEventListener("keydown", (e) => {
   else if (k === "u" || k === "U"){ tuner.toggle(); }
   else if (k === "p" || k === "P"){ rigShow(!(AMP.ui && AMP.ui.open)); }
   else if (k === "Escape" && tuner.open){ tuner.show(false); }
-  else if (k === "Escape" && inEl("sum").classList.contains("show")){ sumShow(false); }
+  else if (k === "Escape" && guitarInput.summaryOpen){ guitarInput.showSummary(false); }
   else if (k === "ArrowLeft"){ seek(S.time - (e.shiftKey ? 5 : 1)); }
   else if (k === "ArrowRight"){ seek(S.time + (e.shiftKey ? 5 : 1)); }
   else if (k === "["){ const s = sectionAt(S.time - 0.25); seek(s ? (s.start > S.time - 0.6 ? (sectionAt(s.start - 0.1) || s).start : s.start) : 0); }

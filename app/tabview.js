@@ -205,7 +205,7 @@ class TabView {
     page.innerHTML = html + '<div id="tabcur"></div>';
     this.groups = [];
     for (const g of page.querySelectorAll("g.te")) this.groups[+g.dataset.e] = g;
-    if (IN.ver) tabMarksAll();
+    if (guitarInput.ver) guitarInput.markTabAll();
     this.lit = new Set();
     this.maxLen = evs.reduce((m, e) => Math.max(m, e.end - e.t), 0);
     page.style.height = (top + 40) + "px";

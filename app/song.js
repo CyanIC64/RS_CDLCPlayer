@@ -152,7 +152,7 @@ function selectArrangement(i){
 
   buildHolds(tpl);
   synth.build(a);
-  inputConfigure();
+  guitarInput.configure();
   loopSel.clear();
   buildPhrases();
   if (!S.keepCam) S.camC = null;                  // a new chart cuts the camera, unless it should glide over

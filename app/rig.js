@@ -80,19 +80,19 @@ function ampBoard(key){
   return b;
 }
 async function ampSync(){
-  if (!S.ampOn || !IN.link){ ampClose(); ampPaint(); return; }
+  if (!S.ampOn || !guitarInput.link){ ampClose(); ampPaint(); return; }
   if (AMP.amp || AMP.busy) return;
   AMP.busy = true;
   try {
     if (!window.AmpKit) await loadScript("web/amp.js");
     AMP.kit = window.AmpKit;
-    if (!S.ampOn || !IN.link || !IN.link.source) return;
-    AMP.amp = await AMP.kit.create(A.ctx, IN.link.source);
+    if (!S.ampOn || !guitarInput.link || !guitarInput.link.source) return;
+    AMP.amp = await AMP.kit.create(A.ctx, guitarInput.link.source);
     AMP.amp.setLevel(S.ampLevel);
     AMP.key = null;
     ampTone(hudToneKey || S.tones.base || "");
   } catch (e) {
-    inputMsg("Could not start the amp: " + ((e && e.message) || e));
+    guitarInput.msg("Could not start the amp: " + ((e && e.message) || e));
     S.ampOn = false; savePrefs(); inEl("fAmpOn").checked = false;
   } finally { AMP.busy = false; ampPaint(); }
 }
@@ -138,7 +138,7 @@ async function rigShow(on){
   try {
     if (!window.AmpKit) await loadScript("web/amp.js");
     AMP.kit = window.AmpKit;
-  } catch (e) { inputMsg("Could not load the pedalboard: " + ((e && e.message) || e)); return; }
+  } catch (e) { guitarInput.msg("Could not load the pedalboard: " + ((e && e.message) || e)); return; }
   if (!AMP.ui) AMP.ui = AMP.kit.mountBoard({
     getMaster: () => S.ampLevel,
     onMaster(v){
@@ -186,17 +186,17 @@ function rigFollow(){
 function ampPaint(){
   rigFollow();
   const el = inEl("ampNow");
-  if (!AMP.amp){ el.textContent = S.ampOn && !IN.link ? "waiting for the guitar input" : "—"; return; }
+  if (!AMP.amp){ el.textContent = S.ampOn && !guitarInput.link ? "waiting for the guitar input" : "—"; return; }
   const nm = S.tones.names[AMP.key || ""];
   el.textContent = nm ? toneLabel(AMP.key) : "plain amp (the song has no tone)";
 }
 
 function inputSync(){
-  inEl("fInOn").checked = !!IN.link || IN.busy;
-  inEl("fInDev").disabled = IN.busy;
-  if (!IN.link){ inEl("inLevel").style.width = "0"; inEl("inNote").textContent = "—"; IN.note = ""; }
-  inputHudPaint();
-  cableIcon();
+  inEl("fInOn").checked = !!guitarInput.link || guitarInput.busy;
+  inEl("fInDev").disabled = guitarInput.busy;
+  if (!guitarInput.link){ inEl("inLevel").style.width = "0"; inEl("inNote").textContent = "—"; guitarInput.note = ""; }
+  guitarInput.hudPaint();
+  cable.icon();
   ampPaint();
 }
 

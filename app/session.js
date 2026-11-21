@@ -42,8 +42,8 @@ function showHint(on){
 async function boot(){
   busy("Starting…");
   await loadPrefs();
-  inputRestore();
-  cableScan();
+  guitarInput.restore();
+  cable.scan();
   restChart(); resize(); startFrames();           // the empty highway is up straight away
 
   /* Is a Play Song server behind this page? If not, the page is on its own:

@@ -75,7 +75,7 @@ function frame(now){
   updateHud();
   pump();
   synth.pump();
-  inputPump();
+  guitarInput.pump();
 
   fpsAcc += dt; fpsN++;
   if (now - fpsT > 250){
@@ -85,7 +85,7 @@ function frame(now){
       + (S.autoScale && S.dynScale < 0.999 ? " · " + Math.round(S.dynScale*100) + "%" : "");
     fpsAcc = 0; fpsN = 0; fpsT = now;
   }
-  inputPaint(dt);
+  guitarInput.paint(dt);
   tuner.paint(dt);
   requestAnimationFrame(frame);
 }

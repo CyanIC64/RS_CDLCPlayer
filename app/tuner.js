@@ -40,7 +40,7 @@ class Tuner {
     inEl("tuner").classList.toggle("show", on);
     if (!on) return;
     this.hist.length = 0; this.key = ""; this.cur = -1; this.okSince = 0; this.quiet = 0;
-    if (!IN.link && !IN.busy) inputStart();                  // a tuner needs the guitar
+    if (!guitarInput.link && !guitarInput.busy) guitarInput.start();                  // a tuner needs the guitar
   }
   toggle(){ this.show(!this.open); }
 
@@ -82,7 +82,7 @@ class Tuner {
     const hz = v.length >= 3 ? v[v.length >> 1] : 0;
     this.quiet = hz ? 0 : this.quiet + dt;
 
-    const msg = !IN.link ? (IN.busy ? "Connecting…" : "Switch on the guitar input (G) to tune.")
+    const msg = !guitarInput.link ? (guitarInput.busy ? "Connecting…" : "Switch on the guitar input (G) to tune.")
               : hz || this.quiet < 0.6 ? "" : "Play an open string.";
     inEl("tuMsg").textContent = msg;
     if (!hz){
@@ -115,7 +115,7 @@ class Tuner {
     el.classList.toggle("ok", ok);
     el.classList.toggle("far", far);
 
-    const a = currentArr(), n = IN.kit.freqToNote(hz, (a && +a.centOffset) || 0);
+    const a = currentArr(), n = guitarInput.kit.freqToNote(hz, (a && +a.centOffset) || 0);
     inEl("tuNote").innerHTML = "";
     inEl("tuNote").append(n.name, Object.assign(document.createElement("sub"), { textContent: n.octave }));
     const c = Math.round(cents);
@@ -138,15 +138,15 @@ class Tuner {
      the tuner read meanwhile in the file name. Nothing leaves the computer. */
   async record(){
     const b = inEl("tuRec");
-    if (!IN.link || b.classList.contains("on")) return;
+    if (!guitarInput.link || b.classList.contains("on")) return;
     b.classList.add("on"); b.textContent = "Recording…";
     const seen = new Map();
     const tick = setInterval(() => {
-      const f = IN.last && IN.last.freq;
-      if (f > 0){ const n = IN.kit.freqToNote(f, 0); const k = n.name.replace(/[♯#]/, "s").replace("♭", "b") + n.octave; seen.set(k, (seen.get(k) || 0) + 1); }
+      const f = guitarInput.last && guitarInput.last.freq;
+      if (f > 0){ const n = guitarInput.kit.freqToNote(f, 0); const k = n.name.replace(/[♯#]/, "s").replace("♭", "b") + n.octave; seen.set(k, (seen.get(k) || 0) + 1); }
     }, 50);
     try {
-      const { data, sampleRate } = await IN.link.record(10);
+      const { data, sampleRate } = await guitarInput.link.record(10);
       const heard = [...seen].sort((p, q) => q[1] - p[1]).slice(0, 3).map(([k]) => k).join("-") || "silence";
       const wav = new ArrayBuffer(44 + data.length*2), v = new DataView(wav);
       const str = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
