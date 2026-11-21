@@ -168,7 +168,7 @@ function inputMessage(m){
   if (m.type === "frame"){
     IN.level = Math.max(IN.level, m.rms);
     IN.last = m;
-    if (TU.open){ TU.hist.push(m.freq); if (TU.hist.length > 5) TU.hist.shift(); }
+    tuner.feed(m.freq);
   }
   if (!IN.ver || !S.inScore || !A.playing || IN.cal) return;
   const t = detChartTime(m.time);

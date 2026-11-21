@@ -47,7 +47,7 @@ function syncControls(){
   $("bClick").classList.toggle("on", S.clickOn);
   $("vSynth").value = Math.round(S.synthLevel*100); $("lSynth").textContent = Math.round(S.synthLevel*100);
   $("bSynth").classList.toggle("on", S.synthOn);
-  if (SY.out) SY.out.gain.value = S.synthLevel;
+  synth.setLevel(S.synthLevel);
   if (A.gain) A.gain.gain.value = S.muted ? 0 : S.master;
   if (A.gainClick) A.gainClick.gain.value = S.clickLevel;
   updGeom(); resize();

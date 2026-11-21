@@ -205,7 +205,7 @@ function startAt(t){
   }
   A.playing = true; S.playing = true;
   beatIdx = 0; syncBeats();
-  synKill(); synSync();
+  synth.kill(); synth.sync();
 }
 
 function play(){
@@ -224,7 +224,7 @@ function pause(){
   if (!A.playing) return;
   A.offset = songTime(); A.playing = false; S.playing = false;
   stopSources();
-  synKill();
+  synth.kill();
   pump();
 }
 function seek(t){

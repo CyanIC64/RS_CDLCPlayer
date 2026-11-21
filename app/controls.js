@@ -59,13 +59,13 @@ document.getElementById("bSpeed").onclick = () => {
 document.getElementById("vSynth").oninput = (e) => {
   S.synthLevel = (+e.target.value)/100;
   document.getElementById("lSynth").textContent = e.target.value;
-  if (SY.out) SY.out.gain.value = S.synthLevel;
+  synth.setLevel(S.synthLevel);
   savePrefs();
 };
 document.getElementById("bSynth").onclick = () => {
   S.synthOn = !S.synthOn;
   document.getElementById("bSynth").classList.toggle("on", S.synthOn);
-  if (S.synthOn) synSync(); else synKill();
+  if (S.synthOn) synth.sync(); else synth.kill();
   savePrefs();
 };
 document.getElementById("bClick").onclick = () => {

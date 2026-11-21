@@ -151,7 +151,7 @@ function selectArrangement(i){
   }
 
   buildHolds(tpl);
-  buildSynth(a);
+  synth.build(a);
   inputConfigure();
   clearLoopBars();
   buildPhrases();
@@ -340,7 +340,7 @@ function applyOffset(ms){
   renderTimeline();
   hudSecIdx = -2;
   if (S.clickOn) syncBeats();
-  synKill(); synSync();
+  synth.kill(); synth.sync();
   if (S.loopSel && SEL.i0 >= 0 && S.phrases[SEL.i1]){
     S.loopA = Math.max(0, S.phrases[SEL.i0].t0 + S.offMs/1000); S.loopB = S.phrases[SEL.i1].t1 + S.offMs/1000;
   }

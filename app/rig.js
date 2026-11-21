@@ -200,3 +200,4 @@ function inputSync(){
   ampPaint();
 }
 
+inEl("bRig").onclick = () => rigShow(!(AMP.ui && AMP.ui.open));

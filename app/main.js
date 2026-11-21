@@ -27,9 +27,9 @@ window.addEventListener("keydown", (e) => {
   else if (k === "t" || k === "T"){ document.getElementById("bTab").click(); }
   else if (k === "g" || k === "G"){ document.getElementById("fInOn").click(); }
   else if (k === "a" || k === "A"){ document.getElementById("fAmpOn").click(); }
-  else if (k === "u" || k === "U"){ tunerShow(!TU.open); }
+  else if (k === "u" || k === "U"){ tuner.toggle(); }
   else if (k === "p" || k === "P"){ rigShow(!(AMP.ui && AMP.ui.open)); }
-  else if (k === "Escape" && TU.open){ tunerShow(false); }
+  else if (k === "Escape" && tuner.open){ tuner.show(false); }
   else if (k === "Escape" && inEl("sum").classList.contains("show")){ sumShow(false); }
   else if (k === "ArrowLeft"){ seek(S.time - (e.shiftKey ? 5 : 1)); }
   else if (k === "ArrowRight"){ seek(S.time + (e.shiftKey ? 5 : 1)); }

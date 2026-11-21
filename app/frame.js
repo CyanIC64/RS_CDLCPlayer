@@ -74,7 +74,7 @@ function frame(now){
   updateLyrics();
   updateHud();
   pump();
-  synPump();
+  synth.pump();
   inputPump();
 
   fpsAcc += dt; fpsN++;
@@ -86,7 +86,7 @@ function frame(now){
     fpsAcc = 0; fpsN = 0; fpsT = now;
   }
   inputPaint(dt);
-  tunerPaint(dt);
+  tuner.paint(dt);
   requestAnimationFrame(frame);
 }
 
