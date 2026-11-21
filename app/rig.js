@@ -43,7 +43,6 @@ function songTones(){
    tone. Writes are gathered for a moment, so turning a knob does not write
    localStorage on every step. */
 class RigStore {
-  static KEY = "playsong.rigs";
   static songId(){ return ((S.meta && S.meta.artist) || "") + " - " + ((S.meta && S.meta.title) || ""); }
 
   constructor(){
@@ -51,7 +50,7 @@ class RigStore {
     this.timer = 0;
   }
   read(){
-    try { return JSON.parse(localStorage.getItem(RigStore.KEY) || "{}") || {}; } catch (e) { return {}; }
+    return Store.read(Store.RIGS, {});
   }
   /* the player's board for a tone of this song, or null */
   saved(key){
@@ -67,7 +66,7 @@ class RigStore {
       for (const [k, b] of this.pending){ if (b) song[k] = b; else delete song[k]; }
       this.pending.clear();
       if (Object.keys(song).length) all[id] = song; else delete all[id];
-      try { localStorage.setItem(RigStore.KEY, JSON.stringify(all)); } catch (e) {}
+      Store.write(Store.RIGS, all);
     }, 300);
   }
 }
@@ -85,7 +84,7 @@ class Pedalboard {
     this.ui = null; this.uiKey = "";// the pedalboard panel (P) and the tone it shows
     this.uiFollow = true;           // ...the tone in force, or one the player picked
     this.seen = { live: undefined, amp: undefined, song: undefined };   // what the open panel was last drawn for
-    inEl("bRig").onclick = () => this.toggle();
+    $("bRig").onclick = () => this.toggle();
   }
 
   async loadKit(){
@@ -125,7 +124,7 @@ class Pedalboard {
       this.tone(hudToneKey || S.tones.base || "");
     } catch (e) {
       guitarInput.msg("Could not start the amp: " + ((e && e.message) || e));
-      S.ampOn = false; savePrefs(); inEl("fAmpOn").checked = false;
+      S.ampOn = false; savePrefs(); $("fAmpOn").checked = false;
     } finally { this.busy = false; this.paint(); }
   }
   close(){
@@ -178,7 +177,7 @@ class Pedalboard {
       getMaster: () => S.ampLevel,
       onMaster: (v) => {
         S.ampLevel = v; savePrefs();
-        inEl("vAmp").value = Math.round(v * 100); inEl("rvAmp").textContent = Math.round(v * 100) + "%";
+        $("vAmp").value = Math.round(v * 100); $("rvAmp").textContent = Math.round(v * 100) + "%";
         this.setLevel(v);
       },
       onKnob: (id, k, v) => { if (this.amp) this.amp.set(ampKey(this.uiKey), id, k, v); this.markEdited(); },
@@ -200,12 +199,12 @@ class Pedalboard {
         this.seen.live = this.liveKey();
         this.ui.update(this.board(this.uiKey), this.info(this.uiKey));
       },
-      onClose: () => { inEl("bRig").textContent = "Open"; },
+      onClose: () => { $("bRig").textContent = "Open"; },
     });
     if (this.uiFollow || !toneDef(this.uiKey)){ this.uiFollow = true; this.uiKey = this.liveKey(); }
     this.seen.live = this.liveKey(); this.seen.amp = !!this.amp; this.seen.song = RigStore.songId();
     this.ui.show(this.board(this.uiKey), this.info(this.uiKey));
-    inEl("bRig").textContent = "Close";
+    $("bRig").textContent = "Close";
   }
   /* the open panel follows the tone in force, and the amp coming and going */
   follow(){
@@ -221,7 +220,7 @@ class Pedalboard {
   /* the amp's line in the options */
   paint(){
     this.follow();
-    const el = inEl("ampNow");
+    const el = $("ampNow");
     if (!this.amp){ el.textContent = S.ampOn && !guitarInput.link ? "waiting for the guitar input" : "—"; return; }
     const nm = S.tones.names[this.key || ""];
     el.textContent = nm ? toneLabel(this.key) : "plain amp (the song has no tone)";
@@ -231,9 +230,9 @@ const pedalboard = new Pedalboard();
 
 /* the guitar input's controls, after it was switched on or off */
 function inputSync(){
-  inEl("fInOn").checked = !!guitarInput.link || guitarInput.busy;
-  inEl("fInDev").disabled = guitarInput.busy;
-  if (!guitarInput.link){ inEl("inLevel").style.width = "0"; inEl("inNote").textContent = "—"; guitarInput.note = ""; }
+  $("fInOn").checked = !!guitarInput.link || guitarInput.busy;
+  $("fInDev").disabled = guitarInput.busy;
+  if (!guitarInput.link){ $("inLevel").style.width = "0"; $("inNote").textContent = "—"; guitarInput.note = ""; }
   guitarInput.hudPaint();
   cable.icon();
   pedalboard.paint();

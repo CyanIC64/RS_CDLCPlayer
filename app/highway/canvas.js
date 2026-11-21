@@ -1,6 +1,6 @@
 "use strict";
 /* ── canvas ──────────────────────────────────────────────────────────────── */
-const cv = document.getElementById("hw"), ctx = cv.getContext("2d", {alpha:false});
+const cv = $("hw"), ctx = cv.getContext("2d", {alpha:false});
 let W = 1, H = 1, dpr = 1;
 function resize(){
   const r = cv.getBoundingClientRect();

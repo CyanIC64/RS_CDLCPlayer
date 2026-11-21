@@ -35,21 +35,24 @@ function loadStatics(){
   }
   return staticsReady;
 }
+/* what the last probe found, as window.__probe when the page is opened with ?debug */
+const DEBUG = /[?&]debug\b/.test(location.search);
 async function probeServer(){
-  window.__probe = { at: Date.now() };
+  const probe = { at: Date.now() };
+  if (DEBUG) window.__probe = probe;
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 1500);
     const res = await fetch("/api/status", { cache: "no-store", signal: ctrl.signal });
     clearTimeout(timer);
-    window.__probe.status = res.status;
-    if (!res.ok) { window.__probe.ok = false; return false; }
+    probe.status = res.status;
+    if (!res.ok) { probe.ok = false; return false; }
     JSON.parse(await res.text());       // a 404 page is not JSON
-    window.__probe.ok = true;
+    probe.ok = true;
     return true;
   } catch (e) {
-    window.__probe.err = String(e && e.message || e);
-    window.__probe.ok = false;
+    probe.err = String(e && e.message || e);
+    probe.ok = false;
     return false;
   }
 }

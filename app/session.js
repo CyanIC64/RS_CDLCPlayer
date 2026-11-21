@@ -24,11 +24,11 @@ function restChart(){
   S.maxSus = 0; S.capo = 0; S.resting = true;
   S.time = 0; A.offset = 0;
   loopSel.reset();
-  lyrPair = null; document.getElementById("lyr").style.display = "none";
+  lyrPair = null; $("lyr").style.display = "none";
   hudSecIdx = -2; hudToneKey = undefined;
-  document.getElementById("hudArr").textContent = "—";
-  document.getElementById("tuning").textContent = "";
-  document.getElementById("stem").style.display = "none";          // no song, no stems to pick
+  $("hudArr").textContent = "—";
+  $("tuning").textContent = "";
+  $("stem").style.display = "none";          // no song, no stems to pick
   renderTimeline(); paintClock();
   tabView.invalidate();
 }
@@ -37,7 +37,7 @@ function startFrames(){
 }
 
 function showHint(on){
-  document.getElementById("hint").classList.toggle("hide", !on);
+  $("hint").classList.toggle("hide", !on);
 }
 async function boot(){
   busy("Starting…");
@@ -54,24 +54,24 @@ async function boot(){
        can run here, the in-page converter is loaded when a song is dropped */
     startWorker().then((w) => { if (!w) return loadStatics(); }).catch(() => {});
     idle();
-    document.getElementById("title").textContent = "Play Song";
-    document.getElementById("artist").textContent = "no song open";
-    document.getElementById("hintNote").textContent =
+    $("title").textContent = "Play Song";
+    $("artist").textContent = "no song open";
+    $("hintNote").textContent =
       "The file is opened on this page - it is never uploaded, and nothing is changed in your file.";
     showHint(true);
     return;
   }
 
   fetch("/api/limits").then(r => r.json()).then(L => {
-    document.getElementById("hintNote").textContent =
+    $("hintNote").textContent =
       "The file is sent to this server to be converted (up to " + L.max_upload_mb + " MB), and deleted after "
       + L.idle_minutes + " minutes without use. Nothing is changed in your file.";
   }).catch(() => {});
   const st = await waitForPack();
   if (st.stage === "empty"){                      // the usual start: nothing open yet
     idle();
-    document.getElementById("title").textContent = "Play Song";
-    document.getElementById("artist").textContent = "no song open";
+    $("title").textContent = "Play Song";
+    $("artist").textContent = "no song open";
     showHint(true);
     return;
   }
@@ -93,10 +93,10 @@ async function showSong(noPlay){
   if (A.playing) pause();
   A.buf = null; A.offset = 0; A.playing = false;
   S.time = 0; S.playing = false; S.offMs = 0; S.bpm = 0; S.loopB = 0;
-  if (S.loop){ S.loop = false; document.getElementById("bLoop").classList.remove("on"); }
+  if (S.loop){ S.loop = false; $("bLoop").classList.remove("on"); }
   setPlayIcon(false);
-  lyrPair = null; document.getElementById("lyr").style.display = "none";
-  loadSongData.told = false; document.getElementById("lyrErr").classList.remove("show");
+  lyrPair = null; $("lyr").style.display = "none";
+  loadSongData.told = false; $("lyrErr").classList.remove("show");
   hudSecIdx = -2; hudToneKey = undefined;
 
   loadSongData(d);
@@ -115,13 +115,13 @@ async function showSong(noPlay){
 
   // header
   const T = (s) => (s || "—");
-  document.getElementById("title").textContent = T(S.meta.title);
-  document.getElementById("artist").textContent = T(S.meta.artist);
-  document.getElementById("album").textContent = [S.meta.album, S.meta.year].filter(Boolean).join(" · ") || "";
+  $("title").textContent = T(S.meta.title);
+  $("artist").textContent = T(S.meta.artist);
+  $("album").textContent = [S.meta.album, S.meta.year].filter(Boolean).join(" · ") || "";
   document.title = (S.meta.title ? S.meta.title + " - " : "") + "Play Song";
 
   {
-    const c = document.getElementById("cover");
+    const c = $("cover");
     c.innerHTML = '<div class="ph">NO ART</div>';
     const src = LOCAL.payload ? LOCAL.cover : ("/api/art?" + Date.now());
     if (S.meta.cover && src){
@@ -132,19 +132,19 @@ async function showSong(noPlay){
   }
 
   // arrangements
-  const fArr = document.getElementById("fArr");
+  const fArr = $("fArr");
   fArr.innerHTML = "";
   S.arrs.forEach((a, i) => {
     const o = document.createElement("option"); o.value = i; o.textContent = a.name || ("arr " + i);
     fArr.appendChild(o);
   });
   fArr.onchange = () => { selectArrangement(+fArr.value); fArr.blur(); };
-  document.getElementById("path").classList.toggle("one", S.arrs.length < 2);
+  $("path").classList.toggle("one", S.arrs.length < 2);
 
   // stems: only worth a picker when the pack really was separated
-  const stemSel = document.getElementById("stemSel");
+  const stemSel = $("stemSel");
   stemSel.length = 1; stemSel.value = "";
-  document.getElementById("stem").style.display = S.stems.length > 1 ? "flex" : "none";
+  $("stem").style.display = S.stems.length > 1 ? "flex" : "none";
   if (S.stems.length > 1){
     for (const s of S.stems){
       const o = document.createElement("option");
@@ -170,12 +170,12 @@ async function showSong(noPlay){
   selectArrangement(0);
   S.keepCam = false;
   updGeom();
-  document.getElementById("tdur").textContent = fmt(S.duration);
+  $("tdur").textContent = fmt(S.duration);
   renderTimeline();
   paintClock();
   {
     const cum = +(S.meta.note_offset_ms || 0);
-    const om = document.getElementById("offMsg");
+    const om = $("offMsg");
     if (om) om.textContent = cum
       ? "this pack has already been shifted " + (cum > 0 ? "+" : "") + cum + " ms in total"
       : "positive offset = chart later than the audio";
@@ -190,7 +190,7 @@ async function showSong(noPlay){
     selectArrangement(i); fArr.value = i;
   }
   if (q.has("t")) seek(clamp(parseFloat(q.get("t")) || 0, 0, Math.max(0, S.duration - 0.1)));
-  if (q.has("cfg")) document.getElementById("cfg").classList.add("show");
+  if (q.has("cfg")) $("cfg").classList.add("show");
   if (q.has("off")) applyOffset(clamp(Math.round(parseFloat(q.get("off")) || 0), -60000, 60000));
 
   resize();
@@ -267,9 +267,9 @@ async function openDropped(input){
       /* no server: convert here, in a worker beside the page (or in the page itself) */
       cleared = fadeTo(0).then(() => {
         restChart(); S.visTo = 1;
-        document.getElementById("title").textContent = label;
-        document.getElementById("artist").textContent = "opening…";
-        document.getElementById("album").textContent = "";
+        $("title").textContent = label;
+        $("artist").textContent = "opening…";
+        $("album").textContent = "";
       });
       busy("Reading " + label + "…");
       const song = xmlSet ? await openLocalXml(list, (m) => busy(m)) : await openLocal(file, (m) => busy(m));
@@ -290,9 +290,9 @@ async function openDropped(input){
     /* what is on screen fades away and the highway goes to rest while the new song is opened */
     cleared = fadeTo(0).then(() => {
       restChart(); S.visTo = 1;
-      document.getElementById("title").textContent = file.name;       // what is being opened, not the song that left
-      document.getElementById("artist").textContent = "opening…";
-      document.getElementById("album").textContent = "";
+      $("title").textContent = file.name;       // what is being opened, not the song that left
+      $("artist").textContent = "opening…";
+      $("album").textContent = "";
     });
     await upload(file, (f) => busy("Uploading " + file.name + "… " + Math.round(f*100) + "%"));
     const st = await waitForPack();
@@ -305,8 +305,8 @@ async function openDropped(input){
     notice("Could not open that song: " + err.message);
     setTimeout(idle, 8000);
     if (!back){                                    // there was none: back to the welcome card
-      document.getElementById("title").textContent = "Play Song";
-      document.getElementById("artist").textContent = "no song open";
+      $("title").textContent = "Play Song";
+      $("artist").textContent = "no song open";
       showHint(true);
     }
   } finally {
@@ -314,7 +314,7 @@ async function openDropped(input){
   }
 }
 {
-  const veil = document.getElementById("drop");
+  const veil = $("drop");
   let depth = 0;
   const hasFiles = (e) => e.dataTransfer && [...e.dataTransfer.types].includes("Files");
   window.addEventListener("dragenter", (e) => { if (!hasFiles(e)) return; e.preventDefault(); depth++; veil.classList.add("show"); });
@@ -353,10 +353,10 @@ async function openDropped(input){
 }
 
 {
-  const pick = document.getElementById("filePick");
+  const pick = $("filePick");
   const choose = () => { pick.value = ""; pick.click(); };
-  document.getElementById("hintPick").onclick = choose;
-  document.getElementById("bOpen").onclick = choose;
+  $("hintPick").onclick = choose;
+  $("bOpen").onclick = choose;
   pick.onchange = () => { if (pick.files && pick.files.length) openDropped([...pick.files]); };
 }
 

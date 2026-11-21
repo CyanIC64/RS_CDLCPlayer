@@ -11,7 +11,7 @@
 const AR = { peak:0, low:0, high:0, ceil:1, ceilUntil:0, upAt:0 };
 const AR_STEPS = [1, 0.85, 0.72, 0.6, 0.5];
 function autoLabel(){
-  const el = document.getElementById("rvAuto");
+  const el = $("rvAuto");
   if (el) el.textContent = S.autoScale && S.dynScale < 0.999 ? Math.round(S.dynScale*100) + "%" : "";
 }
 function autoResolution(span){
@@ -81,7 +81,7 @@ function frame(now){
   if (now - fpsT > 250){
     S.fps = fpsN / Math.max(0.001, fpsAcc);
     autoResolution((now - fpsT)/1000);
-    document.getElementById("fps").textContent = Math.round(S.fps) + " FPS"
+    $("fps").textContent = Math.round(S.fps) + " FPS"
       + (S.autoScale && S.dynScale < 0.999 ? " · " + Math.round(S.dynScale*100) + "%" : "");
     fpsAcc = 0; fpsN = 0; fpsT = now;
   }

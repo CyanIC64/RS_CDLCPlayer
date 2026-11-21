@@ -4,7 +4,6 @@
    input - is listened to by web/pitch.js: an AudioWorklet in the song's own
    AudioContext, so what it hears is timed on the same clock as the song. The
    script is only loaded when the input is first switched on. */
-const inEl = (id) => document.getElementById(id);
 
 class GuitarInput {
   constructor(){
@@ -23,7 +22,7 @@ class GuitarInput {
     this.phr = null;          // per phrase: { n, done, hit }
   }
 
-  msg(text){ inEl("inMsg").textContent = text; }
+  msg(text){ $("inMsg").textContent = text; }
 
   async start(){
     if (this.busy || this.link) return;
@@ -166,15 +165,15 @@ class GuitarInput {
     for (const g of this.ver.targets){ if (g.result === true) hit++; else if (g.result === false) miss++; }
     if (!hit && !miss) return;
     const T = this.ver.targets.length, pct = hit/(hit + miss);
-    inEl("sumSong").textContent = [inEl("title").textContent, currentArr() ? currentArr().name || "" : ""].filter((x) => x && x !== "—").join(" · ");
-    const P = inEl("sumPct");
+    $("sumSong").textContent = [$("title").textContent, currentArr() ? currentArr().name || "" : ""].filter((x) => x && x !== "—").join(" · ");
+    const P = $("sumPct");
     P.textContent = Math.round(pct*100) + "%";
     P.style.color = "hsl(" + Math.round(pct*125) + ",80%,60%)";
-    inEl("sumHit").textContent = hit;
-    inEl("sumMiss").textContent = miss;
-    inEl("sumBest").textContent = this.ver.stats.best;
-    inEl("sumPlayed").textContent = Math.round(100*(hit + miss)/T) + "%";
-    const box = inEl("sumWeak"), off = S.offMs/1000;
+    $("sumHit").textContent = hit;
+    $("sumMiss").textContent = miss;
+    $("sumBest").textContent = this.ver.stats.best;
+    $("sumPlayed").textContent = Math.round(100*(hit + miss)/T) + "%";
+    const box = $("sumWeak"), off = S.offMs/1000;
     box.textContent = "";
     const weak = (this.phr || []).map((s, i) => ({ s, i, p: s.done ? s.hit/s.done : 1 }))
       .filter((x) => x.s.done >= 3 && x.p < 0.9).sort((a, b) => a.p - b.p).slice(0, 3);
@@ -189,11 +188,11 @@ class GuitarInput {
       b.onclick = () => { this.showSummary(false); seek(Math.max(0, ph.t0 + off - 1)); };
       box.appendChild(b);
     }
-    inEl("sumWeakH").hidden = !weak.length;
+    $("sumWeakH").hidden = !weak.length;
     this.showSummary(true);
   }
-  showSummary(on){ inEl("sum").classList.toggle("show", !!on); }
-  get summaryOpen(){ return inEl("sum").classList.contains("show"); }
+  showSummary(on){ $("sum").classList.toggle("show", !!on); }
+  get summaryOpen(){ return $("sum").classList.contains("show"); }
 
   /* chart time of a moment on the audio clock. A chart second lasts 1/S.rate
      real seconds, and what the player plays answers what they heard
@@ -235,7 +234,7 @@ class GuitarInput {
     this.markTab(g);
     this.phraseStats();
     this.flash = { ok: g.result, at: performance.now() };
-    const el = inEl("hudHit");
+    const el = $("hudHit");
     el.classList.remove("hit", "miss");
     void el.offsetWidth;                                     // restart the fade
     el.classList.add(g.result ? "hit" : "miss");
@@ -254,9 +253,9 @@ class GuitarInput {
     this.level = 0;
     cable.glow(this.peak);
     this.scorePaint();
-    if (!inEl("cfg").classList.contains("show")) return;
+    if (!$("cfg").classList.contains("show")) return;
     const db = 20*Math.log10(this.peak + 1e-9);
-    const bar = inEl("inLevel");
+    const bar = $("inLevel");
     bar.style.width = (clamp((db + 60)/60, 0, 1)*100).toFixed(1) + "%";       // -60 dBFS .. 0
     bar.classList.toggle("hot", this.peak > 0.7);
     const m = this.last, a = currentArr();
@@ -266,21 +265,21 @@ class GuitarInput {
       const c = Math.round(n.cents);
       txt = n.name + n.octave + "  " + (c > 0 ? "+" : "") + c + "¢  ·  " + m.freq.toFixed(1) + " Hz";
     }
-    if (txt !== this.note){ this.note = txt; inEl("inNote").textContent = txt; }
+    if (txt !== this.note){ this.note = txt; $("inNote").textContent = txt; }
   }
 
   /* the score line in the options, and the latency the hits suggest:
      the median distance of their attacks from the chart, once there are enough */
   scorePaint(){
     this.hudPaint();
-    if (!this.dirty || !inEl("cfg").classList.contains("show")) return;
+    if (!this.dirty || !$("cfg").classList.contains("show")) return;
     this.dirty = false;
     const st = this.ver && this.ver.stats, n = st ? st.hit + st.miss : 0;
-    inEl("inScore").textContent = !n ? "—"
+    $("inScore").textContent = !n ? "—"
       : st.hit + "/" + n + " · " + Math.round(100*st.hit/n) + "% · streak " + st.streak;
     const sug = this.suggestedLatency();
-    inEl("inSugRow").hidden = sug === null;
-    if (sug !== null) inEl("inSug").textContent = "Suggested: " + sug + " ms";
+    $("inSugRow").hidden = sug === null;
+    if (sug !== null) $("inSug").textContent = "Suggested: " + sug + " ms";
   }
   /* the HUD: notes and chords hit, out of all in the arrangement, counted over the
      current run through the song (a jump back clears the ones after it) */
@@ -297,8 +296,8 @@ class GuitarInput {
     }
     if (txt === this.hud) return;
     this.hud = txt;
-    inEl("hudHitRow").style.display = on ? "" : "none";
-    if (on){ const [a, b] = txt.split("|"); inEl("hudHit").textContent = a; inEl("hudHitSub").textContent = b; }
+    $("hudHitRow").style.display = on ? "" : "none";
+    if (on){ const [a, b] = txt.split("|"); $("hudHit").textContent = a; $("hudHitSub").textContent = b; }
   }
   suggestedLatency(){
     const L = this.ver && this.ver.stats.lag;
@@ -309,14 +308,14 @@ class GuitarInput {
   }
   setLatency(ms){
     S.inLatMs = Math.round(clamp(ms, PREFS.inLatMs[0], PREFS.inLatMs[1]));
-    inEl("fInLat").value = S.inLatMs;
+    $("fInLat").value = S.inLatMs;
     if (this.ver) this.ver.stats.lag.length = 0;             // measured with the old value
     this.dirty = true;
     savePrefs();
   }
 
   fillDevices(){
-    const sel = inEl("fInDev");
+    const sel = $("fInDev");
     sel.textContent = "";
     for (const d of this.devices){
       const o = document.createElement("option");
@@ -378,7 +377,7 @@ class Calibration {
     }
     this.active = { clicks, onsets: [], timer: 0 };
     this.active.timer = setTimeout(() => this.finish(), (t0 + (COUNT_IN + N) * GAP + 0.5 - A.ctx.currentTime) * 1000);
-    inEl("bInCal").classList.add("on"); inEl("bInCal").textContent = "Stop";
+    $("bInCal").classList.add("on"); $("bInCal").textContent = "Stop";
     guitarInput.msg("Listen to four clicks, then strike an open string on each of the next eight.");
   }
   onMessage(m){
@@ -405,7 +404,7 @@ class Calibration {
   end(text){
     if (this.active) clearTimeout(this.active.timer);
     this.active = null;
-    inEl("bInCal").classList.remove("on"); inEl("bInCal").textContent = "Calibrate";
+    $("bInCal").classList.remove("on"); $("bInCal").textContent = "Calibrate";
     guitarInput.msg(text);
   }
 }

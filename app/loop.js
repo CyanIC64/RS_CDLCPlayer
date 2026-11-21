@@ -35,19 +35,19 @@ class LoopSelection {
     this.i0 = i0; this.i1 = i1;
     S.loop = true; S.loopSel = true;
     S.loopA = Math.max(0, ph[i0].t0 + off); S.loopB = ph[i1].t1 + off;
-    document.getElementById("bLoop").classList.add("on");
+    $("bLoop").classList.add("on");
     this.startAt(S.loopA);
   }
   clear(){
     if (this.i0 < 0 && !S.loopSel) return;
     this.i0 = this.i1 = -1;
-    if (S.loopSel){ S.loop = false; S.loopSel = false; S.loopB = 0; document.getElementById("bLoop").classList.remove("on"); }
+    if (S.loopSel){ S.loop = false; S.loopSel = false; S.loopB = 0; $("bLoop").classList.remove("on"); }
   }
   /* a new song: nothing selected, no loop */
   reset(){
     this.i0 = this.i1 = -1; this.drag = null;
     S.loop = false; S.loopSel = false; S.loopB = 0;
-    document.getElementById("bLoop").classList.remove("on");
+    $("bLoop").classList.remove("on");
   }
   /* the note offset moved the chart: the selected bars move with it */
   follow(){

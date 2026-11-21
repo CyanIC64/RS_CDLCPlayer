@@ -6,8 +6,8 @@ function fmt(t){
   return m + ":" + String(s).padStart(2, "0");
 }
 function paintClock(){
-  document.getElementById("tcur").textContent = fmt(S.time);
-  document.getElementById("tdur").textContent = fmt(S.duration);
+  $("tcur").textContent = fmt(S.time);
+  $("tdur").textContent = fmt(S.duration);
 }
 
 /* ── timeline ────────────────────────────────────────────────────────────── */
@@ -22,7 +22,7 @@ function secColor(name){
 
 let secEls = [], secCur = -1;
 function renderTimeline(){
-  const box = document.getElementById("tlsec");
+  const box = $("tlsec");
   box.innerHTML = "";
   secEls = []; secCur = -1; hudSecIdx = -2;
   const D = S.duration || (S.beats.length ? S.beats[S.beats.length-1].time + 2 : 1);
@@ -49,7 +49,7 @@ function renderTimeline(){
     box.appendChild(el);
   }
   /* where the tone switches */
-  const tb = document.getElementById("tltone");
+  const tb = $("tltone");
   tb.innerHTML = "";
   for (const c of S.tones.changes){
     const x = (c.t + off)/D;
@@ -96,16 +96,16 @@ function sectionAt(t){
 
 /* -- timeline -------------------------------------------------------------- */
 function updateHeadPct(){
-  const tl = document.getElementById("tl");
+  const tl = $("tl");
   const D = S.duration || 1;
   const x = Math.round(clamp(S.time/D, 0, 1) * tl.clientWidth);
-  document.getElementById("tlhead").style.transform = "translateX(" + x + "px)";
-  document.getElementById("tlplayed").style.width = x + "px";
+  $("tlhead").style.transform = "translateX(" + x + "px)";
+  $("tlplayed").style.width = x + "px";
 }
 
 /* scrub */
 (function(){
-  const tl = document.getElementById("tl"), hint = document.getElementById("tlhint");
+  const tl = $("tl"), hint = $("tlhint");
   let drag = false;
   const seekTo = (e) => {
     const r = tl.getBoundingClientRect();

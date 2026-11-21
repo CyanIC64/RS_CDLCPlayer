@@ -4,31 +4,26 @@ const PREFS = { speed:[0.6, 2], zoom:[0.55, 3], camRate:[0.3, 2.5], master:[0, 1
                 rscale:[0.2, 1], autoScale:0, showCells:0, showNums:0, showLabels:0, showLyrics:0, autoPan:0,
                 showFingers:0, invert:0, lefty:0, tabView:0, showChord:0, showDiagram:0, showHit:0, clickOn:0, synthOn:0, muted:0, fx:0,
                 inOn:0, inDevice:0, inScore:0, inLatMs:[-50, 400], ampOn:0, ampLevel:[0, 1] };
-/* Kept in this browser (localStorage): the page has one address here, so the
-   browser's own storage is the right place, and nothing about a visitor is
-   stored on the server. */
+/* kept in this browser: see Store (ui.js) */
 let prefTimer = 0;
 function savePrefs(){
   clearTimeout(prefTimer);
   prefTimer = setTimeout(() => {
     const o = {};
     for (const k in PREFS) o[k] = S[k];
-    try { localStorage.setItem("playsong.prefs", JSON.stringify(o)); } catch (e) {}
+    Store.write(Store.PREFS, o);
   }, 350);
 }
 async function loadPrefs(){
-  try {
-    const p = JSON.parse(localStorage.getItem("playsong.prefs") || "{}") || {};
-    for (const k in PREFS){
-      if (typeof p[k] !== typeof S[k]) continue;
-      S[k] = PREFS[k] ? clamp(p[k], PREFS[k][0], PREFS[k][1]) : p[k];
-    }
-  } catch (e) {}
+  const p = Store.read(Store.PREFS, {});
+  for (const k in PREFS){
+    if (typeof p[k] !== typeof S[k]) continue;
+    S[k] = PREFS[k] ? clamp(p[k], PREFS[k][0], PREFS[k][1]) : p[k];
+  }
   syncControls();
 }
 /* put every control where the state says it is */
 function syncControls(){
-  const $ = (id) => document.getElementById(id);
   $("fSpeed").value = Math.round(S.speed*100);
   $("fCam").value = Math.round(S.camRate*100); $("rvCam").textContent = Math.round(S.camRate*100) + "%";
   $("fCells").checked = S.showCells; $("fNums").checked = S.showNums; $("fLabels").checked = S.showLabels;
@@ -52,13 +47,3 @@ function syncControls(){
   if (A.gainClick) A.gainClick.gain.value = S.clickLevel;
   updGeom(); resize();
 }
-
-/* the pill in the middle of the stage: what is being worked on right now */
-function busy(text){
-  const m = document.getElementById("msg");
-  document.getElementById("msgTxt").textContent = text;
-  m.className = "";
-}
-function notice(text){ busy(text); document.getElementById("msg").className = "plain"; }
-function idle(){ document.getElementById("msg").className = "hide"; }
-

@@ -117,8 +117,8 @@ class TabView {
   }
 
   build(){
-    const view = document.getElementById("tabview");
-    const page = document.getElementById("tabpage");
+    const view = $("tabview");
+    const page = $("tabpage");
     this.dirty = false; this.rows = []; this.curEv = -1; this.curRow = -1;
     const width = Math.max(320, view.clientWidth);
     this.width = width;
@@ -400,7 +400,7 @@ class TabView {
   /* the box over the notes being played, and the view following it */
   follow(){
     if (!this.on || !this.evs.length) return;
-    const cur = document.getElementById("tabcur");
+    const cur = $("tabcur");
     if (!cur) return;
     const t = chartTime(), evs = this.evs;
 
@@ -415,7 +415,7 @@ class TabView {
       if (b.row !== this.curRow){
         this.curRow = b.row;
         if (performance.now() > this.holdUntil){
-          const view = document.getElementById("tabview");
+          const view = $("tabview");
           const want = row.top - view.clientHeight*0.22;
           view.scrollTo({ top: Math.max(0, want), behavior: Math.abs(view.scrollTop - want) > view.clientHeight*2 ? "auto" : "smooth" });
         }
@@ -435,10 +435,10 @@ class TabView {
   set(on){
     this.on = !!on;
     S.tabView = this.on;
-    document.getElementById("stage").classList.toggle("tabmode", this.on);
-    document.getElementById("bTab").classList.toggle("on", this.on);
+    $("stage").classList.toggle("tabmode", this.on);
+    $("bTab").classList.toggle("on", this.on);
     if (this.on){
-      if (this.dirty || Math.abs(document.getElementById("tabview").clientWidth - this.width) > 2) this.build();
+      if (this.dirty || Math.abs($("tabview").clientWidth - this.width) > 2) this.build();
       this.curEv = -1; this.curRow = -1; this.holdUntil = 0;
       this.follow();
     } else {
@@ -452,7 +452,7 @@ class TabView {
 
 
   listen(){
-    const view = document.getElementById("tabview");
+    const view = $("tabview");
     /* reading ahead: the view stops following for a few seconds after a manual scroll */
     const hold = () => { this.holdUntil = performance.now() + 5000; };
     view.addEventListener("wheel", hold, { passive: true });
@@ -479,7 +479,7 @@ class TabView {
     });
     let tm = 0;
     window.addEventListener("resize", () => { clearTimeout(tm); tm = setTimeout(() => { if (this.on) this.set(true); else this.dirty = true; }, 150); });
-    document.getElementById("bTab").onclick = () => { this.set(!this.on); savePrefs(); };
+    $("bTab").onclick = () => { this.set(!this.on); savePrefs(); };
   }
 }
 const tabView = new TabView();

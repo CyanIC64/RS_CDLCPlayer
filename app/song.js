@@ -159,9 +159,9 @@ function selectArrangement(i){
   S.tones = a.tones || { base:"", changes:[], names:{} };
   hudToneKey = undefined;
   pedalboard.reset();
-  document.getElementById("hudArr").textContent = a.name || "—";
+  $("hudArr").textContent = a.name || "—";
   showTuning(a);
-  document.getElementById("bpm").textContent = S.bpm ? S.bpm.toFixed(1) : "—";
+  $("bpm").textContent = S.bpm ? S.bpm.toFixed(1) : "—";
   applyOffset(S.offMs);
   tabView.invalidate();
 }
@@ -181,7 +181,7 @@ function tuningText(a){
   return { name, notes: open.map((_, i) => nm(i)).join(" "), capo: S.capo > 0 ? "Capo " + S.capo : "" };
 }
 function showTuning(a){
-  const el = document.getElementById("tuning"), T = tuningText(a);
+  const el = $("tuning"), T = tuningText(a);
   el.textContent = "";
   const b = document.createElement("b"); b.textContent = T.name; el.appendChild(b);
   el.appendChild(document.createTextNode("  ·  " + T.notes + (T.capo ? "  ·  " + T.capo : "")));
@@ -330,12 +330,12 @@ function buildPhrases(){
 const chartTime = () => S.time - S.offMs/1000;
 function applyOffset(ms){
   S.offMs = Math.round(ms);
-  const badge = document.getElementById("syncoff");
+  const badge = $("syncoff");
   if (badge){
     badge.textContent = S.offMs ? (S.offMs > 0 ? "+" : "") + S.offMs + "ms" : "";
     badge.style.display = S.offMs ? "inline-block" : "none";
   }
-  const inp = document.getElementById("fOffset");
+  const inp = $("fOffset");
   if (inp && +inp.value !== S.offMs) inp.value = S.offMs;
   renderTimeline();
   hudSecIdx = -2;
@@ -379,8 +379,8 @@ function loadSongData(d){
   if (lerr && !loadSongData.told){
     loadSongData.told = true;
     S.lyrics = [];
-    const el = document.getElementById("lyrErr");
-    document.getElementById("lyrErrWhy").textContent =
+    const el = $("lyrErr");
+    $("lyrErrWhy").textContent =
       lerr.charAt(0).toUpperCase() + lerr.slice(1) + ". Lyrics are hidden - repair them with Sync lyrics.";
     el.classList.add("show");
     setTimeout(() => el.classList.remove("show"), 12000);

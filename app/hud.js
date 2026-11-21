@@ -27,7 +27,7 @@ function lyrPaint(el, line, t){
   }
 }
 function updateLyrics(){
-  const box = document.getElementById("lyr");
+  const box = $("lyr");
   if (!box) return;
   const hide = () => { if (lyrPair !== null){ box.style.display = "none"; lyrPair = null; } };
   if (!S.showLyrics || !S.lyrPairs.length) return hide();
@@ -39,7 +39,7 @@ function updateLyrics(){
   if (idx < 0) return hide();
   const p = Pp[idx];
   if (t > p.gone) return hide();                   // nothing sung for a while
-  const A = document.getElementById("lyrA"), B = document.getElementById("lyrB");
+  const A = $("lyrA"), B = $("lyrB");
   if (lyrPair !== p){
     /* A new pair of lines takes over the two rows. The rows still carry the
        colour of the lines they just held - often the white of a line being
@@ -70,12 +70,12 @@ function updateHud(){
     if (secEls[secCur]) secEls[secCur].classList.remove("cur");
     secCur = idx;
     if (secEls[secCur]) secEls[secCur].classList.add("cur");
-    document.getElementById("hudSecRow").style.display = s ? "" : "none";
-    if (s) document.getElementById("hudSec").textContent =
+    $("hudSecRow").style.display = s ? "" : "none";
+    if (s) $("hudSec").textContent =
       secLabel(s.name) || "—";
   }
 
-  const T = S.tones, row = document.getElementById("hudToneRow"), tc = chartTime();
+  const T = S.tones, row = $("hudToneRow"), tc = chartTime();
   let key = T.base || "";
   for (let i = 0; i < T.changes.length && T.changes[i].t <= tc; i++) key = T.changes[i].name;
   if (key !== hudToneKey){
@@ -85,12 +85,12 @@ function updateHud(){
     row.style.display = key ? "" : "none";
     if (key){
       const nm = T.names[key] || { raw:key, real:"" };
-      document.getElementById("hudTone").textContent = nm.real || nm.raw;
-      document.getElementById("hudRaw").textContent = nm.raw;
-      const kEl = document.getElementById("hudKind");
+      $("hudTone").textContent = nm.real || nm.raw;
+      $("hudRaw").textContent = nm.raw;
+      const kEl = $("hudKind");
       kEl.textContent = nm.kind ? KIND_LABEL[nm.kind].toUpperCase() : "";
       kEl.className = "tkind " + (nm.kind || "");
-      document.getElementById("hudToneK").textContent = first ? "TONE" : "TONE SWITCH";
+      $("hudToneK").textContent = first ? "TONE" : "TONE SWITCH";
       row.classList.add("flash");
       hudToneUntil = performance.now() + 3500;
     }

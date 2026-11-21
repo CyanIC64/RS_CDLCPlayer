@@ -19,9 +19,9 @@ class Tuner {
     this.key = "";          // the targets the string buttons were built for
     this.quiet = 0;         // seconds without a pitch
     this.lock = -1;         // a string clicked: tune only that one
-    inEl("tuRec").onclick = () => this.record();
-    inEl("bTuner").onclick = () => this.toggle();
-    inEl("tuClose").onclick = () => this.show(false);
+    $("tuRec").onclick = () => this.record();
+    $("bTuner").onclick = () => this.toggle();
+    $("tuClose").onclick = () => this.show(false);
   }
 
   /* the open strings of the arrangement on screen */
@@ -37,7 +37,7 @@ class Tuner {
 
   show(on){
     this.open = on;
-    inEl("tuner").classList.toggle("show", on);
+    $("tuner").classList.toggle("show", on);
     if (!on) return;
     this.hist.length = 0; this.key = ""; this.cur = -1; this.okSince = 0; this.quiet = 0;
     if (!guitarInput.link && !guitarInput.busy) guitarInput.start();                  // a tuner needs the guitar
@@ -52,7 +52,7 @@ class Tuner {
   }
 
   buildStrings(T){
-    const box = inEl("tuStrings");
+    const box = $("tuStrings");
     box.textContent = "";
     T.forEach((t, i) => {
       const s = document.createElement("span");
@@ -64,16 +64,16 @@ class Tuner {
     this.paintLock();
     const a = currentArr(), tt = tuningText(a || {});
     const cent = (a && +a.centOffset) || 0;
-    inEl("tuTun").textContent = tt.name + (cent ? "  ·  " + (cent > 0 ? "+" : "") + Math.round(cent) + "¢" : "");
+    $("tuTun").textContent = tt.name + (cent ? "  ·  " + (cent > 0 ? "+" : "") + Math.round(cent) + "¢" : "");
   }
 
   paintLock(){
-    [...inEl("tuStrings").children].forEach((s, i) => s.classList.toggle("lock", i === this.lock));
+    [...$("tuStrings").children].forEach((s, i) => s.classList.toggle("lock", i === this.lock));
   }
 
   paint(dt){
     if (!this.open) return;
-    const el = inEl("tuner"), T = this.targets();
+    const el = $("tuner"), T = this.targets();
     const key = T.map(t => t.hz.toFixed(3)).join(",");
     if (key !== this.key){ this.key = key; this.done.clear(); this.lock = -1; this.buildStrings(T); }
 
@@ -84,15 +84,15 @@ class Tuner {
 
     const msg = !guitarInput.link ? (guitarInput.busy ? "Connecting…" : "Switch on the guitar input (G) to tune.")
               : hz || this.quiet < 0.6 ? "" : "Play an open string.";
-    inEl("tuMsg").textContent = msg;
+    $("tuMsg").textContent = msg;
     if (!hz){
       if (this.quiet >= 0.6){                                // silent for a while: clear the display
         el.classList.remove("ok", "far");
-        inEl("tuNote").textContent = "—"; inEl("tuCents").textContent = ""; inEl("tuHz").textContent = "";
-        inEl("tuNeedle").style.opacity = "0";
+        $("tuNote").textContent = "—"; $("tuCents").textContent = ""; $("tuHz").textContent = "";
+        $("tuNeedle").style.opacity = "0";
         this.okSince = 0;
         if (this.quiet >= 3) this.cur = -1;                  // the same string struck again soon stays chosen
-        [...inEl("tuStrings").children].forEach((s, i) => { s.classList.remove("cur"); s.classList.toggle("done", this.done.has(i)); });
+        [...$("tuStrings").children].forEach((s, i) => { s.classList.remove("cur"); s.classList.toggle("done", this.done.has(i)); });
       }
       return;
     }
@@ -116,19 +116,19 @@ class Tuner {
     el.classList.toggle("far", far);
 
     const a = currentArr(), n = guitarInput.kit.freqToNote(hz, (a && +a.centOffset) || 0);
-    inEl("tuNote").innerHTML = "";
-    inEl("tuNote").append(n.name, Object.assign(document.createElement("sub"), { textContent: n.octave }));
+    $("tuNote").innerHTML = "";
+    $("tuNote").append(n.name, Object.assign(document.createElement("sub"), { textContent: n.octave }));
     const c = Math.round(cents);
-    inEl("tuCents").textContent = (c > 0 ? "+" : c < 0 ? "−" : "") + Math.abs(c) + "¢";
-    inEl("tuHz").textContent = hz.toFixed(1) + " Hz  →  " + tgt.name + tgt.oct + " " + tgt.hz.toFixed(1) + " Hz"
+    $("tuCents").textContent = (c > 0 ? "+" : c < 0 ? "−" : "") + Math.abs(c) + "¢";
+    $("tuHz").textContent = hz.toFixed(1) + " Hz  →  " + tgt.name + tgt.oct + " " + tgt.hz.toFixed(1) + " Hz"
       + (far ? (cents < 0 ? "   ▲ tune up" : "   ▼ tune down") : "");
 
     const goal = clamp(cents, -50, 50);
     this.needle += (goal - this.needle)*Math.min(1, dt*14);
-    const nd = inEl("tuNeedle");
+    const nd = $("tuNeedle");
     nd.style.left = (50 + this.needle) + "%";
     nd.style.opacity = "1";
-    [...inEl("tuStrings").children].forEach((s, i) => {
+    [...$("tuStrings").children].forEach((s, i) => {
       s.classList.toggle("cur", i === cur);
       s.classList.toggle("done", this.done.has(i));
     });
@@ -137,7 +137,7 @@ class Tuner {
   /* diagnosis: ten seconds of the raw input, saved as a 16-bit WAV, with what
      the tuner read meanwhile in the file name. Nothing leaves the computer. */
   async record(){
-    const b = inEl("tuRec");
+    const b = $("tuRec");
     if (!guitarInput.link || b.classList.contains("on")) return;
     b.classList.add("on"); b.textContent = "Recording…";
     const seen = new Map();

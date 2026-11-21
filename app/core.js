@@ -96,7 +96,7 @@ function updGeom(){
   G.sc = SCROLL_BASE * S.speed;
   G.hor = ZFAR / G.sc;
   const txt = Math.round(S.speed*100) + "%";
-  document.getElementById("hudSpd").textContent = txt;
-  document.getElementById("rvSpeed").textContent = txt;
+  $("hudSpd").textContent = txt;
+  $("rvSpeed").textContent = txt;
 }
 
