@@ -1,12 +1,6 @@
 "use strict";
 /* ── audio ───────────────────────────────────────────────────────────────── */
 const A = { ctx:null, buf:null, src:null, gain:null, gainClick:null, startAt:0, offset:0, playing:false };
-/* the amp simulator the guitar input can be played through (see "amp" below) */
-const AMP = { kit:null, amp:null, busy:false, key:null,
-              boards:new Map(),     // tone key -> its board (amp, cabinet, pedals), as played this session
-              edited:new Set(),     // tone keys the player changed on the pedalboard
-              ui:null, uiKey:"",    // the pedalboard panel (P) and the tone it shows
-              uiFollow:true };      // ...the tone in force, or one the player picked
 
 function audioInit(){
   if (A.ctx) return;

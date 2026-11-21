@@ -81,7 +81,7 @@ function updateHud(){
   if (key !== hudToneKey){
     const first = hudToneKey === undefined;
     hudToneKey = key;
-    ampTone(key);
+    pedalboard.tone(key);
     row.style.display = key ? "" : "none";
     if (key){
       const nm = T.names[key] || { raw:key, real:"" };

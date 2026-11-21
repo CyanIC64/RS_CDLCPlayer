@@ -158,7 +158,7 @@ function selectArrangement(i){
   if (!S.keepCam) S.camC = null;                  // a new chart cuts the camera, unless it should glide over
   S.tones = a.tones || { base:"", changes:[], names:{} };
   hudToneKey = undefined;
-  ampReset();
+  pedalboard.reset();
   document.getElementById("hudArr").textContent = a.name || "—";
   showTuning(a);
   document.getElementById("bpm").textContent = S.bpm ? S.bpm.toFixed(1) : "—";

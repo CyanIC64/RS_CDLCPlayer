@@ -8,31 +8,8 @@
    One chain per tone; the song's tone switches crossfade between them. Loaded
    the first time it is needed. Best heard on headphones: through speakers the
    guitar and the song can feed back into a microphone. */
-const RIGS_KEY = "playsong.rigs";
 const ampKey = (key) => key || "(default)";
-const rigSong = () => ((S.meta && S.meta.artist) || "") + " - " + ((S.meta && S.meta.title) || "");
-function rigsRead(){
-  try { return JSON.parse(localStorage.getItem(RIGS_KEY) || "{}") || {}; } catch (e) { return {}; }
-}
-/* the player's board for a tone of this song, or null */
-let rigSaveTimer = 0;
-const rigPending = new Map();         // tone key -> board (or null: forget it), written a moment later
-function rigSaved(key){
-  if (rigPending.has(ampKey(key))) return rigPending.get(ampKey(key));
-  const song = rigsRead()[rigSong()];
-  return (song && song[ampKey(key)]) || null;
-}
-function rigStore(key, board){
-  rigPending.set(ampKey(key), board ? JSON.parse(JSON.stringify(board)) : null);
-  clearTimeout(rigSaveTimer);
-  rigSaveTimer = setTimeout(() => {
-    const all = rigsRead(), id = rigSong(), song = all[id] || {};
-    for (const [k, b] of rigPending){ if (b) song[k] = b; else delete song[k]; }
-    rigPending.clear();
-    if (Object.keys(song).length) all[id] = song; else delete all[id];
-    try { localStorage.setItem(RIGS_KEY, JSON.stringify(all)); } catch (e) {}
-  }, 300);
-}
+
 /* a tone of the song, from any of its arrangements */
 function toneDef(key){
   if (S.tones.names[key]) return S.tones.names[key];
@@ -61,143 +38,203 @@ function songTones(){
   }
   return [...out.values()];
 }
-/* the board of a tone: the player's, else the song's (its gear through the gear
-   library, or what the converter made of it), else a plain amp */
-function ampBoard(key){
-  key = toneCanon(key);
-  if (AMP.boards.has(key)) return AMP.boards.get(key);
-  const kit = AMP.kit, nm = toneDef(key);
-  const bass = nm && nm.rig ? !!nm.rig.bass || (!!S.tones.names[key] && S.nStr === 4) : S.nStr === 4;
-  const saved = rigSaved(key);
-  let b;
-  if (saved) b = kit.asBoard(saved, { bass });
-  else if (nm && nm.rig && nm.rig.gear) b = kit.boardFromGear(nm.rig.gear, { bass, kind: nm.kind || "" });
-  else if (nm && nm.rig) b = nm.rig.board ? kit.asBoard(JSON.parse(JSON.stringify(nm.rig.board))) : kit.boardFromRig({ ...nm.rig, bass: nm.rig.bass || bass });
-  else b = kit.emptyBoard(bass);
-  if (bass && !saved && !b.amp.bassAmp){ b.amp.bassAmp = true; b.cab = "bass"; }
-  AMP.boards.set(key, b);
-  if (saved) AMP.edited.add(key); else AMP.edited.delete(key);
-  return b;
-}
-async function ampSync(){
-  if (!S.ampOn || !guitarInput.link){ ampClose(); ampPaint(); return; }
-  if (AMP.amp || AMP.busy) return;
-  AMP.busy = true;
-  try {
-    if (!window.AmpKit) await loadScript("web/amp.js");
-    AMP.kit = window.AmpKit;
-    if (!S.ampOn || !guitarInput.link || !guitarInput.link.source) return;
-    AMP.amp = await AMP.kit.create(A.ctx, guitarInput.link.source);
-    AMP.amp.setLevel(S.ampLevel);
-    AMP.key = null;
-    ampTone(hudToneKey || S.tones.base || "");
-  } catch (e) {
-    guitarInput.msg("Could not start the amp: " + ((e && e.message) || e));
-    S.ampOn = false; savePrefs(); inEl("fAmpOn").checked = false;
-  } finally { AMP.busy = false; ampPaint(); }
-}
-function ampClose(){
-  if (AMP.amp) AMP.amp.close();
-  AMP.amp = null; AMP.key = null;
-}
-/* a new song or arrangement: its tones are other rigs */
-function ampReset(){
-  if (AMP.amp) AMP.amp.reset();
-  AMP.key = null;
-  AMP.boards.clear(); AMP.edited.clear();
-  rigFollow.song = null;                          // the open pedalboard shows the new tones
-}
-function ampTone(key){
-  key = key || "";
-  if (!AMP.amp){ ampPaint(); return; }
-  if (key === AMP.key) return;
-  AMP.key = key;
-  AMP.amp.use(ampKey(toneCanon(key)), ampBoard(key));
-  ampPaint();
-}
-/* ── the pedalboard panel (P) ── */
-function rigToneKey(){
-  return toneCanon((hudToneKey !== undefined ? hudToneKey : S.tones.base) || "");
-}
-function rigInfo(key){
-  const nm = toneDef(key), live = rigToneKey();
-  const kindOf = (k) => (k ? " (" + KIND_LABEL[k] + ")" : "");
-  return { title: nm ? (nm.real || nm.raw) + kindOf(nm.kind) : "plain amp (the song has no tone)",
-           edited: AMP.edited.has(key), key, follow: AMP.uiFollow,
-           tones: songTones().map((t) => ({ ...t, inForce: t.key === live, edited: AMP.edited.has(t.key) || !!rigSaved(t.key) })),
-           note: !AMP.amp ? (S.ampOn ? "waiting for the guitar input" : "amp off: A to hear it")
-               : key !== live ? "not the tone in force: heard when the song gets to it" : "" };
-}
-function rigEdited(){
-  const key = AMP.uiKey;
-  rigStore(key, ampBoard(key));
-  if (!AMP.edited.has(key)){ AMP.edited.add(key); if (AMP.ui) AMP.ui.setEdited(true); }
-}
-async function rigShow(on){
-  if (!on){ if (AMP.ui) AMP.ui.hide(); return; }
-  try {
-    if (!window.AmpKit) await loadScript("web/amp.js");
-    AMP.kit = window.AmpKit;
-  } catch (e) { guitarInput.msg("Could not load the pedalboard: " + ((e && e.message) || e)); return; }
-  if (!AMP.ui) AMP.ui = AMP.kit.mountBoard({
-    getMaster: () => S.ampLevel,
-    onMaster(v){
-      S.ampLevel = v; savePrefs();
-      inEl("vAmp").value = Math.round(v * 100); inEl("rvAmp").textContent = Math.round(v * 100) + "%";
-      if (AMP.amp) AMP.amp.setLevel(v);
-    },
-    onKnob(id, k, v){ if (AMP.amp) AMP.amp.set(ampKey(AMP.uiKey), id, k, v); rigEdited(); },
-    onToggle(id, on){ if (AMP.amp) AMP.amp.toggle(ampKey(AMP.uiKey), id, on); rigEdited(); },
-    onChange(board){ if (AMP.amp) AMP.amp.rebuild(ampKey(AMP.uiKey), board); rigEdited(); },
-    onReset(){
-      const key = AMP.uiKey;
-      rigStore(key, null);
-      AMP.boards.delete(key);
-      const fresh = ampBoard(key);
-      AMP.edited.delete(key);
-      if (AMP.amp) AMP.amp.rebuild(ampKey(key), fresh);
-      AMP.ui.update(fresh, rigInfo(key));
-    },
-    /* a tone of the tone bar, or "" to follow the song again */
-    onPick(key){
-      AMP.uiFollow = !key;
-      AMP.uiKey = key ? toneCanon(key) : rigToneKey();
-      rigFollow.live = rigToneKey();
-      AMP.ui.update(ampBoard(AMP.uiKey), rigInfo(AMP.uiKey));
-    },
-    onClose(){ inEl("bRig").textContent = "Open"; },
-  });
-  if (AMP.uiFollow || !toneDef(AMP.uiKey)){ AMP.uiFollow = true; AMP.uiKey = rigToneKey(); }
-  rigFollow.live = rigToneKey(); rigFollow.amp = !!AMP.amp; rigFollow.song = rigSong();
-  AMP.ui.show(ampBoard(AMP.uiKey), rigInfo(AMP.uiKey));
-  inEl("bRig").textContent = "Close";
-}
-/* the open panel follows the tone in force, and the amp coming and going */
-function rigFollow(){
-  if (!AMP.ui || !AMP.ui.open || !AMP.kit) return;
-  const live = rigToneKey();
-  if (live === rigFollow.live && rigFollow.amp === !!AMP.amp && rigFollow.song === rigSong()) return;
-  if (rigFollow.song !== rigSong() || !toneDef(AMP.uiKey)) AMP.uiFollow = true;   // another song: back to following
-  rigFollow.live = live; rigFollow.amp = !!AMP.amp; rigFollow.song = rigSong();
-  if (AMP.uiFollow) AMP.uiKey = live;
-  AMP.ui.update(ampBoard(AMP.uiKey), rigInfo(AMP.uiKey));
-}
 
-function ampPaint(){
-  rigFollow();
-  const el = inEl("ampNow");
-  if (!AMP.amp){ el.textContent = S.ampOn && !guitarInput.link ? "waiting for the guitar input" : "—"; return; }
-  const nm = S.tones.names[AMP.key || ""];
-  el.textContent = nm ? toneLabel(AMP.key) : "plain amp (the song has no tone)";
-}
+/* The player's boards, kept in this browser per song ("artist - title") and
+   tone. Writes are gathered for a moment, so turning a knob does not write
+   localStorage on every step. */
+class RigStore {
+  static KEY = "playsong.rigs";
+  static songId(){ return ((S.meta && S.meta.artist) || "") + " - " + ((S.meta && S.meta.title) || ""); }
 
+  constructor(){
+    this.pending = new Map();       // tone key -> board (or null: forget it), written a moment later
+    this.timer = 0;
+  }
+  read(){
+    try { return JSON.parse(localStorage.getItem(RigStore.KEY) || "{}") || {}; } catch (e) { return {}; }
+  }
+  /* the player's board for a tone of this song, or null */
+  saved(key){
+    if (this.pending.has(ampKey(key))) return this.pending.get(ampKey(key));
+    const song = this.read()[RigStore.songId()];
+    return (song && song[ampKey(key)]) || null;
+  }
+  store(key, board){
+    this.pending.set(ampKey(key), board ? JSON.parse(JSON.stringify(board)) : null);
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => {
+      const all = this.read(), id = RigStore.songId(), song = all[id] || {};
+      for (const [k, b] of this.pending){ if (b) song[k] = b; else delete song[k]; }
+      this.pending.clear();
+      if (Object.keys(song).length) all[id] = song; else delete all[id];
+      try { localStorage.setItem(RigStore.KEY, JSON.stringify(all)); } catch (e) {}
+    }, 300);
+  }
+}
+const rigs = new RigStore();
+
+/* the amp simulator the guitar input is played through, and its panel (P) */
+class Pedalboard {
+  constructor(){
+    this.kit = null;                // window.AmpKit, once loaded
+    this.amp = null;                // the running chain
+    this.busy = false;
+    this.key = null;                // the tone the amp plays
+    this.boards = new Map();        // tone key -> its board (amp, cabinet, pedals), as played this session
+    this.edited = new Set();        // tone keys the player changed on the pedalboard
+    this.ui = null; this.uiKey = "";// the pedalboard panel (P) and the tone it shows
+    this.uiFollow = true;           // ...the tone in force, or one the player picked
+    this.seen = { live: undefined, amp: undefined, song: undefined };   // what the open panel was last drawn for
+    inEl("bRig").onclick = () => this.toggle();
+  }
+
+  async loadKit(){
+    if (!window.AmpKit) await loadScript("web/amp.js");
+    this.kit = window.AmpKit;
+  }
+
+  /* the board of a tone: the player's, else the song's (its gear through the gear
+     library, or what the converter made of it), else a plain amp */
+  board(key){
+    key = toneCanon(key);
+    if (this.boards.has(key)) return this.boards.get(key);
+    const kit = this.kit, nm = toneDef(key);
+    const bass = nm && nm.rig ? !!nm.rig.bass || (!!S.tones.names[key] && S.nStr === 4) : S.nStr === 4;
+    const saved = rigs.saved(key);
+    let b;
+    if (saved) b = kit.asBoard(saved, { bass });
+    else if (nm && nm.rig && nm.rig.gear) b = kit.boardFromGear(nm.rig.gear, { bass, kind: nm.kind || "" });
+    else if (nm && nm.rig) b = nm.rig.board ? kit.asBoard(JSON.parse(JSON.stringify(nm.rig.board))) : kit.boardFromRig({ ...nm.rig, bass: nm.rig.bass || bass });
+    else b = kit.emptyBoard(bass);
+    if (bass && !saved && !b.amp.bassAmp){ b.amp.bassAmp = true; b.cab = "bass"; }
+    this.boards.set(key, b);
+    if (saved) this.edited.add(key); else this.edited.delete(key);
+    return b;
+  }
+  /* the amp on or off, as the option and the guitar input say */
+  async sync(){
+    if (!S.ampOn || !guitarInput.link){ this.close(); this.paint(); return; }
+    if (this.amp || this.busy) return;
+    this.busy = true;
+    try {
+      await this.loadKit();
+      if (!S.ampOn || !guitarInput.link || !guitarInput.link.source) return;
+      this.amp = await this.kit.create(A.ctx, guitarInput.link.source);
+      this.amp.setLevel(S.ampLevel);
+      this.key = null;
+      this.tone(hudToneKey || S.tones.base || "");
+    } catch (e) {
+      guitarInput.msg("Could not start the amp: " + ((e && e.message) || e));
+      S.ampOn = false; savePrefs(); inEl("fAmpOn").checked = false;
+    } finally { this.busy = false; this.paint(); }
+  }
+  close(){
+    if (this.amp) this.amp.close();
+    this.amp = null; this.key = null;
+  }
+  /* a new song or arrangement: its tones are other rigs */
+  reset(){
+    if (this.amp) this.amp.reset();
+    this.key = null;
+    this.boards.clear(); this.edited.clear();
+    this.seen.song = null;                        // the open pedalboard shows the new tones
+  }
+  /* the song switched tone */
+  tone(key){
+    key = key || "";
+    if (!this.amp){ this.paint(); return; }
+    if (key === this.key) return;
+    this.key = key;
+    this.amp.use(ampKey(toneCanon(key)), this.board(key));
+    this.paint();
+  }
+  setLevel(v){ if (this.amp) this.amp.setLevel(v); }
+
+  /* ── the pedalboard panel (P) ── */
+  liveKey(){
+    return toneCanon((hudToneKey !== undefined ? hudToneKey : S.tones.base) || "");
+  }
+  info(key){
+    const nm = toneDef(key), live = this.liveKey();
+    const kindOf = (k) => (k ? " (" + KIND_LABEL[k] + ")" : "");
+    return { title: nm ? (nm.real || nm.raw) + kindOf(nm.kind) : "plain amp (the song has no tone)",
+             edited: this.edited.has(key), key, follow: this.uiFollow,
+             tones: songTones().map((t) => ({ ...t, inForce: t.key === live, edited: this.edited.has(t.key) || !!rigs.saved(t.key) })),
+             note: !this.amp ? (S.ampOn ? "waiting for the guitar input" : "amp off: A to hear it")
+                 : key !== live ? "not the tone in force: heard when the song gets to it" : "" };
+  }
+  markEdited(){
+    const key = this.uiKey;
+    rigs.store(key, this.board(key));
+    if (!this.edited.has(key)){ this.edited.add(key); if (this.ui) this.ui.setEdited(true); }
+  }
+  get open(){ return !!(this.ui && this.ui.open); }
+  toggle(){ return this.show(!this.open); }
+  async show(on){
+    if (!on){ if (this.ui) this.ui.hide(); return; }
+    try { await this.loadKit(); }
+    catch (e) { guitarInput.msg("Could not load the pedalboard: " + ((e && e.message) || e)); return; }
+    if (!this.ui) this.ui = this.kit.mountBoard({
+      getMaster: () => S.ampLevel,
+      onMaster: (v) => {
+        S.ampLevel = v; savePrefs();
+        inEl("vAmp").value = Math.round(v * 100); inEl("rvAmp").textContent = Math.round(v * 100) + "%";
+        this.setLevel(v);
+      },
+      onKnob: (id, k, v) => { if (this.amp) this.amp.set(ampKey(this.uiKey), id, k, v); this.markEdited(); },
+      onToggle: (id, on) => { if (this.amp) this.amp.toggle(ampKey(this.uiKey), id, on); this.markEdited(); },
+      onChange: (board) => { if (this.amp) this.amp.rebuild(ampKey(this.uiKey), board); this.markEdited(); },
+      onReset: () => {
+        const key = this.uiKey;
+        rigs.store(key, null);
+        this.boards.delete(key);
+        const fresh = this.board(key);
+        this.edited.delete(key);
+        if (this.amp) this.amp.rebuild(ampKey(key), fresh);
+        this.ui.update(fresh, this.info(key));
+      },
+      /* a tone of the tone bar, or "" to follow the song again */
+      onPick: (key) => {
+        this.uiFollow = !key;
+        this.uiKey = key ? toneCanon(key) : this.liveKey();
+        this.seen.live = this.liveKey();
+        this.ui.update(this.board(this.uiKey), this.info(this.uiKey));
+      },
+      onClose: () => { inEl("bRig").textContent = "Open"; },
+    });
+    if (this.uiFollow || !toneDef(this.uiKey)){ this.uiFollow = true; this.uiKey = this.liveKey(); }
+    this.seen.live = this.liveKey(); this.seen.amp = !!this.amp; this.seen.song = RigStore.songId();
+    this.ui.show(this.board(this.uiKey), this.info(this.uiKey));
+    inEl("bRig").textContent = "Close";
+  }
+  /* the open panel follows the tone in force, and the amp coming and going */
+  follow(){
+    if (!this.ui || !this.ui.open || !this.kit) return;
+    const live = this.liveKey(), song = RigStore.songId(), seen = this.seen;
+    if (live === seen.live && seen.amp === !!this.amp && seen.song === song) return;
+    if (seen.song !== song || !toneDef(this.uiKey)) this.uiFollow = true;   // another song: back to following
+    seen.live = live; seen.amp = !!this.amp; seen.song = song;
+    if (this.uiFollow) this.uiKey = live;
+    this.ui.update(this.board(this.uiKey), this.info(this.uiKey));
+  }
+
+  /* the amp's line in the options */
+  paint(){
+    this.follow();
+    const el = inEl("ampNow");
+    if (!this.amp){ el.textContent = S.ampOn && !guitarInput.link ? "waiting for the guitar input" : "—"; return; }
+    const nm = S.tones.names[this.key || ""];
+    el.textContent = nm ? toneLabel(this.key) : "plain amp (the song has no tone)";
+  }
+}
+const pedalboard = new Pedalboard();
+
+/* the guitar input's controls, after it was switched on or off */
 function inputSync(){
   inEl("fInOn").checked = !!guitarInput.link || guitarInput.busy;
   inEl("fInDev").disabled = guitarInput.busy;
   if (!guitarInput.link){ inEl("inLevel").style.width = "0"; inEl("inNote").textContent = "—"; guitarInput.note = ""; }
   guitarInput.hudPaint();
   cable.icon();
-  ampPaint();
+  pedalboard.paint();
 }
-
-inEl("bRig").onclick = () => rigShow(!(AMP.ui && AMP.ui.open));

@@ -66,12 +66,12 @@ inEl("fInOn").onchange = (e) => {
 inEl("fAmpOn").onchange = (e) => {
   S.ampOn = e.target.checked; savePrefs();
   if (S.ampOn && !guitarInput.link && !guitarInput.busy) guitarInput.start();   // the amp needs the input; it follows when it is up
-  else ampSync();
+  else pedalboard.sync();
 };
 inEl("vAmp").oninput = (e) => {
   S.ampLevel = (+e.target.value)/100; savePrefs();
   inEl("rvAmp").textContent = e.target.value + "%";
-  if (AMP.amp) AMP.amp.setLevel(S.ampLevel);
+  pedalboard.setLevel(S.ampLevel);
 };
 inEl("fInScore").onchange = (e) => {
   S.inScore = e.target.checked; savePrefs();

@@ -45,7 +45,7 @@ class GuitarInput {
       this.configure();
       S.inOn = true; savePrefs();
       this.msg("Listening to " + (dev.label || "the audio input") + ".");
-      ampSync();
+      pedalboard.sync();
     } catch (e) {
       if (this.link){ this.link.close(); this.link = null; }
       S.inOn = false; savePrefs();
@@ -60,7 +60,7 @@ class GuitarInput {
 
   stop(){
     if (calibration.active) calibration.end("Calibration stopped.");
-    ampClose();
+    pedalboard.close();
     if (this.link) this.link.close();
     this.link = null; this.last = null; this.level = 0; this.peak = 0;
     S.inOn = false; savePrefs();
@@ -72,7 +72,7 @@ class GuitarInput {
      comes back by itself when the cable is plugged in again */
   lost(){
     if (!this.link) return;
-    ampClose();
+    pedalboard.close();
     this.link.close(); this.link = null; this.last = null; this.peak = 0;
     cable.lostUntil = performance.now() + 4000;
     setTimeout(() => cable.icon(), 4100);
@@ -83,7 +83,7 @@ class GuitarInput {
   /* another input picked in the options: reconnect to it */
   async reconnect(){
     if (!this.link) return;
-    ampClose(); this.link.close(); this.link = null;
+    pedalboard.close(); this.link.close(); this.link = null;
     await this.start();
   }
 
