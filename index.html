@@ -144,6 +144,7 @@ body.locked{cursor:progress}
   text-transform:uppercase;white-space:nowrap}
 /* tone read-out: the tone's display name, with its raw key under it.
    It lights up at a tone switch and settles back. */
+#secNow{display:none}                 /* portrait only: the section being played (see the portrait rules) */
 #hudToneRow{opacity:.55;transition:opacity 1.6s}
 #hudToneRow.flash{opacity:1;transition:opacity .12s}
 #hud .v.tone{text-transform:none;white-space:normal;font-size:clamp(12px,2.4vh,26px);margin-bottom:.08em}
@@ -316,6 +317,15 @@ body.locked{cursor:progress}
   #lyr .ln{font-size:clamp(16px,4.3vw,44px)}
   #lyrErr b{font-size:clamp(14px,3vw,32px)}
   #hud{display:none}                 /* arrangement, section, tone, note speed: no room beside the lyrics */
+  /* the seek bar's blocks are too narrow on a phone for their names: the
+     section being played is named once, at the highway's bottom-left corner,
+     right above the elapsed time */
+  #tlsec .s span{visibility:hidden}
+  #secNow{display:block;position:absolute;left:12px;bottom:6px;pointer-events:none;
+          font:600 clamp(12px,3.6vw,18px)/1.2 "Century Gothic","Futura","Tw Cen MT","Trebuchet MS","Segoe UI",sans-serif;
+          color:#dfe7ef;letter-spacing:.03em;text-transform:uppercase;text-shadow:0 2px 6px #000, 0 0 2px #000}
+  #secNow:empty{display:none}
+  #stage.tabmode #secNow{display:none}
   /* tab view: four bars to a row - smaller writing, so the notes keep apart */
   .tabrow .tf{font-size:10.5px;stroke-width:3px}
   .tabrow .tch{font-size:9.5px}
@@ -388,6 +398,7 @@ body.dbg-free #hw{cursor:grab}
     <div class="hint">Free camera: drag to orbit, right-drag or Shift+drag to pan, wheel to move in and out.</div>
   </div>
   <div id="lyrErr"><b>[Lyric load error!]</b><span id="lyrErrWhy"></span></div>
+  <div id="secNow"></div>
   <div id="hud">
     <div class="k">ARRANGEMENT</div><div class="v" id="hudArr">—</div>
     <div id="hudSecRow"><div class="k">SECTION</div><div class="v" id="hudSec">—</div></div>
@@ -4351,6 +4362,7 @@ function updateHud(){
     document.getElementById("hudSecRow").style.display = s ? "" : "none";
     if (s) document.getElementById("hudSec").textContent =
       secLabel(s.name) || "—";
+    document.getElementById("secNow").textContent = s ? (secLabel(s.name) || "") : "";   // portrait's corner label
   }
 
   const T = S.tones, row = document.getElementById("hudToneRow"), tc = chartTime();

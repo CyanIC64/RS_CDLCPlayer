@@ -161,6 +161,11 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Version
 
+**V1.3.9**, built on V1.3.8:
+- **Portrait section name:** the seek bar's section blocks no longer carry names (too narrow on a
+  phone). The section being played is named instead at the bottom-left corner of the highway, right
+  above the elapsed time. Landscape is unchanged.
+
 **V1.3.8**, built on V1.3.7:
 - **Portrait controls:** the row under the seek bar now has the path picker on the left, the
   transport buttons centred and the stem picker on the right (it used to be hidden on phones). The
