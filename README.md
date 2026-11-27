@@ -161,6 +161,14 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Version
 
+**V1.3.7**, built on V1.3.6:
+- **Auto audio delay:** the notes are drawn at the moment you hear them, not the moment the sound is
+  sent out. The browser reports the delay of the audio output (about 0.2 s for a Bluetooth headset, a
+  few ms for wired speakers); it is measured all the time, so plugging in or pairing a headset mid-song
+  is followed. When playback starts the picture waits for the first sound to arrive. Options → Sync
+  shows the delay measured and can switch it off; the note offset adds on top. The metronome and note
+  synth are unaffected: they go through the same output and stay in step with the song.
+
 **V1.3.6**, built on V1.3.5:
 - **Screen stays on while a song plays:** a screen wake lock keeps the phone (or computer) from
   dimming and locking mid-song, and is let go as soon as playback stops. It needs a browser that
