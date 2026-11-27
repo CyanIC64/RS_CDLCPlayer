@@ -21,7 +21,11 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 
 /* ── highway ───────────────────────────────────────────────────────────── */
 #stage{position:relative;min-height:0;overflow:hidden;background:#000}
-#hw{display:block;width:100%;height:100%}
+#hw{display:block;width:100%;height:100%;
+    /* a finger held or dragged on the highway is ours, not the browser's: as a
+       pan or long-press the browser took it over (pointercancel), and holding
+       on the difficulty bars to loop them never worked on a phone */
+    touch-action:none;-webkit-touch-callout:none}
 /* preview mode (play_song.html?preview): the highway alone fills the frame */
 body.preview{display:block}
 body.preview > *:not(#stage):not(script){display:none!important}
@@ -4101,8 +4105,11 @@ function clearLoopBars(){
 }
 (function(){
   const pos = (e) => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
-  const inBars = (x, y) => S.phrases.length > 0 && y >= BARS.top - 8 && y <= BARS.top + BARS.h + 14
-                           && x >= BARS.x0 - 3 && x <= BARS.x1 + 3;
+  /* a finger gets a wider margin round the bars than a mouse pointer: they are
+     short on a phone */
+  const inBars = (x, y, touch) => S.phrases.length > 0 && y >= BARS.top - (touch ? 16 : 8)
+                                  && y <= BARS.top + BARS.h + (touch ? 24 : 14)
+                                  && x >= BARS.x0 - (touch ? 12 : 3) && x <= BARS.x1 + (touch ? 12 : 3);
   const barAt = (x) => {                            // the bar under x, or the nearest one
     const ph = S.phrases, D = S.duration || 1;
     const tc = clamp((x - BARS.x0)/(BARS.x1 - BARS.x0), 0, 1)*D - S.offMs/1000;
@@ -4122,7 +4129,7 @@ function clearLoopBars(){
   cv.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;
     const [x, y] = pos(e);
-    if (!inBars(x, y)){ clearLoopBars(); return; }  // a click off the bars lets the loop go
+    if (!inBars(x, y, e.pointerType === "touch")){ clearLoopBars(); return; }  // a click off the bars lets the loop go
     const i = barAt(x);
     SEL.drag = { a:i, b:i, t0:performance.now(), moved:false, x };
     try { cv.setPointerCapture(e.pointerId); } catch (err) {}
@@ -4140,6 +4147,12 @@ function clearLoopBars(){
   };
   cv.addEventListener("pointerup", (e) => finish(e, false));
   cv.addEventListener("pointercancel", (e) => finish(e, true));
+  /* a long press on the bars is a loop being chosen, not a call for the
+     browser's menu (which also ends the press on a phone) */
+  cv.addEventListener("contextmenu", (e) => {
+    const [x, y] = pos(e);
+    if (SEL.drag || inBars(x, y, true)) e.preventDefault();
+  });
 })();
 
 /* ── lyrics ──────────────────────────────────────────────────────────────────

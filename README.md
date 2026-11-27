@@ -161,6 +161,12 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Version
 
+**V1.3.5**, built on V1.3.4:
+- **Looping on a phone:** tap and hold on the difficulty bars (or hold and drag across them) now
+  selects a loop on touch screens. The browser used to take a held or dragged finger over as a scroll
+  or long-press, which cancelled the selection. Fingers also get a wider margin around the bars, and
+  a long press no longer opens the browser's menu.
+
 **V1.3.4**, built on V1.3.3:
 - **Portrait tab scrolling:** the tab now jumps straight to the next row, with no scrolling
   animation in between (the 200 ms glide of V1.3.3 was dizzying on a phone). Landscape still scrolls
