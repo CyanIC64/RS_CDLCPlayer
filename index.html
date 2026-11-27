@@ -304,11 +304,14 @@ body.locked{cursor:progress}
   #lyr,#lyrErr{left:6%;top:15%;max-width:58%}
   #lyr .ln{font-size:clamp(16px,4.3vw,44px)}
   #lyrErr b{font-size:clamp(14px,3vw,32px)}
-  #hud{right:5%;top:15%}
-  #hud .k{font-size:clamp(9px,1.9vw,18px)}
-  #hud .v{font-size:clamp(12px,3vw,30px)}
-  #hud .v.tone{font-size:clamp(11px,2.5vw,25px)}
-  #hud .raw{font-size:clamp(8px,1.5vw,14px)}
+  #hud{display:none}                 /* arrangement, section, tone, note speed: no room beside the lyrics */
+  /* tab view: four bars to a row - smaller writing, so the notes keep apart */
+  .tabrow .tf{font-size:10.5px;stroke-width:3px}
+  .tabrow .tch{font-size:9.5px}
+  .tabrow .tly{font-size:11px}
+  .tabrow .tsec{font-size:13px}
+  .tabrow .tpm,.tabrow .tpml{font-size:9.5px}
+  #lyr,#lyrErr{max-width:88%}
 }
 @media (orientation:portrait){ #vMaster,#vClick,#vSynth{display:block} }
 @media (orientation:portrait) and (max-width:479px){
@@ -989,6 +992,13 @@ const S = {
   fx:true, rscale:1, autoScale:false, dynScale:1, tones:{base:"", changes:[], names:{}},
   fps:0, bpm:0, loopA:0, loopB:0,
 };
+/* Portrait keeps its own camera speed and zoom, saved beside the landscape
+   ones: the Options slider and the wheel change whichever one is on screen.
+   Its camera is closer (makeCam), so its default speed is higher. */
+S.camRateP = 1.5; S.zoomP = 1.0;
+const isPortrait = () => window.innerHeight > window.innerWidth;
+const camRateNow = () => isPortrait() ? S.camRateP : S.camRate;
+const zoomNow = () => isPortrait() && !IS_PREVIEW ? S.zoomP : S.zoom;   // the Song Editor's preview sets its own zoom
 
 /* live geometry: "note speed" stretches the time axis. The far end of the
    highway stays where it is, so a faster highway shows less time ahead -
@@ -1003,7 +1013,7 @@ function updGeom(){
 }
 
 /* ── settings ──────────────────────────────────────────────────────────────── */
-const PREFS = { speed:[0.6, 2], zoom:[0.55, 3], camRate:[0.3, 2.5], master:[0, 1], clickLevel:[0, 1], synthLevel:[0, 1],
+const PREFS = { speed:[0.6, 2], zoom:[0.55, 3], camRate:[0.3, 2.5], zoomP:[0.55, 3], camRateP:[0.3, 2.5], master:[0, 1], clickLevel:[0, 1], synthLevel:[0, 1],
                 rscale:[0.2, 1], autoScale:0, showCells:0, showNums:0, showLabels:0, showLyrics:0, autoPan:0,
                 showFingers:0, invert:0, lefty:0, tabView:0, showChord:0, showDiagram:0, showHit:0, clickOn:0, synthOn:0, muted:0, fx:0 };
 /* Kept in this browser (localStorage): the page has one address here, so the
@@ -1039,11 +1049,20 @@ async function loadPrefs(){
   } catch (e) {}
   syncControls();
 }
+/* the camera-speed slider shows (and sets) the speed of the orientation on
+   screen; turning the screen brings the other one's value up */
+function syncCamSlider(){
+  const r = Math.round(camRateNow()*100), $ = (id) => document.getElementById(id);
+  $("fCam").value = r;
+  $("rvCam").textContent = r + "%";
+  $("fCam").closest(".row").querySelector("label").title = isPortrait() ? "Camera speed in portrait (kept apart from landscape)" : "";
+}
+window.addEventListener("resize", () => syncCamSlider());
 /* put every control where the state says it is */
 function syncControls(){
   const $ = (id) => document.getElementById(id);
   $("fSpeed").value = Math.round(S.speed*100);
-  $("fCam").value = Math.round(S.camRate*100); $("rvCam").textContent = Math.round(S.camRate*100) + "%";
+  syncCamSlider();
   $("fCells").checked = S.showCells; $("fNums").checked = S.showNums; $("fLabels").checked = S.showLabels;
   $("fLyrics").checked = S.showLyrics; $("fPan").checked = S.autoPan;
   $("fFingers").checked = S.showFingers; $("fInvert").checked = S.invert; $("fLefty").checked = S.lefty;
@@ -1533,19 +1552,22 @@ const CAM_EASE = 0.85;              // camera spring stiffness, 1/s - lower is l
 const LOOK_BACK = 1.5;              // seconds of anchors just played that stay in frame
 const FOV = 50*Math.PI/180, CAM_ELEV = 24*Math.PI/180, CAM_YAW = 6.5*Math.PI/180;
 
-/* Portrait windows (phone, tablet or monitor turned on its side): the frets
-   have to fit the narrow width, which puts the camera far back and leaves the
-   top half of a tall screen empty. So the camera climbs higher and looks
-   further down, and the highway runs up the screen. `por` goes from 0 at a
-   square window to 1 at 9:16 and taller; landscape is unchanged. */
+/* Portrait windows (phone, tablet or monitor turned on its side): fitting the
+   upcoming frets into the narrow width put the camera far back, and a steep
+   angle then stretched a thin highway up the screen. Instead the camera comes
+   in close - the frame holds fewer frets, the highway is wide - at nearly the
+   landscape angle, so the highway rises gently; the space under the lyrics is
+   left empty. Being closer, the camera has to move more to follow the hand,
+   so portrait has its own, faster camera speed (S.camRateP). `por` goes from
+   0 at a square window to 1 at 9:16 and taller; landscape is unchanged. */
 function makeCam(W, H, cFret, span, nStr, zoom){
   const por = clamp((1 - W/H)/0.44, 0, 1);
-  const elev = CAM_ELEV + por*(10*Math.PI/180);
+  const elev = CAM_ELEV + por*(2*Math.PI/180);
   const k = (H/2)/Math.tan(FOV/2);
   let ppf = 0.164*H*Math.pow(4/span, 0.72);       // pixels per fret at the hit plane
-  ppf = Math.min(ppf, (0.60 - 0.04*por)*W/span) * zoom;
+  ppf = Math.min(ppf, (0.60 + 0.40*por)*W/span) * zoom;
   const d = k*FW/ppf;                              // distance camera -> neck
-  const pitch = (10*Math.PI/180)*Math.pow(4/span, 0.45) + por*(5*Math.PI/180);
+  const pitch = (10*Math.PI/180)*Math.pow(4/span, 0.45) + por*(1*Math.PI/180);
   const sy = Math.sin(CAM_YAW), cy = Math.cos(CAM_YAW);
   const sp = Math.sin(pitch), cp = Math.cos(pitch);
   const ce = Math.cos(elev), se = Math.sin(elev);
@@ -1556,7 +1578,7 @@ function makeCam(W, H, cFret, span, nStr, zoom){
     fx: -sy*cp, fy: -sp,  fz: -cy*cp,              // forward
     rx:  cy,    ry: 0,    rz: -sy,                 // right
     ux: -sy*sp, uy: cp,   uz: -cy*sp,              // up
-    k, cx: W/2, cy: H*(0.48 - 0.05*por), ppf,
+    k, cx: W/2, cy: H*(0.48 + 0.02*por), ppf,
   };
 }
 
@@ -3514,11 +3536,11 @@ function draw(dt){
        into the next over four to five seconds, with no sudden start or stop.
        Because it frames LOOK seconds ahead, it has all but finished moving
        before the notes that needed the new angle arrive. */
-    const w = CAM_EASE * S.camRate;
+    const w = CAM_EASE * camRateNow();
     S.camCv += ((wantC - S.camC)*w*w - 2*w*S.camCv)*dt;  S.camC += S.camCv*dt;
     S.camSv += ((wantS - S.camS)*w*w - 2*w*S.camSv)*dt;  S.camS = Math.max(4, S.camS + S.camSv*dt);
   }
-  const cam = dbgCam(makeCam(W, H, S.camC, S.camS, nStr, S.zoom), nStr);
+  const cam = dbgCam(makeCam(W, H, S.camC, S.camS, nStr, zoomNow()), nStr);
   const P = (x, y, z) => project(cam, x, y, z);
   if (DBG.on) dbgReadout(cam);
   const zx0 = fretX(curA.fret - 1), zx1 = fretX(Math.min(24, curA.fret + curA.width - 1));
@@ -4407,24 +4429,38 @@ function tabBuild(){
   }
   for (const b of bars) if (b.lyr) b.nat = Math.max(b.nat, b.lyr + TABK.PADL + 6);
 
-  /* rows: as many bars as fit, then stretched to the full width */
+  /* rows: four bars a row, squeezed to the width (packing bars at their
+     natural width left one or two a row, and a phone's tab a long thin
+     strip). Where four bars of fast notes would leave each note too little
+     room to read (a row of sixteenths), that row takes two, or one. */
   const avail = width - 2*TABK.MARGIN;
   const rows = [];
-  let cur = [], sum = 0;
-  for (const b of bars){
-    if (cur.length && sum + b.nat > avail){ rows.push({ bars:cur, nat:sum }); cur = []; sum = 0; }
-    cur.push(b); sum += Math.min(b.nat, avail);
+  const PER_ROW = 4;
+  const MIN_NOTE = isPortrait() ? 8.5 : 11, MIN_BAR = 14;   // px a note (portrait writes smaller), a bar's padding
+  /* the least a bar can take: room for its notes, and for the words sung in it
+     (b.lyr is measured at the full-size lyric font; portrait writes it at 11/13) */
+  const lyrK = isPortrait() ? 11/13 : 1;
+  const fits = (g) => g.reduce((s, b) => s + Math.max(MIN_BAR + b.evs.length*MIN_NOTE, (b.lyr || 0)*lyrK + TABK.PADL), 0) <= avail;
+  for (let i = 0; i < bars.length; ){
+    let n = PER_ROW;
+    while (n > 1 && !fits(bars.slice(i, i + n))) n = n > 2 ? 2 : 1;
+    const g = bars.slice(i, i + n);
+    i += n;
+    rows.push({ bars:g, nat:g.reduce((s, b) => s + b.nat, 0), full: n, last: i >= bars.length });
   }
-  if (cur.length) rows.push({ bars:cur, nat:sum, last:true });
 
   const staffH = (nStr - 1)*TABK.STR;
   const rowH = TABK.TOP + staffH + TABK.RHY + TABK.LYR + TABK.GAP;
   let html = "", top = 10;
+  let kPrev = 1;
   rows.forEach((row, ri) => {
-    const k = (row.last && row.nat < avail*0.7) ? 1 : avail/row.nat;
+    /* a short last row keeps the scale of the row above, so its bars are
+       not stretched wider than the rest */
+    const k = row.last && row.bars.length < row.full ? Math.min(kPrev, avail/row.nat) : avail/row.nat;
+    kPrev = k;
     let x = TABK.MARGIN;
     for (const b of row.bars){
-      const w = Math.min(b.nat, avail)*k, kk = w/b.nat;
+      const w = b.nat*k, kk = w/b.nat;
       b.x0 = x; b.x1 = x + w; b.row = ri;
       let ex = x + (TABK.PADL + b.lead)*kk;
       b.knots = [[b.t0, x + 4]];
@@ -4952,7 +4988,7 @@ document.getElementById("bClick").onclick = () => {
   };
   document.getElementById("fSpeed").oninput = (e) => { S.speed = (+e.target.value)/100; updGeom(); savePrefs(); };
   document.getElementById("fCam").oninput = (e) => {
-    S.camRate = (+e.target.value)/100;
+    if (isPortrait()) S.camRateP = (+e.target.value)/100; else S.camRate = (+e.target.value)/100;
     document.getElementById("rvCam").textContent = e.target.value + "%";
     savePrefs();
   };
@@ -5074,7 +5110,8 @@ window.addEventListener("wheel", (e) => {
   if (inputLocked()){ e.preventDefault(); return; }
   if (e.target.closest("#bar, #cfg")) return;
   e.preventDefault();
-  S.zoom = clamp(S.zoom * (e.deltaY < 0 ? 1.06 : 0.94), 0.55, 3.0);
+  const zk = e.deltaY < 0 ? 1.06 : 0.94;
+  if (isPortrait()) S.zoomP = clamp(S.zoomP * zk, 0.55, 3.0); else S.zoom = clamp(S.zoom * zk, 0.55, 3.0);
   savePrefs();
 }, {passive:false});
 

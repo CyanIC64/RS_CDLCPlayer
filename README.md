@@ -161,6 +161,18 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Version
 
+**V1.3.2**, built on V1.3.1:
+- **Portrait highway:** the camera is closer, with the highway at nearly the landscape angle, so it
+  rises gently instead of steeply. The empty space under the lyrics is left that way on purpose.
+- **Portrait settings of their own:** camera speed and zoom are kept apart from landscape's and
+  saved separately. The Options slider (and the mouse wheel) change the one on screen. Portrait's
+  camera speed starts at 150%, as the closer camera has further to move.
+- **Portrait read-out:** the arrangement, section, tone and note-speed read-out is hidden, so the
+  lyrics get the width.
+- **Tab view:** four bars to a row, in every orientation. A row of fast notes, or of more words
+  than four bars leave room for, takes two bars (or one) so it stays readable. In portrait the tab's
+  writing is a little smaller.
+
 **V1.3.1**, built on V1.3:
 - **Phones:** the bottom row of controls (sliders, Open, Options, Tab) was hidden behind the
   browser's own toolbar. The page now fits the height the browser actually shows (`100dvh`), and
