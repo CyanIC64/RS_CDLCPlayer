@@ -161,6 +161,11 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Version
 
+**V1.3.4**, built on V1.3.3:
+- **Portrait tab scrolling:** the tab now jumps straight to the next row, with no scrolling
+  animation in between (the 200 ms glide of V1.3.3 was dizzying on a phone). Landscape still scrolls
+  smoothly.
+
 **V1.3.3**, built on V1.3.2:
 - **Tab view:** two bars to a row instead of four, which was cramped. A row of fast notes, or of
   more words than two bars leave room for, takes one bar.
