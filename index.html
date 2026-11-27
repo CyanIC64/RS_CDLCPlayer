@@ -289,8 +289,9 @@ body.locked{cursor:progress}
 
 /* ── portrait (a phone held upright, a monitor turned on its side) ──────────
    The song's details (cover, title, artist, tuning) give way, and the
-   controls move to two rows under the seek bar: transport centred on the
-   first, Tab on the left and sound and options on the right of the second.
+   controls move to two rows under the seek bar: the path on the left,
+   transport centred and the stem picker on the right of the first; Tab on
+   the left and sound and options on the right of the second.
    With a row each they have room again, so most of what the narrow-window
    rules above hide comes back. Lyrics and the corner read-out are sized by
    the width, as a tall window's height would make them far too big. */
@@ -298,7 +299,13 @@ body.locked{cursor:progress}
   #cover,#meta{display:none}
   #ctl{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"btns btns" "song tools";
        column-gap:10px;row-gap:6px;padding:2px 12px 10px}
-  #btns{grid-area:btns;justify-self:center}
+  /* the row under the seek bar: the path on the left, transport centred, the
+     stem picker on the right (moved in here from the sound group: placeStem) */
+  #btns{grid-area:btns;justify-self:stretch;display:grid;gap:2px;align-items:center;
+        grid-template-columns:minmax(0,1fr) repeat(5,auto) minmax(0,1fr)}
+  #btns #path{justify-self:start;margin-right:0}
+  #btns #stem{justify-self:end;display:flex;padding:0 6px}
+  #btns #stem select{max-width:84px}
   #song{grid-area:song;gap:6px}
   #tools{grid-area:tools;gap:10px}
   #bTab{margin-left:0}
@@ -320,11 +327,11 @@ body.locked{cursor:progress}
 @media (orientation:portrait){ #vMaster,#vClick,#vSynth{display:block} }
 @media (orientation:portrait) and (max-width:479px){
   .vol input[type=range]{width:46px} #tools{gap:7px} #ctl{column-gap:6px}
+  #btns .ib:not(#bPlay){width:31px} #bPlay{margin:0 3px} #btns #stem select{max-width:70px}
 }
 @media (orientation:portrait) and (min-width:480px){
   #path svg{display:block} #path{padding:0 4px 0 8px;margin-right:6px} #path select{max-width:120px}
 }
-@media (orientation:portrait) and (min-width:640px){ #stem{display:flex} }
 @media (orientation:portrait) and (min-width:760px){ .stack .val{display:block} }
 /* ── debug panel (F8, or ?debug=1): free camera and hiding parts of the scene ── */
 #dbg{position:fixed;left:12px;top:12px;z-index:60;width:282px;max-height:calc(100vh - 120px);overflow:auto;
@@ -1065,6 +1072,15 @@ function syncCamSlider(){
   $("fCam").closest(".row").querySelector("label").title = isPortrait() ? "Camera speed in portrait (kept apart from landscape)" : "";
 }
 window.addEventListener("resize", () => syncCamSlider());
+/* portrait puts the stem picker at the right end of the transport row; landscape
+   keeps it at the head of the sound group */
+function placeStem(){
+  const st = document.getElementById("stem"), btns = document.getElementById("btns"), tools = document.getElementById("tools");
+  if (isPortrait()){ if (st.parentElement !== btns) btns.appendChild(st); }
+  else if (st.parentElement !== tools) tools.insertBefore(st, tools.firstChild);
+}
+placeStem();
+window.addEventListener("resize", placeStem);
 /* put every control where the state says it is */
 function syncControls(){
   const $ = (id) => document.getElementById(id);

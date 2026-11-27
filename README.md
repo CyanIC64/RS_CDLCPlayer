@@ -161,6 +161,11 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Version
 
+**V1.3.8**, built on V1.3.7:
+- **Portrait controls:** the row under the seek bar now has the path picker on the left, the
+  transport buttons centred and the stem picker on the right (it used to be hidden on phones). The
+  row below keeps Tab, the sliders, Open and Options. Landscape is unchanged.
+
 **V1.3.7**, built on V1.3.6:
 - **Auto audio delay:** the notes are drawn at the moment you hear them, not the moment the sound is
   sent out. The browser reports the delay of the audio output (about 0.2 s for a Bluetooth headset, a
