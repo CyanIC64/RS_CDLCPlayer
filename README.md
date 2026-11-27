@@ -121,7 +121,8 @@ web/converter.js            the same for the page itself (used when a Worker can
 web/ww2ogg.bundle.js        audio converter (.wem to Ogg Vorbis) for the in-page converter
 ```
 
-The scripts in `web/` are built from the sources in `src_v1.2.1/` (in the development tree) with esbuild:
+The scripts in `web/` are V1.2.1's, unchanged. They are built from the sources in `src_v1.2.1/`
+(in the development tree) with esbuild:
 
 ```bash
 ESBUILD=/path/to/node_modules/esbuild node build.mjs
@@ -132,8 +133,8 @@ ESBUILD=/path/to/node_modules/esbuild node build.mjs
 ## Browser support
 
 A current Chrome, Edge or Firefox on a desktop computer. The page needs `DecompressionStream`,
-Web Audio and Web Workers. Safari has not been tested. Phones can open it, but the control bar is
-made for wider screens.
+Web Audio and Web Workers. Safari has not been tested. Portrait screens (a phone held upright, a
+monitor turned on its side) get their own layout; see V1.3 below.
 
 ---
 
@@ -159,6 +160,24 @@ changed. The only data the page stores is your settings, in your browser's `loca
 ---
 
 ## Version
+
+**V1.3**, built on V1.2.1:
+- **Portrait screens:** a layout of its own for a phone held upright or a monitor on its side.
+  - The camera climbs higher and looks further down, so the highway runs up the whole screen.
+  - The song details (cover, title, artist, tuning) give way; the controls move to two rows under
+    the seek bar, with transport centred, so the volume, speed, metronome and synth sliders fit again.
+  - Lyrics and the corner read-out are sized by the screen's width.
+  - Landscape is unchanged.
+- **Highway:**
+  - pinch harmonics drawn as a bright, glowing head inside two frames of light;
+  - bass slap and pop marked on the head (a white V and a white peak);
+  - muted strums crossed out boldly, as in the game;
+  - open strings drawn as a bar across the hand position, on legs when played alone.
+- **Fix:** the stem picker hides on narrow windows again instead of crowding the controls.
+- A debug panel for the camera and the scene (F8). It is closed unless you open it.
+
+Known limit: the page can draw pre-bends and the full shape of compound bends, but the converter
+in `web/` is still V1.2.1's and does not pass bend curves on, so bends look as they did in V1.2.1.
 
 **V1.2.1**, built on V1.2:
 - **Difficulty bars:** heights follow each phrase's hardest level, with gaps between bars and an

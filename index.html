@@ -19,6 +19,11 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 /* ── highway ───────────────────────────────────────────────────────────── */
 #stage{position:relative;min-height:0;overflow:hidden;background:#000}
 #hw{display:block;width:100%;height:100%}
+/* preview mode (play_song.html?preview): the highway alone fills the frame */
+body.preview{display:block}
+body.preview > *:not(#stage):not(script){display:none!important}
+body.preview #stage{height:100vh}
+body.preview #stage > *:not(#hw){display:none!important}
 /* tab view: replaces the highway, as on a page of tablature */
 #tabview{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;background:#fff;display:none;color:#222}
 #stage.tabmode #tabview{display:block}
@@ -220,6 +225,7 @@ body.locked{cursor:progress}
 #stem select{background:transparent;border:0;color:#dfe7ef;font:12.5px "Segoe UI",system-ui,sans-serif;
   outline:none;cursor:pointer;max-width:118px}
 #stem select option{background:#14181d;color:#e6edf3}
+#stem.off{display:none!important}
 /* the arrangement picker, left of Restart */
 #path{flex:none;display:flex;align-items:center;gap:5px;background:#0e1114;border:1px solid #1e242b;
   border-radius:6px;padding:0 4px 0 8px;height:32px;margin-right:6px;color:#9fb0c0}
@@ -273,6 +279,61 @@ body.locked{cursor:progress}
 @media (max-width:1040px){ .vol input[type=range]{width:64px} #bCfg span,#bOpen span,#bTab span{display:none} }
 @media (max-width:900px){ #stem{display:none} .stack .val{display:none} .vol input[type=range]{width:56px} }
 @media (max-width:720px){ #path svg{display:none} #path{padding:0 2px 0 6px;margin-right:2px} #path select{max-width:76px} #album{display:none} #vMaster,#vClick,#vSynth{display:none} #bRestart{display:none} #ctl{gap:8px} }
+
+/* ── portrait (a phone held upright, a monitor turned on its side) ──────────
+   The song's details (cover, title, artist, tuning) give way, and the
+   controls move to two rows under the seek bar: transport centred on the
+   first, Tab on the left and sound and options on the right of the second.
+   With a row each they have room again, so most of what the narrow-window
+   rules above hide comes back. Lyrics and the corner read-out are sized by
+   the width, as a tall window's height would make them far too big. */
+@media (orientation:portrait){
+  #cover,#meta{display:none}
+  #ctl{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"btns btns" "song tools";
+       column-gap:10px;row-gap:6px;padding:2px 12px 10px}
+  #btns{grid-area:btns;justify-self:center}
+  #song{grid-area:song;gap:6px}
+  #tools{grid-area:tools;gap:10px}
+  #bTab{margin-left:0}
+  #seek{padding:8px 12px 4px;gap:8px}
+  #bRestart{display:flex}
+  #cfg{bottom:170px;max-height:calc(100vh - 184px)}
+  #lyr,#lyrErr{left:6%;top:15%;max-width:58%}
+  #lyr .ln{font-size:clamp(16px,4.3vw,44px)}
+  #lyrErr b{font-size:clamp(14px,3vw,32px)}
+  #hud{right:5%;top:15%}
+  #hud .k{font-size:clamp(9px,1.9vw,18px)}
+  #hud .v{font-size:clamp(12px,3vw,30px)}
+  #hud .v.tone{font-size:clamp(11px,2.5vw,25px)}
+  #hud .raw{font-size:clamp(8px,1.5vw,14px)}
+}
+@media (orientation:portrait){ #vMaster,#vClick,#vSynth{display:block} }
+@media (orientation:portrait) and (max-width:479px){
+  .vol input[type=range]{width:46px} #tools{gap:7px} #ctl{column-gap:6px}
+}
+@media (orientation:portrait) and (min-width:480px){
+  #path svg{display:block} #path{padding:0 4px 0 8px;margin-right:6px} #path select{max-width:120px}
+}
+@media (orientation:portrait) and (min-width:640px){ #stem{display:flex} }
+@media (orientation:portrait) and (min-width:760px){ .stack .val{display:block} }
+/* ── debug panel (F8, or ?debug=1): free camera and hiding parts of the scene ── */
+#dbg{position:fixed;left:12px;top:12px;z-index:60;width:282px;max-height:calc(100vh - 120px);overflow:auto;
+  background:rgba(14,18,28,.94);border:1px solid #2f3a52;border-radius:10px;padding:10px 12px;color:#dfe6f3;
+  font:12px "Segoe UI",system-ui,sans-serif;box-shadow:0 8px 30px #000a;display:none;overflow-x:hidden}
+#dbg.on{display:block}
+#dbg h3{margin:0 0 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#ffcf6a}
+#dbg h4{margin:10px 0 4px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8693ad}
+#dbg label{display:flex;align-items:center;gap:6px;margin:2px 0;cursor:pointer}
+#dbg .grid{display:grid;grid-template-columns:1fr 1fr;gap:0 8px}
+#dbg .btns{display:flex;flex-wrap:wrap;gap:4px}
+#dbg button{background:#1d2638;color:#dfe6f3;border:1px solid #33405c;border-radius:5px;padding:3px 8px;font:inherit;cursor:pointer}
+#dbg button:hover{border-color:#38c8ee}
+#dbg .sl{display:grid;grid-template-columns:62px 1fr 44px;align-items:center;gap:6px;margin:2px 0}
+#dbg .sl input{width:100%}
+#dbg .ro{font:11px Consolas,monospace;color:#8693ad;margin-top:6px;white-space:pre-wrap;overflow-wrap:anywhere}
+#dbg .hint{color:#8693ad;font-size:11px;line-height:1.45;margin-top:6px}
+body.dbg-noui #lyr, body.dbg-noui #hud{visibility:hidden}
+body.dbg-free #hw{cursor:grab}
 </style>
 </head>
 <body>
@@ -281,6 +342,34 @@ body.locked{cursor:progress}
   <canvas id="hw"></canvas>
   <div id="tabview" tabindex="-1"><div id="tabpage"></div></div>
   <div id="lyr"><div id="lyrTrack"></div></div>
+  <div id="dbg" aria-label="Debug">
+    <h3>Debug <span style="float:right;color:#8693ad;text-transform:none;letter-spacing:0">F8 closes</span></h3>
+    <label><input type="checkbox" id="dbgFree"> Free camera</label>
+    <div class="btns" style="margin:4px 0 6px">
+      <button data-view="game">Game</button><button data-view="high">Rear high</button><button data-view="front">Front</button>
+      <button data-view="left">Left</button><button data-view="right">Right</button><button data-view="top">Top</button>
+    </div>
+    <div class="sl"><span>Yaw</span><input type="range" id="dbgYaw" min="-180" max="180" step="1"><span id="dbgYawV"></span></div>
+    <div class="sl"><span>Pitch</span><input type="range" id="dbgPitch" min="-30" max="89" step="1"><span id="dbgPitchV"></span></div>
+    <div class="sl"><span>Distance</span><input type="range" id="dbgDist" min="0.2" max="5" step="0.05"><span id="dbgDistV"></span></div>
+    <div class="sl"><span>Look ahead</span><input type="range" id="dbgTz" min="-4" max="40" step="0.5"><span id="dbgTzV"></span></div>
+    <label><input type="checkbox" id="dbgFollow" checked> Follow the hand position</label>
+    <h4>Hide</h4>
+    <div class="grid">
+      <label><input type="checkbox" data-hide="highway"> Highway lanes</label>
+      <label><input type="checkbox" data-hide="fretboard"> Fretboard</label>
+      <label><input type="checkbox" data-hide="strings"> Strings</label>
+      <label><input type="checkbox" data-hide="chords"> Chord frames</label>
+      <label><input type="checkbox" data-hide="tails"> Note tails</label>
+      <label><input type="checkbox" data-hide="hitframes"> Hit frames</label>
+      <label><input type="checkbox" data-hide="fingers"> Finger markers</label>
+      <label><input type="checkbox" data-hide="overlays"> Bars, diagram</label>
+      <label><input type="checkbox" data-hide="ui"> Lyrics, HUD</label>
+      <label><input type="checkbox" data-hide="fog"> Distance fade</label>
+    </div>
+    <div class="ro" id="dbgRo"></div>
+    <div class="hint">Free camera: drag to orbit, right-drag or Shift+drag to pan, wheel to move in and out.</div>
+  </div>
   <div id="lyrErr"><b>[Lyric load error!]</b><span id="lyrErrWhy"></span></div>
   <div id="hud">
     <div class="k">ARRANGEMENT</div><div class="v" id="hudArr">—</div>
@@ -481,6 +570,44 @@ body.locked{cursor:progress}
    machine. */
 const LOCAL = { payload: null, cover: "", audio: null, stems: null };
 let SERVER = true;                      // decided in boot(), by probing /api/status
+
+/* ── preview mode ─────────────────────────────────────────────────────────────
+   play_song.html?preview - this page is only the highway's renderer, for
+   another tool to show a still of the highway in a frame (the Song Editor
+   shows the note under the pointer). No controls, audio, lyrics or settings;
+   no glows or hit effects; no camera glide: each still is framed at once.
+   Nothing is drawn until the host page asks: it posts
+     { type: "show", arr: <path name>, t: <seconds> }   - that note, at the neck
+     { type: "play", arr: <path name>, t: <seconds> }   - the song at t, while the host plays it:
+                                                          sent every frame, the notes move as in Play Song
+     { type: "reload" }                                  - the chart changed
+   and is told { type: "preview-ready", arrs: [names] } when the chart is in. */
+const PREVIEW = (() => {
+  const q = new URLSearchParams(location.search);
+  if (!q.has("preview")) return null;
+  return {
+    song: q.get("song") || "/api/preview/song",   // where Play Song's chart payload comes from
+    lead: +(q.get("lead") || 0),                  // seconds the shown note sits before the neck: 0 = where it lands on the fretboard
+    strings: +(q.get("strings") || 0.35),         // how visible the fretboard's strings are (1 = as in Play Song)
+    zoom: +(q.get("zoom") || 1.3),                // camera zoom: closer than the game's, the still is small
+    speed: +(q.get("speed") || 1.6),              // note speed: how much highway (time) the still shows
+    fx: false,                                    // glows and lit lanes - off: a plain renderer
+    hit: false,                                   // the hit-plane lights - off
+    at: null,                                     // the time of the note being shown (set by previewShow)
+    playing: false,                               // following the host's playhead ("play"), not showing one note
+    span: +(q.get("span") || 5),                  // frets in frame: a fixed zoom - the camera never zooms
+    pan: +(q.get("pan") || 0.2),                  // playing: seconds the camera takes to pan to a new hand position
+    plan: +(q.get("plan") || 3),                  // playing: seconds of coming notes the camera plans its frame for
+    pad: +(q.get("pad") || 0.5),                  // frets kept between a note and the frame's edge
+    hold: +(q.get("hold") || 0.25),               // playing: seconds the camera stays after a position's last note
+                                                  //   (skipped when the next position's notes come sooner than that)
+    panFrom: 0, panTo: null, panT0: 0,            // the pan under way (fret centres, performance.now() ms)
+    follow: false,                                // a slide is being played: the camera rides it (previewPlan)
+    riding: false,                                // the camera is going along with that slide (draw)
+    slideRef: null, slideC0: 0,                   // that slide, and where the camera was as it began
+  };
+})();
+const IS_PREVIEW = PREVIEW !== null;              // this page is the Song Editor's preview renderer
 
 /* statics are loaded on demand, so the server-backed page pays nothing for them */
 function loadScript(src){
@@ -1403,15 +1530,22 @@ const CAM_EASE = 0.85;              // camera spring stiffness, 1/s - lower is l
 const LOOK_BACK = 1.5;              // seconds of anchors just played that stay in frame
 const FOV = 50*Math.PI/180, CAM_ELEV = 24*Math.PI/180, CAM_YAW = 6.5*Math.PI/180;
 
+/* Portrait windows (phone, tablet or monitor turned on its side): the frets
+   have to fit the narrow width, which puts the camera far back and leaves the
+   top half of a tall screen empty. So the camera climbs higher and looks
+   further down, and the highway runs up the screen. `por` goes from 0 at a
+   square window to 1 at 9:16 and taller; landscape is unchanged. */
 function makeCam(W, H, cFret, span, nStr, zoom){
+  const por = clamp((1 - W/H)/0.44, 0, 1);
+  const elev = CAM_ELEV + por*(10*Math.PI/180);
   const k = (H/2)/Math.tan(FOV/2);
   let ppf = 0.164*H*Math.pow(4/span, 0.72);       // pixels per fret at the hit plane
-  ppf = Math.min(ppf, 0.60*W/span) * zoom;
+  ppf = Math.min(ppf, (0.60 - 0.04*por)*W/span) * zoom;
   const d = k*FW/ppf;                              // distance camera -> neck
-  const pitch = (10*Math.PI/180)*Math.pow(4/span, 0.45);
+  const pitch = (10*Math.PI/180)*Math.pow(4/span, 0.45) + por*(5*Math.PI/180);
   const sy = Math.sin(CAM_YAW), cy = Math.cos(CAM_YAW);
   const sp = Math.sin(pitch), cp = Math.cos(pitch);
-  const ce = Math.cos(CAM_ELEV), se = Math.sin(CAM_ELEV);
+  const ce = Math.cos(elev), se = Math.sin(elev);
   return {
     px: fretX(cFret) + d*ce*sy,
     py: YLO + (nStr-1)*PITCH/2 + d*se,
@@ -1419,8 +1553,42 @@ function makeCam(W, H, cFret, span, nStr, zoom){
     fx: -sy*cp, fy: -sp,  fz: -cy*cp,              // forward
     rx:  cy,    ry: 0,    rz: -sy,                 // right
     ux: -sy*sp, uy: cp,   uz: -cy*sp,              // up
-    k, cx: W/2, cy: H*0.48, ppf,
+    k, cx: W/2, cy: H*(0.48 - 0.05*por), ppf,
   };
+}
+
+/* ── debug: a free camera ─────────────────────────────────────────────────
+   Orbits the neck at the hit plane: yaw turns it round (0 = behind the
+   player, 180 = in front of the highway looking back), pitch lifts it,
+   distance is a multiple of the game camera's own, "look ahead" moves the
+   point it looks at down the highway (in frets of length). It only changes
+   where the camera is and which way it faces; everything is drawn as in
+   the game. */
+const DBG = { on:false, free:false, follow:true, yaw:CAM_YAW*180/Math.PI, pitch:24, dist:1, tz:0, panX:0, panY:0, fixX:null,
+              hide:{}, front:false };
+const DBG_VIEWS = { game:[CAM_YAW*180/Math.PI, 24, 1, 0], high:[0, 55, 1.4, 4], front:[180, 14, 1.6, 10],
+                    left:[-90, 10, 1.3, 4], right:[90, 10, 1.3, 4], top:[0, 89, 1.8, 6] };
+const hid = (k) => DBG.on && !!DBG.hide[k];
+function dbgCam(cam, nStr){
+  DBG.front = false;
+  if (!DBG.on || !DBG.free) return cam;
+  const cx = DBG.follow || DBG.fixX === null ? fretX(S.camC) : DBG.fixX;
+  if (DBG.follow) DBG.fixX = cx;
+  const tx = cx + DBG.panX*FW, ty = YLO + (nStr - 1)*PITCH/2 + DBG.panY*PITCH, tz = -DBG.tz*FW;
+  const base = Math.hypot(cam.px - fretX(S.camC), cam.py - (YLO + (nStr - 1)*PITCH/2), cam.pz);
+  const d = base*DBG.dist;
+  const th = DBG.yaw*Math.PI/180, ph = clamp(DBG.pitch, -30, 89)*Math.PI/180;
+  cam.px = tx + d*Math.cos(ph)*Math.sin(th);
+  cam.py = ty + d*Math.sin(ph);
+  cam.pz = tz + d*Math.cos(ph)*Math.cos(th);
+  const fx = (tx - cam.px)/d, fy = (ty - cam.py)/d, fz = (tz - cam.pz)/d;
+  let rx = -fz, rz = fx; const rl = Math.hypot(rx, rz) || 1; rx /= rl; rz /= rl;          // right: forward x world up
+  cam.fx = fx; cam.fy = fy; cam.fz = fz;
+  cam.rx = rx; cam.ry = 0; cam.rz = rz;
+  cam.ux = -rz*fy; cam.uy = rz*fx - rx*fz; cam.uz = rx*fy;                               // up: right x forward
+  cam.cy = H*0.5;
+  DBG.front = fz > 0;                                    // looking back up the highway: draw near notes last
+  return cam;
 }
 
 function project(cam, x, y, z){
@@ -1436,7 +1604,16 @@ function project(cam, x, y, z){
 }
 
 /* ── canvas ──────────────────────────────────────────────────────────────── */
-const cv = document.getElementById("hw"), ctx = cv.getContext("2d", {alpha:false});
+const cv = document.getElementById("hw");
+let ctx = cv.getContext("2d", {alpha:false});
+const REAL_CTX = ctx;
+/* debug: a part of the scene that is hidden is drawn into this - it takes
+   every call and draws nothing */
+const NULL_GRAD = { addColorStop(){} };
+const NULL_CTX = new Proxy({}, {
+  get: (_, k) => k === "measureText" ? (() => ({ width:0 })) : typeof REAL_CTX[k] === "function" ? (() => NULL_GRAD) : REAL_CTX[k],
+  set: () => true,
+});
 let W = 1, H = 1, dpr = 1;
 function resize(){
   const r = cv.getBoundingClientRect();
@@ -1593,7 +1770,7 @@ function drawHead(x, y, ang, hw, hh, col, n, a, gk){
      hammer-on / pull-off, tap, accent, bend) is drawn however far away the
      note is - seen as far down the highway as the note itself. Only a plain
      note, with nothing to show, is drawn as a quick bar when it is tiny. */
-  const tech = n.pm || n.mt || n.hm || n.hp || n.ho || n.po || n.tp || n.ac || n.bn > 0;
+  const tech = n.pm || n.mt || n.hm || n.hp || n.ho || n.po || n.tp || n.ac || n.bn > 0 || n.slp || n.plk;
   if (hw < 2.4 && !tech){                          // far away and plain: no detail to show
     ctx.globalAlpha = a; ctx.fillStyle = col;
     ctx.setTransform(dpr*c0, dpr*s0, dpr*ex, dpr*ey, dpr*x, dpr*y);
@@ -1607,7 +1784,8 @@ function drawHead(x, y, ang, hw, hh, col, n, a, gk){
   const bend = n.bn > 0 ? (n.bn < 1.5 ? 1 : n.bn < 2.5 ? 2 : 3) : 0;
   const gl = Math.round(clamp(gk === undefined ? 1 : gk, 0, 1)*4);    // five steps: a sprite for each
   const key = col + "|" + q + "|" + (n.tp ? 1 : 0) + (n.ac ? 1 : 0) + (n.pm ? 1 : 0) + (n.mt ? 1 : 0) + (n.hm ? 1 : 0)
-            + (n.hp ? 1 : 0) + (n.ho ? 1 : 0) + (n.po ? 1 : 0) + bend + (marks ? 1 : 0) + "|" + gl + "|" + dpr;
+            + (n.hp ? 1 : 0) + (n.ho ? 1 : 0) + (n.po ? 1 : 0) + (n.slp ? 1 : 0) + (n.plk ? 1 : 0)
+            + bend + (marks ? 1 : 0) + "|" + gl + "|" + dpr;
   let sp = SPR.head.get(key);
   if (!sp){
     if (SPR.head.size > 900) SPR.head.clear();
@@ -1646,8 +1824,16 @@ function headShape(g, hw, hh, col, n, marks, gk){
       rr(-hw - lw*1.5, -hh - lw*1.5, hw*2 + lw*3, hh*2 + lw*3, hh*0.6, g);
       g.strokeStyle = rgba(col, 0.25 + 0.30*gk); g.lineWidth = lw*1.5; g.stroke();
     }
+    if (n.hp){
+      /* pinch harmonic: as in the game, a bright solid head that glows - here
+         two frames of light around it, so it never reads as a plain note */
+      for (const [k, al] of [[3.6, 0.22], [1.9, 0.55]]){
+        rr(-hw - lw*k, -hh - lw*k, hw*2 + lw*k*2, hh*2 + lw*k*2, hh*0.5 + lw*k*0.4, g);
+        g.strokeStyle = rgba(col, al + 0.25*gk); g.lineWidth = lw*1.2; g.stroke();
+      }
+    }
     rr(-hw, -hh, hw*2, hh*2, hh*0.32, g);
-    g.fillStyle = (isPM || fhm) ? shade(col, 0.22) : n.hp ? shade(col, 0.95) : shade(col, 0.80);
+    g.fillStyle = (isPM || fhm) ? shade(col, 0.22) : n.hp ? tint(col, 0.30) : shade(col, 0.80);
     g.fill();
     if (isPM){                                     // palm mute: the head is crossed out in its own colour
       g.save(); g.clip();
@@ -1658,7 +1844,7 @@ function headShape(g, hw, hh, col, n, marks, gk){
       g.restore();
       rr(-hw, -hh, hw*2, hh*2, hh*0.32, g);
     }
-    g.strokeStyle = n.ac ? tint(col, 0.30 + 0.40*gk) : tint(col, 0.06 + 0.26*gk); g.lineWidth = lw; g.stroke();
+    g.strokeStyle = n.hp ? "#ffffff" : n.ac ? tint(col, 0.30 + 0.40*gk) : tint(col, 0.06 + 0.26*gk); g.lineWidth = lw; g.stroke();
     if (!isPM && !fhm && !harm && !n.ho && !n.po && hw > 6){
       /* the lighter inner frame every plain head has */
       rr(-hw + lw*1.25, -hh + lw*1.15, hw*2 - lw*2.5, hh*2 - lw*2.3, hh*0.15, g);
@@ -1674,10 +1860,19 @@ function headShape(g, hw, hh, col, n, marks, gk){
       g.moveTo(-u*1.25, -u); g.lineTo(u*1.25, u); g.moveTo(u*1.25, -u); g.lineTo(-u*1.25, u);
       g.stroke();
     } else if (harm){                              // harmonic: white target; pinch: dark target
-      const c2 = n.hp ? "rgba(40,22,0,0.85)" : "#fff";
-      g.strokeStyle = c2; g.fillStyle = c2; g.lineWidth = Math.max(1.1, hh*0.26);
+      const c2 = n.hp ? "rgba(20,12,0,0.92)" : "#fff";
+      g.strokeStyle = c2; g.fillStyle = c2; g.lineWidth = Math.max(1.1, hh*(n.hp ? 0.36 : 0.26));
       g.beginPath(); g.ellipse(0, 0, u*1.15, u*0.86, 0, 0, Math.PI*2); g.stroke();
       g.beginPath(); g.arc(0, 0, Math.max(0.8, u*0.30), 0, Math.PI*2); g.fill();
+    } else if (n.slp || n.plk){
+      /* bass slap: a wide white V across the head (the thumb comes down on
+         the string); pop: a wide white peak (the string is pulled up). Wider
+         than the head, so neither reads as a hammer-on or pull-off arrow */
+      const dip = n.slp ? 1 : -1, wx = hw*1.25;
+      g.strokeStyle = "#fff"; g.lineWidth = Math.max(1.4, hh*0.42); g.lineJoin = "miter";
+      g.beginPath();
+      g.moveTo(-wx, -hh*0.95*dip); g.lineTo(0, hh*0.55*dip); g.lineTo(wx, -hh*0.95*dip);
+      g.stroke();
     } else if ((n.ho || n.po) && !n.tp){           // hammer-on points down, pull-off up
       const dir = n.po ? -1 : 1;
       g.fillStyle = "#fff";
@@ -1710,11 +1905,19 @@ const SUS_MIN = 0.06, SUS_MIN_MOVING = 0.012;
 function sustained(n){
   return n.sus > SUS_MIN || (n.sus > SUS_MIN_MOVING && (n.sl > 0 || n.slu > 0 || n.ln || n.linked));
 }
+/* a note's bend curve: [{t: seconds after it starts, v: steps}], in order; null without one */
+function bendCurve(c){
+  if (!Array.isArray(c)) return null;
+  const pts = c.filter(p => p && isFinite(+p.t) && isFinite(+p.v)).map(p => ({ t:Math.max(0, +p.t), v:+p.v }))
+               .sort((a, b) => a.t - b.t);
+  return pts.length ? pts : null;
+}
 function mkNote(n, t, ci){
   return { t:+t, t0:+t, ch:ci, s:n.s|0, f:n.f|0, sus:Math.max(0, +(n.sus||0)),
            ho:!!n.ho, po:!!n.po, sl:(n.sl|0) > 0 ? n.sl|0 : -1, slu:(n.slu|0) > 0 ? n.slu|0 : -1,
            bn:+(n.bn||0), hm:!!n.hm, hp:!!n.hp, pm:!!n.pm, mt:!!(n.mt || n.fhm),
            vb:!!n.vb, tr:!!n.tr, ac:!!n.ac, tp:!!n.tp, ln:!!n.ln,
+           slp:!!n.slp, plk:!!n.plk, bnv:bendCurve(n.bnv),
            rep:false, linked:false, hide:false, lab:true };
 }
 
@@ -2152,7 +2355,7 @@ function restChart(){
   hudSecIdx = -2; hudToneKey = undefined;
   document.getElementById("hudArr").textContent = "—";
   document.getElementById("tuning").textContent = "";
-  document.getElementById("stem").style.display = "none";          // no song, no stems to pick
+  document.getElementById("stem").classList.add("off");             // no song, no stems to pick
   renderTimeline(); paintClock();
   tabInvalidate();
 }
@@ -2177,6 +2380,7 @@ function lockInput(on){
     document.activeElement.blur();                // a focused slider would still take the arrow keys
 }
 async function boot(){
+  if (IS_PREVIEW) return previewBoot();
   lockInput(true);
   try { await bootSong(); } finally { lockInput(false); }
 }
@@ -2323,7 +2527,8 @@ async function showSong(noPlay){
   // stems: only worth a picker when the pack really was separated
   const stemSel = document.getElementById("stemSel");
   stemSel.length = 1; stemSel.value = "";
-  document.getElementById("stem").style.display = S.stems.length > 1 ? "flex" : "none";
+  // a class, not an inline display, so the narrow-window rules can still hide it
+  document.getElementById("stem").classList.toggle("off", S.stems.length <= 1);
   if (S.stems.length > 1){
     for (const s of S.stems){
       const o = document.createElement("option");
@@ -2741,9 +2946,30 @@ function noteX(n, u, zoneMid){
   return lerp(fretMid(n.f), fretMid(tgt), sstep((u - 0.3)/0.7));
 }
 /* how far a bend has lifted the tail at u */
-function bendY(n, u){
-  return n.bn > 0 ? Math.min(PITCH*1.5, n.bn*PITCH*0.42) * sstep(u/0.45) : 0;
+/* How far a bend has pushed the string, u from 0 (the note starts) to 1 (its
+   sustain ends). With the chart's bend curve - the game's bendValues - it
+   follows it: up, held, released, up again (a compound bend), or already up
+   when the note starts (a pre-bend: the note comes in off its string, as in
+   the game). Without one: up over the first part, then held. */
+const bendPx = (v) => Math.min(PITCH*1.5, Math.max(0, v)*PITCH*0.42);
+function bendAt(n, tau){
+  const c = n.bnv;
+  if (tau <= c[0].t) return c[0].t <= 0.01 ? c[0].v : c[0].v * sstep(tau/Math.max(c[0].t, 1e-3));
+  for (let i = 1; i < c.length; i++){
+    if (tau <= c[i].t){
+      const a = c[i - 1], b = c[i];
+      return a.v + (b.v - a.v)*sstep((tau - a.t)/Math.max(b.t - a.t, 1e-3));
+    }
+  }
+  return c[c.length - 1].v;
 }
+function bendY(n, u){
+  if (!(n.bn > 0)) return 0;
+  if (n.bnv) return bendPx(bendAt(n, u*Math.max(n.sus, 1e-3)));
+  return bendPx(n.bn) * sstep(u/0.45);
+}
+/* a pre-bend: up before it is played - its head comes in off the string */
+const preBendY = (n) => n.bn > 0 && n.bnv && n.bnv[0].t <= 0.01 ? bendPx(n.bnv[0].v) : 0;
 
 /* Vibrato is the string being pushed up and down across the fret, so the tail
    (and the held note at the neck) wave vertically. The chart only says that a
@@ -2841,9 +3067,11 @@ function drawChordBox(cam, ev, x0, x1, yTopBox, z, a, near){
   ctx.lineWidth = Math.max(1, lw*0.45);
   ctx.beginPath(); seg(tl, tr); seg(bl, br); ctx.stroke();
 
-  if (ev.rep && (ev.mute || ev.pm)){               // a muted strum is crossed out
-    ctx.strokeStyle = "rgba(" + rim + "," + (0.55*a).toFixed(3) + ")";
-    ctx.lineWidth = Math.max(1, lw*0.5);
+  if (ev.rep && (ev.mute || ev.pm)){
+    /* a muted strum is crossed out, as boldly as the game does - white for a
+       fret-hand mute, in the frame's colour for a palm mute (as the notes) */
+    ctx.strokeStyle = ev.mute ? "rgba(235,245,255," + (0.85*a).toFixed(3) + ")" : "rgba(" + rim + "," + (0.95*a).toFixed(3) + ")";
+    ctx.lineWidth = Math.max(1.5, lw*1.1);
     ctx.beginPath(); seg(bl, tr); seg(br, tl); ctx.stroke();
   }
   ctx.lineCap = "butt";
@@ -3192,6 +3420,7 @@ function drawChordDiagram(t, cam, curA){
 }
 
 function draw(dt){
+  ctx = REAL_CTX;                                  // a hidden pass never leaks into the next frame
   const t = chartTime();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
@@ -3215,7 +3444,7 @@ function draw(dt){
   const zOf = (tau) => -(tau - t)*G.sc;
   /* S.vis fades the whole chart out and in (see restChart): lanes, notes,
      frames, tails and numbers all take their alpha from fog() */
-  const fog = (tau) => clamp((tEnd - tau)/(HOR*0.30), 0, 1)*S.vis;
+  const fog = (tau) => hid("fog") ? (tau <= tEnd ? S.vis : 0) : clamp((tEnd - tau)/(HOR*0.30), 0, 1)*S.vis;
 
   /* ── camera: frame the anchors of the next LOOK seconds ──────────────── */
   const A = S.anchors, ai = anchorIdx(t), curA = A[ai];
@@ -3228,9 +3457,53 @@ function draw(dt){
   } else {
     lo = Math.max(0, S.fMin - 1); hi = Math.max(lo + 4, S.fMax);
   }
+  /* preview mode: framed on the hand position (anchor) of the note shown,
+     not on the next seconds of the song - the still is about that note */
+  if (IS_PREVIEW && PREVIEW.at !== null){
+    /* a still: the hand position (anchor) of the note shown. Playing: the
+       frame is planned from the notes themselves (previewPlan) */
+    const an = A[anchorIdx(PREVIEW.at)];
+    lo = an.fret - 1; hi = an.fret + an.width - 1;
+    if (!PREVIEW.playing){
+      /* a still frames the note (or chord) shown: the hand position's frame
+         when that shows it, else the nearest frame that does - a chart's
+         hand position can be far from the notes it is meant to hold */
+      const fr = [];
+      for (let i = Math.max(0, lowerBound(S.all, "t", PREVIEW.at - 0.003)); i < S.all.length && S.all[i].t <= PREVIEW.at + 0.003; i++){
+        const f = previewFret(i);
+        if (f !== null) fr.push(f);
+      }
+      if (fr.length){
+        const [a, b] = previewFit(fr), c0 = (lo + hi)/2;
+        const c = a <= b ? clamp(c0, a, b) : (Math.min(...fr) - 1 + Math.max(...fr))/2;
+        lo = c - 0.5; hi = c + 0.5;
+      }
+    }
+    if (PREVIEW.playing){
+      const c = previewPlan(PREVIEW.at, PREVIEW.panTo);
+      if (c !== null){ lo = c - 0.5; hi = c + 0.5; }
+    }
+  }
   const wantC = (lo + hi)/2, wantS = Math.max(4, hi - lo);
   S.camWantC = wantC; S.camWantS = wantS;
-  if (S.camC === null){ S.camC = wantC; S.camS = wantS; S.camCv = S.camSv = 0; }
+  if (IS_PREVIEW && PREVIEW.at !== null && !PREVIEW.follow) PREVIEW.riding = false;   // the slide is over
+  if (IS_PREVIEW && PREVIEW.at !== null){
+    /* preview: a fixed zoom and angle; the camera only pans, over PREVIEW.pan
+       seconds, eased in and out - a still is framed at once */
+    const Pv = PREVIEW, now = performance.now();
+    S.camS = Pv.span; S.camCv = S.camSv = 0;
+    if (!Pv.playing || S.camC === null || Pv.panTo === null){ S.camC = Pv.panFrom = Pv.panTo = wantC; Pv.panT0 = 0; }
+    /* riding a slide: the camera goes with it frame by frame - joined only
+       when it is near (a slide that starts far off is panned to first), and
+       kept until the slide ends however fast it moves */
+    else if (Pv.follow && (Pv.riding || Math.abs(wantC - S.camC) < 1.5)){ S.camC = Pv.panFrom = Pv.panTo = wantC; Pv.panT0 = 0; Pv.riding = true; }
+    else {
+      if (wantC !== Pv.panTo){ Pv.panFrom = S.camC; Pv.panTo = wantC; Pv.panT0 = now; }
+      const u = clamp((now - Pv.panT0)/(Pv.pan*1000), 0, 1);
+      S.camC = Pv.panFrom + (Pv.panTo - Pv.panFrom)*u*u*(3 - 2*u);
+    }
+  }
+  else if (S.camC === null){ S.camC = wantC; S.camS = wantS; S.camCv = S.camSv = 0; }
   else {
     /* A critically damped spring: the camera eases out of one framing and
        into the next over four to five seconds, with no sudden start or stop.
@@ -3240,10 +3513,12 @@ function draw(dt){
     S.camCv += ((wantC - S.camC)*w*w - 2*w*S.camCv)*dt;  S.camC += S.camCv*dt;
     S.camSv += ((wantS - S.camS)*w*w - 2*w*S.camSv)*dt;  S.camS = Math.max(4, S.camS + S.camSv*dt);
   }
-  const cam = makeCam(W, H, S.camC, S.camS, nStr, S.zoom);
+  const cam = dbgCam(makeCam(W, H, S.camC, S.camS, nStr, S.zoom), nStr);
   const P = (x, y, z) => project(cam, x, y, z);
+  if (DBG.on) dbgReadout(cam);
   const zx0 = fretX(curA.fret - 1), zx1 = fretX(Math.min(24, curA.fret + curA.width - 1));
 
+  ctx = hid("highway") ? NULL_CTX : REAL_CTX;
   /* glow behind the far end of the highway */
   {
     const v = P((zx0 + zx1)/2, 0, -ZFAR);
@@ -3390,8 +3665,10 @@ function draw(dt){
     items.push({ d: ev.t - t + 1e-6, n:null, ev });            // the frame goes behind its own notes
   }
   items.sort((p, q) => q.d - p.d);                             // furthest first
+  if (DBG.front) items.reverse();                              // debug camera in front: the highway's far end is nearest
 
   /* ── 5. the fretboard at the hit plane ───────────────────────────────── */
+  ctx = hid("fretboard") ? NULL_CTX : REAL_CTX;
   const zf0 = curA.fret - 1, zf1 = Math.min(24, curA.fret + curA.width - 1);
   const pNear = P(fretX(S.camC), yBot, 0);
   const ppf = pNear ? pNear.s*FW : cam.ppf;                    // pixels per fret at the neck
@@ -3442,6 +3719,7 @@ function draw(dt){
     }
   }
 
+  ctx = hid("strings") ? NULL_CTX : REAL_CTX;
   /* strings: dim until a note is on its way down that string.
 
      A string that has just been struck is drawn moving. From the spot the
@@ -3525,7 +3803,7 @@ function draw(dt){
       trace(ghost[1]); ctx.stroke();
     }
     ctx.strokeStyle = k > 0.02 ? tint(col, 0.25*k) : col;
-    ctx.globalAlpha = 0.50 + 0.50*k;
+    ctx.globalAlpha = (0.50 + 0.50*k) * (IS_PREVIEW ? PREVIEW.strings : 1);   // fainter in a preview: the note is what it shows
     ctx.lineWidth = lw*(1 + 0.35*k); ctx.lineJoin = "round";
     trace(pts); ctx.stroke();
     ctx.globalAlpha = 1;
@@ -3552,8 +3830,10 @@ function draw(dt){
   }
 
   /* ── 6. notes and chord frames, far to near ──────────────────────────── */
+  ctx = REAL_CTX;
   for (const it of items){
     if (it.ev){
+      if (hid("chords")) continue;
       const ev = it.ev, d = ev.t - t;
       const an = A[anchorIdx(ev.t + 0.002)];
       const x0 = fretX(an.fret - 1), x1 = fretX(Math.min(24, an.fret + an.width - 1));
@@ -3571,7 +3851,7 @@ function draw(dt){
     const ax0 = fretX(an.fret - 1), ax1 = fretX(Math.min(24, an.fret + an.width - 1));
     const zoneMid = (ax0 + ax1)/2, open = n.f <= 0;
 
-    if (sustained(n))
+    if (sustained(n) && !hid("tails"))
       drawTail(cam, n, t, y, col, zoneMid, open ? (ax1 - ax0)*0.5 : FW*0.13, fog);
     if (n.linked || d < 0) continue;                // played heads are handled at the hit plane
 
@@ -3580,8 +3860,9 @@ function draw(dt){
     const inChord = n.ch !== undefined;
 
     if (open){
-      /* open string: a bar across the whole anchor, on legs when it is a single note */
-      const hh = PITCH*0.16;
+      /* open string: a bar across the whole anchor, on legs when it is a single note
+         (a muted one taller, so its crosses read at a distance) */
+      const hh = PITCH*(n.pm || n.mt ? 0.27 : 0.16);
       const a = P(ax0, y - hh, z), b = P(ax1, y - hh, z), c = P(ax1, y + hh, z), e = P(ax0, y + hh, z);
       if (!a || !b || !c || !e) continue;
       if (!inChord){
@@ -3589,7 +3870,26 @@ function draw(dt){
         ctx.beginPath(); seg(P(ax0, 0, z), P(ax0, y, z)); seg(P(ax1, 0, z), P(ax1, y, z)); ctx.stroke();
       }
       ctx.globalAlpha = al;
-      quad(a, b, c, e, n.pm || n.mt ? shade(col, 0.45) : col);
+      const muted = n.pm || n.mt;
+      quad(a, b, c, e, muted ? shade(col, 0.22) : col);
+      if (muted){
+        /* muted open string: the bar is crossed out, a row of crosses along it -
+           in its own colour for a palm mute, white for a fret-hand mute, as the
+           fretted heads are */
+        const len = Math.hypot(b.x - a.x, b.y - a.y), tall = Math.max(1, Math.hypot(e.x - a.x, e.y - a.y));
+        const m = Math.max(2, Math.round(len/(tall*1.15)));
+        const L = (p, q, u) => ({ x: p.x + (q.x - p.x)*u, y: p.y + (q.y - p.y)*u });
+        ctx.save();
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(e.x, e.y); ctx.closePath(); ctx.clip();
+        ctx.strokeStyle = n.mt ? "#ffffff" : col; ctx.lineWidth = clamp(tall*0.30, 1.2, 6); ctx.lineCap = "butt";
+        ctx.beginPath();
+        for (let i = 0; i < m; i++){
+          const u0 = i/m, u1 = (i + 1)/m;
+          const t0 = L(a, b, u0), t1 = L(a, b, u1), b0 = L(e, c, u0), b1 = L(e, c, u1);
+          ctx.moveTo(t0.x, t0.y); ctx.lineTo(b1.x, b1.y); ctx.moveTo(b0.x, b0.y); ctx.lineTo(t1.x, t1.y);
+        }
+        ctx.stroke(); ctx.restore();
+      }
       ctx.strokeStyle = tint(col, 0.5); ctx.lineWidth = clamp(a.s*FW*0.018, 0.8, 2);
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(e.x, e.y);
       ctx.closePath(); ctx.stroke();
@@ -3598,8 +3898,8 @@ function draw(dt){
       continue;
     }
 
-    const xc = fretMid(n.f);
-    const pl = P(xc - FW*0.30, y, z), pr = P(xc + FW*0.30, y, z);
+    const xc = fretMid(n.f), yh = y + preBendY(n);
+    const pl = P(xc - FW*0.30, yh, z), pr = P(xc + FW*0.30, yh, z);
     if (!pl || !pr) continue;
     const cx = (pl.x + pr.x)/2, cy2 = (pl.y + pr.y)/2;
     if (cx < -80 || cx > W + 80) continue;
@@ -3618,7 +3918,7 @@ function draw(dt){
     }
 
     const slope = Math.atan2(pr.y - pl.y, pr.x - pl.x);
-    setSkew(P(xc, y + PITCH*0.4, z), P(xc, y - PITCH*0.4, z));
+    setSkew(P(xc, yh + PITCH*0.4, z), P(xc, yh - PITCH*0.4, z));
     const gk = sstep(1 - d/1.4);                                // 0 far away .. 1 at the fretboard
     if (gk > 0.01 && !grey) glow(col, cx, cy2, hw*2.3, hh*3.6, 0.40*gk*gk*al, true);
     drawHead(cx, cy2, slope, hw, hh, col, n, al, grey ? 0 : gk);
@@ -3640,6 +3940,7 @@ function draw(dt){
   }
 
   /* ── 7. at the hit plane: the frame a note lands in, and its flash ───── */
+  ctx = hid("hitframes") ? NULL_CTX : REAL_CTX;
   for (const it of items){
     const n = it.n;
     if (!n || n.f <= 0) continue;
@@ -3671,6 +3972,7 @@ function draw(dt){
     ctx.restore(); ctx.globalAlpha = 1;
   }
 
+  ctx = hid("fingers") ? NULL_CTX : REAL_CTX;
   /* ── 7b. what the fretting hand holds right now: a marker per finger on
            the neck, and the chord's name above the strings, left of the
            anchor. Both stay for as long as the same shape keeps being played. */
@@ -3694,6 +3996,7 @@ function draw(dt){
     }
   }
 
+  ctx = hid("fretboard") ? NULL_CTX : REAL_CTX;
   /* ── 8. fret numbers under the neck: every fret of the anchor, and the
           inlay frets everywhere else ──────────────────────────────────── */
   /* The glowing range moves to the next hand position the way the finger
@@ -3727,9 +4030,11 @@ function draw(dt){
     if (g > 0.001) label(String(f), p.x, p.y, fs*(0.92 + 0.08*g), "#ffb01f", g, "rgba(255,140,0,0.75)", ax);
   }
 
-  drawPhraseBars(t, S.offMs/1000);
+  ctx = hid("overlays") ? NULL_CTX : REAL_CTX;
+  if (!IS_PREVIEW) drawPhraseBars(t, S.offMs/1000);   // a still has no difficulty bars over it
   if (S.showHit) drawHitLight(t);
   if (S.showDiagram && S.holds.length) drawChordDiagram(t, cam, curA);
+  ctx = REAL_CTX;
 }
 
 /* ── looping a stretch of bars ───────────────────────────────────────────────
@@ -4690,6 +4995,76 @@ async function saveOffset(){
 }
 document.getElementById("bSaveOff").onclick = saveOffset;
 
+/* ── debug panel ──────────────────────────────────────────────────────────── */
+function dbgReadout(cam){
+  const el = document.getElementById("dbgRo");
+  if (!el || !DBG.on) return;
+  el.textContent = (DBG.free ? "free" : "game") + " camera  t " + S.time.toFixed(2) + " s\n"
+    + "pos  " + [cam.px, cam.py, cam.pz].map(v => v.toFixed(1)).join("  ") + "\n"
+    + "fwd  " + [cam.fx, cam.fy, cam.fz].map(v => v.toFixed(2)).join("  ")
+    + (DBG.free ? "\nyaw " + DBG.yaw.toFixed(0) + "  pitch " + DBG.pitch.toFixed(0) + "  dist " + DBG.dist.toFixed(2)
+                  + "  ahead " + DBG.tz.toFixed(1) + (DBG.front ? "  (front)" : "") : "");
+}
+function dbgSync(){
+  const $ = (id) => document.getElementById(id);
+  $("dbgFree").checked = DBG.free; $("dbgFollow").checked = DBG.follow;
+  $("dbgYaw").value = DBG.yaw; $("dbgYawV").textContent = DBG.yaw.toFixed(0) + "°";
+  $("dbgPitch").value = DBG.pitch; $("dbgPitchV").textContent = DBG.pitch.toFixed(0) + "°";
+  $("dbgDist").value = DBG.dist; $("dbgDistV").textContent = "×" + DBG.dist.toFixed(2);
+  $("dbgTz").value = DBG.tz; $("dbgTzV").textContent = DBG.tz.toFixed(1);
+  document.body.classList.toggle("dbg-free", DBG.on && DBG.free);
+  document.body.classList.toggle("dbg-noui", hid("ui"));
+}
+function dbgToggle(on){
+  DBG.on = on === undefined ? !DBG.on : !!on;
+  document.getElementById("dbg").classList.toggle("on", DBG.on);
+  dbgSync();
+}
+function dbgView(name){
+  const v = DBG_VIEWS[name]; if (!v) return;
+  [DBG.yaw, DBG.pitch, DBG.dist, DBG.tz] = v; DBG.panX = DBG.panY = 0;
+  DBG.free = true; dbgSync();
+}
+(function(){
+  const $ = (id) => document.getElementById(id);
+  $("dbgFree").onchange = (e) => { DBG.free = e.target.checked; dbgSync(); };
+  $("dbgFollow").onchange = (e) => { DBG.follow = e.target.checked; dbgSync(); };
+  for (const [id, key] of [["dbgYaw", "yaw"], ["dbgPitch", "pitch"], ["dbgDist", "dist"], ["dbgTz", "tz"]])
+    $(id).oninput = (e) => { DBG[key] = +e.target.value; DBG.free = true; dbgSync(); };
+  for (const b of document.querySelectorAll("#dbg [data-view]")) b.onclick = () => dbgView(b.dataset.view);
+  for (const c of document.querySelectorAll("#dbg [data-hide]")) c.onchange = () => { DBG.hide[c.dataset.hide] = c.checked; dbgSync(); };
+  for (const el of document.querySelectorAll("#dbg input, #dbg button"))
+    el.addEventListener("keydown", (e) => { if (e.key !== "F8") e.stopPropagation(); });   // the panel's own keys stay in the panel
+  /* free camera: drag orbits, right-drag / Shift+drag pans, the wheel moves in and out */
+  let drag = null;
+  cv.addEventListener("pointerdown", (e) => {
+    if (!(DBG.on && DBG.free)) return;
+    const r = cv.getBoundingClientRect(), y = e.clientY - r.top;
+    if (y < BARS.top + BARS.h + 20) return;                        // the difficulty bars keep their own clicks
+    drag = { x:e.clientX, y:e.clientY, pan: e.button === 2 || e.shiftKey, yaw:DBG.yaw, pitch:DBG.pitch, px:DBG.panX, py:DBG.panY };
+    try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+    e.stopImmediatePropagation(); e.preventDefault();
+  }, true);
+  cv.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (drag.pan){ DBG.panX = drag.px - dx/60; DBG.panY = drag.py + dy/40; DBG.follow = false; DBG.fixX = DBG.fixX ?? fretX(S.camC); }
+    else { DBG.yaw = ((drag.yaw + dx*0.3 + 540) % 360) - 180; DBG.pitch = clamp(drag.pitch + dy*0.25, -30, 89); }
+    dbgSync(); e.stopImmediatePropagation();
+  }, true);
+  const end = (e) => { if (drag){ drag = null; e.stopImmediatePropagation(); } };
+  cv.addEventListener("pointerup", end, true); cv.addEventListener("pointercancel", end, true);
+  cv.addEventListener("contextmenu", (e) => { if (DBG.on && DBG.free) e.preventDefault(); });
+  window.addEventListener("wheel", (e) => {
+    if (!(DBG.on && DBG.free) || e.target.closest("#bar, #cfg, #dbg")) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    DBG.dist = clamp(DBG.dist * (e.deltaY < 0 ? 0.92 : 1.08), 0.2, 5); dbgSync();
+  }, { capture:true, passive:false });
+  window.addEventListener("keydown", (e) => { if (e.key === "F8"){ e.preventDefault(); e.stopImmediatePropagation(); dbgToggle(); } }, true);
+  if (new URLSearchParams(location.search).has("debug")) dbgToggle(true);
+  dbgSync();
+})();
+
 window.addEventListener("wheel", (e) => {
   if (inputLocked()){ e.preventDefault(); return; }
   if (e.target.closest("#bar, #cfg")) return;
@@ -4723,6 +5098,122 @@ window.addEventListener("keydown", (e) => {
     if (i < S.arrs.length){ selectArrangement(i); document.getElementById("fArr").value = i; }
   }
 });
+
+/* ── preview mode: start-up and stills (see PREVIEW) ───────────────────────── */
+/* Where the preview's camera centres while playing (a fret-line position),
+   planned from the notes, Preview only - Play Song's camera keeps its spring.
+   The frame (PREVIEW.span frets, fixed) must hold the notes landing now or
+   within the pan (PREVIEW.pan) and those still ringing; it also keeps, for
+   PREVIEW.hold seconds, the notes just let go, unless they clash with the
+   ones landing. Then coming notes, up to PREVIEW.plan seconds ahead, are
+   taken in one by one for as long as they all still fit - so a frame that
+   can already show what comes next is placed to show it, and the camera
+   moves less. Of the centres that fit, the one closest to where the camera
+   is headed is kept: it moves only as far as it must. null: nothing to
+   frame - stay. */
+/* the fret S.all[i] needs in view, or null: a fretted note its fret; an open
+   string, which is drawn across its hand position, that position's first
+   fret - unless fretted notes are struck with it (a chord): they place the
+   frame, and a chart's hand position can be far from the notes */
+function previewFret(i){
+  const n = S.all[i];
+  if (n.f > 0) return n.f;
+  for (let j = i - 1; j >= 0 && n.t - S.all[j].t < 0.003; j--) if (S.all[j].f > 0) return null;
+  for (let j = i + 1; j < S.all.length && S.all[j].t - n.t < 0.003; j++) if (S.all[j].f > 0) return null;
+  return S.anchors[anchorIdx(n.t + 0.002)].fret;
+}
+/* the camera centres that show every fret in fr, PREVIEW.pad from the
+   frame's edges: [lowest, highest] (empty when lowest > highest) */
+function previewFit(fr){
+  let a = Infinity, b = -Infinity;
+  for (const f of fr){ if (f < a) a = f; if (f > b) b = f; }
+  const half = PREVIEW.span/2, pad = PREVIEW.pad;
+  return [b + pad - half, a - 1 - pad + half];     // a note at fret f lies between fret lines f-1 and f
+}
+function previewPlan(now, prev){
+  const Pv = PREVIEW;
+  const range = previewFit;
+  const fits = (fr) => { const r = range(fr); return r[0] <= r[1] + 1e-9; };
+  const must = [], recent = [], coming = [];
+  let sliding = null;                               // the slide being played, if one is
+  Pv.follow = false;
+  for (let i = Math.max(0, lowerBound(S.all, "t", now - S.maxSus - Pv.hold - 0.01)); i < S.all.length; i++){
+    const n = S.all[i];
+    if (n.t > now + Pv.plan) break;
+    let f = previewFret(i);
+    if (f === null) continue;
+    const end = n.t + Math.max(0, n.sus || 0);
+    /* a slide being played: it counts at the fret it ends on, and the
+       camera goes there along with it (below) */
+    const tgt = n.sl > 0 ? n.sl : n.slu > 0 ? n.slu : 0;
+    if (tgt && n.f > 0 && n.sus > 0.05 && now >= n.t && now < end){
+      f = tgt;
+      if (!sliding || n.t > sliding.t) sliding = n;
+    }
+    if (n.t <= now + Pv.pan && end >= now) must.push(f);
+    else if (end < now && end > now - Pv.hold) recent.push(f);
+    else if (n.t > now + Pv.pan) coming.push(f);
+  }
+  let fr = must;
+  if (fits(must.concat(recent))) fr = must.concat(recent);
+  if (!fr.length){
+    if (!coming.length) return prev;               // a rest with nothing in sight: stay
+    fr = [coming.shift()];                         // nothing left here: on to what comes next
+  }
+  if (!fits(fr)){ let a = Infinity, b = -Infinity; for (const f of fr){ a = Math.min(a, f); b = Math.max(b, f); } return (a - 1 + b)/2; }
+  for (const f of coming){ const t = fr.concat([f]); if (!fits(t)) break; fr = t; }
+  const [a, b] = range(fr);
+  const want = clamp(prev === null ? (a + b)/2 : prev, a, b);
+  /* riding a slide: from where the camera was when the slide began to where
+     it has to be when it ends, on the slide's own curve (Play Song's noteX:
+     held for the first 30 %, then eased) - the camera moves with the note */
+  if (!sliding){ Pv.slideRef = null; return want; }
+  if (Pv.slideRef !== sliding){ Pv.slideRef = sliding; Pv.slideC0 = prev === null ? want : prev; }
+  Pv.follow = true;
+  const u = sstep(((now - sliding.t) / sliding.sus - 0.3) / 0.7);
+  return Pv.slideC0 + (want - Pv.slideC0) * u;
+}
+async function previewLoad(){
+  const d = await (await fetch(PREVIEW.song, { cache:"no-store" })).json();
+  if (d.error) throw new Error(d.error);
+  loadSongData(d);
+  S.duration = +(d.meta && d.meta.duration) || 0;
+  S.resting = false;
+  if (S.arrs.length) selectArrangement(Math.min(S.arrIdx, S.arrs.length - 1));
+  parent.postMessage({ type:"preview-ready", arrs: S.arrs.map(a => a.name) }, "*");
+}
+function previewShow(arr, t, playing){
+  const i = S.arrs.findIndex(a => a.name === arr);
+  if (i < 0) return;
+  if (i !== S.arrIdx) selectArrangement(i);
+  PREVIEW.at = t; PREVIEW.playing = !!playing;
+  if (!playing) S.camC = null;                     // a still: framed at once (playing, the camera pans - see draw)
+  /* the note PREVIEW.lead seconds up the highway - at 0, on the fretboard
+     where it lands; a millisecond early, so it is not struck yet (a struck
+     string swings, and its head would start to go) */
+  S.time = playing ? t + S.offMs/1000                       // playing: the song at t, notes struck as they land
+                   : Math.max(0, t - PREVIEW.lead - 0.001) + S.offMs/1000;
+  S.vis = S.visTo = 1;
+  resize(); draw(0);
+}
+async function previewBoot(){
+  document.body.classList.add("preview");
+  SERVER = false;                                  // nothing to tell a server: no prefs, no "now playing"
+  Object.assign(S, { fx: PREVIEW.fx, showHit: PREVIEW.hit, speed: PREVIEW.speed, zoom: PREVIEW.zoom, showLyrics: false,
+                     showDiagram: false, tabView: false, playing: false });
+  updGeom();
+  let last = null;
+  window.addEventListener("message", async (e) => {
+    const m = e.data || {};
+    if (e.source !== parent) return;
+    if (m.type === "show"){ last = m; previewShow(m.arr, +m.t || 0); }
+    else if (m.type === "play"){ last = m; previewShow(m.arr, +m.t || 0, true); }
+    else if (m.type === "reload"){ await previewLoad(); if (last) previewShow(last.arr, +last.t || 0, last.type === "play"); }
+  });
+  window.addEventListener("resize", () => { if (last) previewShow(last.arr, +last.t || 0, last.type === "play"); });
+  await previewLoad();
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, cv.width, cv.height);
+}
 
 /* go */
 resize();
