@@ -1330,6 +1330,7 @@ function play(){
   }
   startAt(from);
   pump();
+  wakeSync();
 }
 function pause(){
   if (!A.playing) return;
@@ -1337,7 +1338,38 @@ function pause(){
   stopSources();
   synKill();
   pump();
+  wakeSync();
 }
+
+/* ── keeping the screen on ──────────────────────────────────────────────────
+   While a song plays, nobody touches the phone or the mouse, and the screen
+   dimmed and locked mid-song. A screen wake lock keeps it on while the song
+   plays and lets it go when it stops. The browser drops the lock whenever the
+   page is hidden, so it is taken again on coming back. Checked every second
+   as well as on play and pause: a song also stops at its end, on loading
+   another, and so on - and a screen takes far longer than a second to dim.
+   Where the browser does not offer it (an old one, or a page not served over
+   HTTPS) nothing changes. */
+const WAKE = { lock:null, asking:false };
+async function wakeSync(){
+  if (!("wakeLock" in navigator) || IS_PREVIEW) return;
+  const want = S.playing && document.visibilityState === "visible";
+  if (want && !WAKE.lock && !WAKE.asking){
+    WAKE.asking = true;
+    try {
+      const lock = await navigator.wakeLock.request("screen");
+      lock.addEventListener("release", () => { if (WAKE.lock === lock) WAKE.lock = null; });
+      WAKE.lock = lock;
+      if (!S.playing) wakeSync();                  // stopped while the browser was answering
+    } catch (e) {}                                 // refused (battery saver, no HTTPS): the screen may dim as before
+    WAKE.asking = false;
+  } else if (!want && WAKE.lock){
+    const lock = WAKE.lock; WAKE.lock = null;
+    lock.release().catch(() => {});
+  }
+}
+setInterval(wakeSync, 1000);
+document.addEventListener("visibilitychange", wakeSync);
 function seek(t){
   const was = A.playing;
   if (Math.abs(t - S.time) > 1.5) S.camC = null;      // a jump cuts the camera instead of gliding

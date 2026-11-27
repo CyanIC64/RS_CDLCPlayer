@@ -161,6 +161,11 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Version
 
+**V1.3.6**, built on V1.3.5:
+- **Screen stays on while a song plays:** a screen wake lock keeps the phone (or computer) from
+  dimming and locking mid-song, and is let go as soon as playback stops. It needs a browser that
+  offers wake locks and a page served over HTTPS (any normal host); elsewhere nothing changes.
+
 **V1.3.5**, built on V1.3.4:
 - **Looping on a phone:** tap and hold on the difficulty bars (or hold and drag across them) now
   selects a loop on touch screens. The browser used to take a held or dragged finger over as a scroll
