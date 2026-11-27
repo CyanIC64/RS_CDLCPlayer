@@ -4367,6 +4367,21 @@ function tabEvents(){
   return evs;
 }
 
+/* scroll the tab view to `top` over `ms`, eased in and out; null stops a
+   glide under way. The browser's own smooth scrolling picks its own (short)
+   duration; portrait asks for a set, slower one. */
+let tabGlideRaf = 0;
+function tabGlide(view, top, ms){
+  cancelAnimationFrame(tabGlideRaf);
+  if (top === null) return;
+  const from = view.scrollTop, d = top - from, t0 = performance.now();
+  const step = (now) => {
+    const u = Math.min(1, (now - t0)/ms), e = u < 0.5 ? 2*u*u : 1 - Math.pow(-2*u + 2, 2)/2;
+    view.scrollTop = from + d*e;
+    if (u < 1) tabGlideRaf = requestAnimationFrame(step);
+  };
+  tabGlideRaf = requestAnimationFrame(step);
+}
 function tabBuild(){
   const view = document.getElementById("tabview");
   const page = document.getElementById("tabpage");
@@ -4429,13 +4444,13 @@ function tabBuild(){
   }
   for (const b of bars) if (b.lyr) b.nat = Math.max(b.nat, b.lyr + TABK.PADL + 6);
 
-  /* rows: four bars a row, squeezed to the width (packing bars at their
-     natural width left one or two a row, and a phone's tab a long thin
-     strip). Where four bars of fast notes would leave each note too little
-     room to read (a row of sixteenths), that row takes two, or one. */
+  /* rows: two bars a row, fitted to the width (packing bars at their natural
+     width left a phone's tab one bar a row; four a row was cramped). Where
+     two bars of fast notes, or of many words, would leave too little room to
+     read, that row takes one. */
   const avail = width - 2*TABK.MARGIN;
   const rows = [];
-  const PER_ROW = 4;
+  const PER_ROW = 2;
   const MIN_NOTE = isPortrait() ? 8.5 : 11, MIN_BAR = 14;   // px a note (portrait writes smaller), a bar's padding
   /* the least a bar can take: room for its notes, and for the words sung in it
      (b.lyr is measured at the full-size lyric font; portrait writes it at 11/13) */
@@ -4443,7 +4458,7 @@ function tabBuild(){
   const fits = (g) => g.reduce((s, b) => s + Math.max(MIN_BAR + b.evs.length*MIN_NOTE, (b.lyr || 0)*lyrK + TABK.PADL), 0) <= avail;
   for (let i = 0; i < bars.length; ){
     let n = PER_ROW;
-    while (n > 1 && !fits(bars.slice(i, i + n))) n = n > 2 ? 2 : 1;
+    while (n > 1 && !fits(bars.slice(i, i + n))) n--;
     const g = bars.slice(i, i + n);
     i += n;
     rows.push({ bars:g, nat:g.reduce((s, b) => s + b.nat, 0), full: n, last: i >= bars.length });
@@ -4733,7 +4748,8 @@ function tabFollow(){
         const want = row.top - view.clientHeight*0.22;
         /* just opened: straight to the line being played, no scrolling there */
         const snap = TAB.snap || Math.abs(view.scrollTop - want) > view.clientHeight*2;
-        view.scrollTo({ top: Math.max(0, want), behavior: snap ? "auto" : "smooth" });
+        if (!snap && isPortrait()) tabGlide(view, Math.max(0, want), 200);   // portrait: a set 200 ms glide
+        else { tabGlide(view, null); view.scrollTo({ top: Math.max(0, want), behavior: snap ? "auto" : "smooth" }); }
         TAB.snap = false;
       }
     }
@@ -4785,7 +4801,7 @@ function tabInvalidate(){
 (function(){
   const view = document.getElementById("tabview");
   /* reading ahead: the view stops following for a few seconds after a manual scroll */
-  const hold = () => { TAB.holdUntil = performance.now() + 5000; };
+  const hold = () => { TAB.holdUntil = performance.now() + 5000; tabGlide(view, null); };   // the reader scrolls: a glide gives way
   view.addEventListener("wheel", hold, { passive: true });
   view.addEventListener("touchmove", hold, { passive: true });
   view.addEventListener("keydown", (e) => { if (/Page|Arrow|Home|End/.test(e.key)) hold(); });

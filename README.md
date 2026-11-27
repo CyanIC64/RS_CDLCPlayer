@@ -161,6 +161,12 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Version
 
+**V1.3.3**, built on V1.3.2:
+- **Tab view:** two bars to a row instead of four, which was cramped. A row of fast notes, or of
+  more words than two bars leave room for, takes one bar.
+- **Portrait tab scrolling:** moving on to the next row glides over a set 200 ms. Touching the tab
+  stops the glide.
+
 **V1.3.2**, built on V1.3.1:
 - **Portrait highway:** the camera is closer, with the highway at nearly the landscape angle, so it
   rises gently instead of steeply. The empty space under the lyrics is left that way on purpose.
