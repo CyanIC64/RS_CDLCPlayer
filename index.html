@@ -14,7 +14,10 @@
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,sans-serif;
-     display:grid;grid-template-rows:minmax(0,1fr) auto;grid-template-columns:minmax(0,1fr);height:100vh;overflow:hidden;user-select:none}
+     display:grid;grid-template-rows:minmax(0,1fr) auto;grid-template-columns:minmax(0,1fr);height:100vh;overflow:hidden;user-select:none;
+     /* a phone's 100vh reaches under the browser's own toolbars, which hid the
+        bottom row of controls; 100dvh is the height that is actually visible */
+     height:100dvh;padding-bottom:env(safe-area-inset-bottom)}
 
 /* ── highway ───────────────────────────────────────────────────────────── */
 #stage{position:relative;min-height:0;overflow:hidden;background:#000}
@@ -22,7 +25,7 @@ body{background:var(--bg);color:var(--ink);font:12.5px/1.4 "Segoe UI",system-ui,
 /* preview mode (play_song.html?preview): the highway alone fills the frame */
 body.preview{display:block}
 body.preview > *:not(#stage):not(script){display:none!important}
-body.preview #stage{height:100vh}
+body.preview #stage{height:100vh;height:100dvh}
 body.preview #stage > *:not(#hw){display:none!important}
 /* tab view: replaces the highway, as on a page of tablature */
 #tabview{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;background:#fff;display:none;color:#222}
@@ -297,7 +300,7 @@ body.locked{cursor:progress}
   #bTab{margin-left:0}
   #seek{padding:8px 12px 4px;gap:8px}
   #bRestart{display:flex}
-  #cfg{bottom:170px;max-height:calc(100vh - 184px)}
+  #cfg{bottom:170px;max-height:calc(100vh - 184px);max-height:calc(100dvh - 184px)}
   #lyr,#lyrErr{left:6%;top:15%;max-width:58%}
   #lyr .ln{font-size:clamp(16px,4.3vw,44px)}
   #lyrErr b{font-size:clamp(14px,3vw,32px)}
@@ -3135,7 +3138,9 @@ function neckAxes(cam, x, y, z){
 const BARS = { x0:0, x1:1, top:0, h:1 };
 function drawPhraseBars(t, off){
   BARS.x0 = W*0.126; BARS.x1 = W*0.895;
-  BARS.h = clamp(H*0.066, 22, 76); BARS.top = Math.max(8, H*0.048);
+  /* shorter than they were (6.6% of the height, up to 76 px), and held by the
+     width too: on a tall portrait screen the height alone made them tower */
+  BARS.h = clamp(Math.min(H*0.05, W*0.06), 18, 56); BARS.top = Math.max(8, Math.min(H*0.048, W*0.06));
   const ph = S.phrases, D = S.duration || 0;
   if (!ph.length || D <= 0) return;
   /* Drawn after the game's own: purple bars with a gradient, a clear black gap

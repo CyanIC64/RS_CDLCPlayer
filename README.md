@@ -161,6 +161,12 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Version
 
+**V1.3.1**, built on V1.3:
+- **Phones:** the bottom row of controls (sliders, Open, Options, Tab) was hidden behind the
+  browser's own toolbar. The page now fits the height the browser actually shows (`100dvh`), and
+  keeps clear of a phone's home-indicator area.
+- **Difficulty bars:** shorter, about half as tall on a phone and a quarter shorter in landscape.
+
 **V1.3**, built on V1.2.1:
 - **Portrait screens:** a layout of its own for a phone held upright or a monitor on its side.
   - The camera climbs higher and looks further down, so the highway runs up the whole screen.
