@@ -161,6 +161,11 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Version
 
+**V1.3.10**, built on V1.3.9:
+- **Options → Sync:** the line about what a positive offset means gives way to a **Bluetooth latency**
+  row that shows the output delay measured, and the switch under it is now called **Compensate
+  delay**. The two rows no longer overlap on a phone.
+
 **V1.3.9**, built on V1.3.8:
 - **Portrait section name:** the seek bar's section blocks no longer carry names (too narrow on a
   phone). The section being played is named instead at the bottom-left corner of the highway, right

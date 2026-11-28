@@ -578,8 +578,9 @@ body.dbg-free #hw{cursor:grab}
     </span>
   </div>
   <div class="row" id="saveOffRow"><label>Save into the pack</label><button id="bSaveOff">Save offset</button></div>
-  <div class="hint" id="offMsg">Positive offset = chart later than the audio.</div>
-  <div class="row"><label for="fAutoDelay" title="Wait for the sound: the notes are drawn at the moment you hear, taking off the delay of the audio output (a Bluetooth headset adds about 0.2 s). Measured all the time, so a headset connected mid-song is followed. The note offset adds to it.">Auto audio delay<span class="rv" id="rvDelay"></span></label><input id="fAutoDelay" type="checkbox" checked></div>
+  <div class="hint" id="offMsg" hidden></div>
+  <div class="row" id="latRow"><label title="The delay of the audio output, measured all the time: about 0.2 s for a Bluetooth headset, a few ms for wired speakers.">Bluetooth latency</label><span class="rv" id="rvDelay">–</span></div>
+  <div class="row"><label for="fAutoDelay" title="Draw the notes at the moment you hear them, taking off the Bluetooth latency above. The note offset adds to it.">Compensate delay</label><input id="fAutoDelay" type="checkbox" checked></div>
   <div class="hint">Space play/pause · ←/→ 1 s · [ ] section · L loop · R restart · M mute · C metronome · N note synth · T tab view · O options · <b>,</b> <b>.</b> nudge ±1 ms</div>
 </div>
 
@@ -2688,9 +2689,10 @@ async function showSong(noPlay){
   {
     const cum = +(S.meta.note_offset_ms || 0);
     const om = document.getElementById("offMsg");
-    if (om) om.textContent = cum
-      ? "this pack has already been shifted " + (cum > 0 ? "+" : "") + cum + " ms in total"
-      : "positive offset = chart later than the audio";
+    if (om){
+      om.textContent = cum ? "this pack has already been shifted " + (cum > 0 ? "+" : "") + cum + " ms in total" : "";
+      om.hidden = !cum;
+    }
   }
 
   // deep link: ?t=SECONDS&arr=N  (handy when linking a section from the GUI); ?paused = do not auto-play.
@@ -5108,7 +5110,7 @@ document.getElementById("bClick").onclick = () => {
     const el = document.getElementById("rvDelay");
     if (!el || !document.getElementById("cfg").classList.contains("show")) return;
     if (A.playing) measureDelay();
-    el.textContent = LAT.seen ? Math.round(LAT.d*1000) + " ms" : "";
+    el.textContent = LAT.seen ? Math.round(LAT.d*1000) + " ms" : "–";
   }, 500);
   document.getElementById("fCam").oninput = (e) => {
     if (isPortrait()) S.camRateP = (+e.target.value)/100; else S.camRate = (+e.target.value)/100;
@@ -5131,6 +5133,7 @@ document.querySelectorAll("#cfg .nudge").forEach(b => {
    and keeps a backup), then reload the chart and zero the dial */
 async function saveOffset(){
   const msg = document.getElementById("offMsg");
+  msg.hidden = false;
   const ms = S.offMs;
   if (!ms){ msg.textContent = "offset is 0 - nothing to save."; return; }
   msg.textContent = "saving " + (ms > 0 ? "+" : "") + ms + " ms into the pack…";
