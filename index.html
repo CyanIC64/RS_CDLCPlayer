@@ -1106,7 +1106,7 @@ S.camRateP = 1.5; S.zoomP = 1.0;
 S.autoDelay = true;                                 // draw at the moment being heard (heardTime)
 /* while a video is being rendered, "portrait" is the shape of the highway in
    the video, not of the window (see renderEnter) */
-const RENDER = { on:false, portrait:false, cancel:false, busy:false, blob:null, name:"" };
+const RENDER = { on:false, portrait:false, cancel:false, busy:false, blob:null, name:"", tick:0 };
 const isPortrait = () => RENDER.on ? RENDER.portrait : window.innerHeight > window.innerWidth;
 const camRateNow = () => isPortrait() ? S.camRateP : S.camRate;
 const zoomNow = () => isPortrait() && !IS_PREVIEW ? S.zoomP : S.zoom;   // the Song Editor's preview sets its own zoom
@@ -5144,15 +5144,22 @@ function renderSetup(scale){
 }
 /* the highway is the render's while it draws: sizes, the canvas, the camera
    and the parts shown are set for it, and put back by renderLeave */
-function renderEnter(st){
+/* cam: the preview's own camera, carried from one frame to the next while
+   the song plays (renderPreview); without it the camera starts framed */
+function renderEnter(st, cam){
   RENDER.save = { W, H, dpr, camC:S.camC, camS:S.camS, camCv:S.camCv, camSv:S.camSv, time:S.time,
                   vis:S.vis, visTo:S.visTo, showChord:S.showChord, showDiagram:S.showDiagram,
                   showFingers:S.showFingers, showHit:S.showHit, showBars:S.showBars };
   RENDER.on = true; RENDER.portrait = st.lw < st.lh;
   W = st.lw; H = st.lh; dpr = st.d; DRAW_CTX = st.hctx;
-  SPR.dpr = dpr; SPR.text.clear(); SPR.head.clear();
+  /* sprites are made for one pixel density: the render keeps its own set
+     beside the screen's, so neither is made again each time they swap */
+  RENDER.sprSave = { dpr:SPR.dpr, text:SPR.text, head:SPR.head };
+  const c = RENDER.spr && RENDER.spr.dpr === dpr ? RENDER.spr : (RENDER.spr = { dpr, text:new Map(), head:new Map() });
+  SPR.dpr = c.dpr; SPR.text = c.text; SPR.head = c.head;
   Object.assign(S, { showChord:RO.chord, showDiagram:false, showFingers:RO.fingers, showHit:RO.hit,
                      showBars:RO.bars, vis:1, visTo:1, camC:null, camCv:0, camSv:0 });
+  if (cam) Object.assign(S, cam);
 }
 function renderLeave(){
   const v = RENDER.save;
@@ -5162,8 +5169,9 @@ function renderLeave(){
   Object.assign(S, { camC:v.camC, camS:v.camS, camCv:v.camCv, camSv:v.camSv, time:v.time, vis:v.vis, visTo:v.visTo,
                      showChord:v.showChord, showDiagram:v.showDiagram, showFingers:v.showFingers, showHit:v.showHit,
                      showBars:v.showBars });
+  const sp = RENDER.sprSave;
+  if (sp){ SPR.dpr = sp.dpr; SPR.text = sp.text; SPR.head = sp.head; RENDER.sprSave = null; }
   RENDER.on = false;
-  resize();                                         // the sprites are made again for the screen
 }
 
 /* one frame of the video at song time t */
@@ -5532,20 +5540,30 @@ function renderInfo(){
   const d = Math.max(0, t1 - t0), mb = (renderBitrate(w, h, +RO.fps) + 192000)*d/8/1048576;
   document.getElementById("rInfo").textContent = w + " × " + h + " · " + fmt(d) + " · about " + Math.max(1, Math.round(mb)) + " MB";
 }
-function renderPreview(){
+/* the preview: a still of the moment on screen, or - dt given, from the
+   frame loop while the song plays - the next frame of a moving one, its
+   camera gliding as the video's would */
+function renderPreview(dt){
   if (RENDER.busy || !S.all || !S.all.length) return;
   const box = document.querySelector("#rdlg .rprev");
   const [w, h] = renderDims(RO.aspect, RO.res);
-  const bw = box.clientWidth || 210, bh = box.clientHeight || 250;
-  const k = Math.min(bw/w, bh/h)*Math.min(2, window.devicePixelRatio || 1);
-  const st = renderSetup(k);
-  RENDER.prevSt = st;
-  renderEnter(st);
-  try { renderDraw(st, S.time, 0); } finally { renderLeave(); }
+  const bw = box.clientWidth || 210, bh = box.clientHeight || 250, pr = Math.min(2, window.devicePixelRatio || 1);
+  const k = Math.min(bw/w, bh/h)*pr;
+  const key = [RO.aspect, RO.res, RO.layout, JSON.stringify(RO.pip || {}), k.toFixed(4)].join("|");
+  let st = RENDER.prevSt;
+  if (!st || st.key !== key){ st = renderSetup(k); st.key = key; RENDER.prevSt = st; RENDER.pcam = null; }
+  const live = dt !== undefined && RENDER.pcam;
+  renderEnter(st, live ? RENDER.pcam : null);
+  try {
+    renderDraw(st, S.time, live ? dt : 0);
+    RENDER.pcam = { camC:S.camC, camS:S.camS, camCv:S.camCv, camSv:S.camSv };
+  } finally { renderLeave(); }
   document.getElementById("rPipHint").hidden = !st.pip;
   const c = document.getElementById("rPrev");
-  c.width = st.ow; c.height = st.oh;
-  c.style.width = Math.round(st.ow/Math.min(2, window.devicePixelRatio || 1)) + "px";
+  if (c.width !== st.ow || c.height !== st.oh){
+    c.width = st.ow; c.height = st.oh;
+    c.style.width = Math.round(st.ow/pr) + "px";
+  }
   c.getContext("2d").drawImage(st.out, 0, 0);
 }
 function renderSync(){
@@ -5628,6 +5646,7 @@ async function renderShareFile(){
   });
 }
 
+const rdlgEl = document.getElementById("rdlg");
 let last = performance.now(), fpsAcc = 0, fpsN = 0, fpsT = 0;
 const LOOP_LEAD = 2.0;              // seconds of run-up before a looped section
 
@@ -5668,6 +5687,10 @@ function frame(now){
   updateHud();
   pump();
   synPump();
+
+  /* the render dialog's preview moves with the song (every other frame: it
+     is a second highway to draw) */
+  if (S.playing && !RENDER.busy && !rdlgEl.hidden && (++RENDER.tick & 1) === 0) renderPreview(dt*2);
 
   fpsAcc += dt; fpsN++;
   if (now - fpsT > 250){

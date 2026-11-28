@@ -162,6 +162,10 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Version
 
+**V1.4.3**, built on V1.4.2:
+- **Render preview:** while the song plays, the dialog's preview plays along with it, camera
+  moving as it will in the video. Pressing **Render** pauses the song first.
+
 **V1.4.2**, built on V1.4.1:
 - **Render, picture in picture:** in portrait the camera space starts at the left, right under the
   lyrics, with room left for a third line when a long line wraps. The camera can be dragged
