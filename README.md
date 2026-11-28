@@ -162,6 +162,10 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Version
 
+**V1.4.6**, built on V1.4.5:
+- **Render dialog:** the Show checkboxes are drawn in the page's own dark style (a blue box with a
+  white tick when on) instead of the browser's.
+
 **V1.4.5**, built on V1.4.4:
 - **Render dialog:** the selection boxes are all the same width, so they line up.
 
