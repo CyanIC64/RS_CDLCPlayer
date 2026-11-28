@@ -162,6 +162,10 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Version
 
+**V1.4.10**, built on V1.4.9:
+- **Options:** the checkboxes have the same dark style as the render dialog's (a blue box with a
+  white tick when on) instead of the browser's.
+
 **V1.4.9**, built on V1.4.8:
 - **Render in the background:** while a video renders, **Minimize** (or closing the dialog) puts it
   in a small badge in the top corner that shows the progress, and the player can be used meanwhile:
