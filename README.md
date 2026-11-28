@@ -162,6 +162,12 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Version
 
+**V1.4.1**, built on V1.4:
+- **Render, portrait picture in picture:** the camera space sits under the lyrics instead of over them.
+- **Render:** the chord diagram is left out of videos (the option is gone).
+- **Chord names:** a long name seen close up (a near camera, a narrow screen) is drawn see-through,
+  so the notes under it stay in view. Short names are unchanged.
+
 **V1.4**, built on V1.3.10:
 - **Render 3D Highway** (Options → Render): makes an MP4 video of the highway with the song's
   audio, for content creators. Part of the picture can be left empty for a guitar camera, to be

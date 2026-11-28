@@ -645,7 +645,6 @@ body.dbg-free #hw{cursor:grab}
           <label><input type="checkbox" data-k="bars">Difficulty bars</label>
           <label><input type="checkbox" data-k="lyrics">Lyrics</label>
           <label><input type="checkbox" data-k="chord">Chord names</label>
-          <label><input type="checkbox" data-k="diagram">Chord diagram</label>
           <label><input type="checkbox" data-k="fingers">Finger positions</label>
           <label><input type="checkbox" data-k="hit">Note-hit light</label>
           <label><input type="checkbox" data-k="sec">Section and time</label>
@@ -3317,6 +3316,9 @@ function chordName(name, tl, sc, a, ax){
   a *= numFadeIn(fs);                              // far away: fades in as it grows, like the fret numbers
   if (a <= 0.01) return;
   const sp = textSprite(name, fs, "#eef1f3", null), k = fs/sp.q, tw = sp.tw*k;
+  /* a long name close up (a near camera, a narrow screen) spans much of the
+     highway: it is made see-through, so the notes under it stay in view */
+  if (name.length > 3){ const f = tw/W; if (f > 0.12) a *= clamp(1 - (f - 0.12)/0.22, 0.35, 1); }
   if (S.lefty){
     /* mirrored, the frame's low-fret edge is on its right: the name stands right
        of it, left-aligned, kept on screen at the right edge */
@@ -5058,7 +5060,7 @@ const RLAYOUTS = {                     // [x, y, w, h] as parts of the video
   none: { hw:[0, 0, 1, 1] },
   P1: { cam:[0, 0, 1, 0.4], hw:[0, 0.4, 1, 0.6] },
   P2: { hw:[0, 0, 1, 0.6], cam:[0, 0.6, 1, 0.4] },
-  P3: { hw:[0, 0, 1, 1], cam:[0.52, 0.12, 0.42, 0.24], pip:true },
+  P3: { hw:[0, 0, 1, 1], cam:[0.52, 0.29, 0.42, 0.22], pip:true },   // under the lyrics (two lines from 15%)
   L1: { cam:[0, 0, 0.45, 1], hw:[0.45, 0, 0.55, 1] },
   L2: { hw:[0, 0, 0.55, 1], cam:[0.55, 0, 0.45, 1] },
   L3: { hw:[0, 0, 1, 1], cam:[0.03, 0.52, 0.30, 0.34], pip:true },
@@ -5067,9 +5069,9 @@ const RLAYOUT_NAMES = {
   P: [["P1", "Camera on top"], ["P2", "Highway on top"], ["P3", "Picture in picture"], ["none", "None"]],
   L: [["L1", "Camera left"], ["L2", "Camera right"], ["L3", "Picture in picture"], ["none", "None"]],
 };
-const RCHK = ["bars", "lyrics", "chord", "diagram", "fingers", "hit", "sec", "title"];
+const RCHK = ["bars", "lyrics", "chord", "fingers", "hit", "sec", "title"];   // no chord diagram: it crowds a video
 const RO = { aspect:"9:16", res:"1080", fps:"30", layout:"P1", fill:"black", range:"song",
-             bars:true, lyrics:true, chord:true, diagram:true, fingers:true, hit:true, sec:true, title:true };
+             bars:true, lyrics:true, chord:true, fingers:true, hit:true, sec:true, title:true };
 const RFILL = { black:"#000000", green:"#00b140" };
 
 function renderLoadPrefs(){
@@ -5128,7 +5130,7 @@ function renderEnter(st){
   RENDER.on = true; RENDER.portrait = st.lw < st.lh;
   W = st.lw; H = st.lh; dpr = st.d; DRAW_CTX = st.hctx;
   SPR.dpr = dpr; SPR.text.clear(); SPR.head.clear();
-  Object.assign(S, { showChord:RO.chord, showDiagram:RO.diagram, showFingers:RO.fingers, showHit:RO.hit,
+  Object.assign(S, { showChord:RO.chord, showDiagram:false, showFingers:RO.fingers, showHit:RO.hit,
                      showBars:RO.bars, vis:1, visTo:1, camC:null, camCv:0, camSv:0 });
 }
 function renderLeave(){
