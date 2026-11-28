@@ -3362,11 +3362,16 @@ function neckAxes(cam, x, y, z){
 
 /* difficulty bars across the top */
 const BARS = { x0:0, x1:1, top:0, h:1 };
-function drawPhraseBars(t, off){
+/* where the difficulty bars stand - placed whether they are drawn or not:
+   the note-hit light hangs under them and keeps its place without them */
+function placeBars(){
   BARS.x0 = W*0.126; BARS.x1 = W*0.895;
   /* shorter than they were (6.6% of the height, up to 76 px), and held by the
      width too: on a tall portrait screen the height alone made them tower */
   BARS.h = clamp(Math.min(H*0.05, W*0.06), 18, 56); BARS.top = Math.max(8, Math.min(H*0.048, W*0.06));
+}
+function drawPhraseBars(t, off){
+  placeBars();
   const ph = S.phrases, D = S.duration || 0;
   if (!ph.length || D <= 0) return;
   /* Drawn after the game's own: purple bars with a gradient, a clear black gap
@@ -4262,7 +4267,7 @@ function draw(dt){
   }
 
   ctx = hid("overlays") ? NULL_CTX : DRAW_CTX;
-  if (!IS_PREVIEW && S.showBars !== false) drawPhraseBars(t, S.offMs/1000);   // a still has no difficulty bars over it
+  if (!IS_PREVIEW && S.showBars !== false) drawPhraseBars(t, S.offMs/1000); else placeBars();   // a still has no difficulty bars over it
   if (S.showHit) drawHitLight(t);
   if (S.showDiagram && S.holds.length) drawChordDiagram(t, cam, curA);
   ctx = DRAW_CTX;

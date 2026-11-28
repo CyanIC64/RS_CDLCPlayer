@@ -162,6 +162,10 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Version
 
+**V1.4.7**, built on V1.4.6:
+- **Render:** with the difficulty bars left out, the note-hit light stays where it is with them,
+  instead of drifting to wherever the screen's bars last were.
+
 **V1.4.6**, built on V1.4.5:
 - **Render dialog:** the Show checkboxes are drawn in the page's own dark style (a blue box with a
   white tick when on) instead of the browser's.
