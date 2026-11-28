@@ -162,6 +162,11 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Version
 
+**V1.4.4**, built on V1.4.3:
+- **Render, song title:** the title and artist fade in and out at the start of the video, where the
+  lyrics stand (title on the first row, artist on the second), instead of staying in the corner.
+  They are left out when the lyrics would already be up in those first seconds.
+
 **V1.4.3**, built on V1.4.2:
 - **Render preview:** while the song plays, the dialog's preview plays along with it, camera
   moving as it will in the video. Pressing **Render** pauses the song first.
