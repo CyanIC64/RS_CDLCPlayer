@@ -55,6 +55,7 @@ There is no server, no upload and no account.
 - Tone changes marked on the seek bar, with the current tone shown in the corner.
 - Stem picker for packs that carry separated stems.
 - Note-sync offset in 1 ms and 10 ms steps.
+- Render the highway to an MP4 video, with room left for a guitar camera (see V1.4).
 - Switching songs while one plays fades the old one out over a second, sound and picture together,
   before the new one loads. While a song is opening, the controls are locked so nothing is
   pressed by accident.
@@ -160,6 +161,24 @@ changed. The only data the page stores is your settings, in your browser's `loca
 ---
 
 ## Version
+
+**V1.4**, built on V1.3.10:
+- **Render 3D Highway** (Options → Render): makes an MP4 video of the highway with the song's
+  audio, for content creators. Part of the picture can be left empty for a guitar camera, to be
+  filled in a video editor:
+  - portrait (9:16) and square (1:1): camera on top, highway on top, or picture in picture;
+  - landscape (16:9): camera left, camera right, or picture in picture; or no camera space at all;
+  - the camera space can be black or green screen.
+  - Resolution 720p, 1080p or 1440p; 30 or 60 fps; the whole song, or the loop (or the section
+    on screen).
+  - Shown or left out: difficulty bars, lyrics, chord names, chord diagram, finger positions,
+    note-hit light, section and time, song title.
+  - The video is drawn frame by frame at its own size, not recorded off the screen, so a phone
+    held upright can make a landscape video, and 60 fps stays smooth on a slow device (it only
+    takes longer). A preview in the dialog shows the layout; when it is done the video can be
+    saved, or shared on a phone.
+  - Needs a browser that can encode video (WebCodecs): a current Chrome or Edge, on a computer or
+    on Android. Keep the page open while it renders.
 
 **V1.3.10**, built on V1.3.9:
 - **Options → Sync:** the line about what a positive offset means gives way to a **Bluetooth latency**

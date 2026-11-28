@@ -282,6 +282,42 @@ body.locked{cursor:progress}
   padding:3px 10px;font:inherit;cursor:pointer}
 #cfg button:hover{border-color:#4a5560}
 
+#cfg #bRender{width:100%;padding:6px 10px;font-weight:600}
+
+/* render dialog */
+#rdlg{position:fixed;inset:0;z-index:70;background:#000a;display:flex;align-items:center;justify-content:center;padding:12px}
+#rdlg[hidden]{display:none}
+#rdlg .rbox{background:#101317;border:1px solid #2b3138;border-radius:8px;box-shadow:0 16px 40px #000c;width:min(620px,100%);
+  max-height:100%;overflow-y:auto;color:var(--ink);font:13px "Segoe UI",system-ui,sans-serif}
+#rdlg .rhead{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #1e242b;font-size:14px}
+#rdlg .rbody{display:flex;gap:14px;padding:14px;align-items:flex-start}
+#rdlg .rprev{flex:none;width:210px;height:250px;display:flex;align-items:center;justify-content:center;background:#07090b;border-radius:4px}
+#rdlg .rprev canvas{display:block;max-width:100%;max-height:100%}
+#rdlg .rset{flex:1;min-width:0}
+#rdlg .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 0}
+#rdlg .row label{color:#c3cdd7}
+#rdlg select{background:#171b20;border:1px solid #2b3138;color:var(--ink);border-radius:3px;padding:3px 6px;font:inherit;outline:none;max-width:170px}
+#rdlg h5{margin:12px 0 6px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);font-weight:600}
+#rdlg .rchk{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}
+#rdlg .rchk label{display:flex;align-items:center;gap:7px;color:#c3cdd7;cursor:pointer}
+#rdlg .rchk input{accent-color:#3f8ce0;margin:0}
+#rdlg .rfoot{display:flex;align-items:center;gap:10px;padding:12px 14px;border-top:1px solid #1e242b}
+#rdlg .rfoot[hidden]{display:none}
+#rdlg .rfoot>span{flex:1;min-width:0;color:#8b97a3;font-size:12px;line-height:1.4}
+#rdlg button{background:#171b20;border:1px solid #2b3138;color:#dfe7ef;border-radius:4px;padding:6px 14px;font:inherit;cursor:pointer}
+#rdlg button:hover{border-color:#4a5560}
+#rdlg button.rmain{background:#1f6fd1;border-color:#1f6fd1;color:#fff;font-weight:600}
+#rdlg button.rx{background:none;border:0;padding:2px 6px;color:#8b97a3;font-size:15px}
+#rdlg .rbar{flex:1;height:6px;background:#1e242b;border-radius:3px;overflow:hidden}
+#rdlg .rbar i{display:block;height:100%;width:0;background:#3f8ce0}
+#rdlg #rProg span{flex:none;font:600 11px "Cascadia Mono",Consolas,monospace}
+@media (max-width:560px){
+  #rdlg .rbody{flex-direction:column;align-items:stretch}
+  #rdlg .rprev{width:auto;height:210px}
+  #rdlg #rProg{flex-wrap:wrap}
+  #rdlg #rProg .rbar{flex-basis:100%}
+}
+
 /* narrow windows: drop the least important controls instead of clipping them */
 @media (max-width:1180px){ #stats{display:none} }
 @media (max-width:1040px){ .vol input[type=range]{width:64px} #bCfg span,#bOpen span,#bTab span{display:none} }
@@ -581,7 +617,46 @@ body.dbg-free #hw{cursor:grab}
   <div class="hint" id="offMsg" hidden></div>
   <div class="row" id="latRow"><label title="The delay of the audio output, measured all the time: about 0.2 s for a Bluetooth headset, a few ms for wired speakers.">Bluetooth latency</label><span class="rv" id="rvDelay">–</span></div>
   <div class="row"><label for="fAutoDelay" title="Draw the notes at the moment you hear them, taking off the Bluetooth latency above. The note offset adds to it.">Compensate delay</label><input id="fAutoDelay" type="checkbox" checked></div>
+  <h4>Render</h4>
+  <div class="row"><button id="bRender" title="Make a video of the highway, with room for a guitar camera">Render 3D Highway</button></div>
   <div class="hint">Space play/pause · ←/→ 1 s · [ ] section · L loop · R restart · M mute · C metronome · N note synth · T tab view · O options · <b>,</b> <b>.</b> nudge ±1 ms</div>
+</div>
+
+<!-- render dialog: the highway as a video file (see "render" in the script) -->
+<div id="rdlg" hidden>
+  <div class="rbox" role="dialog" aria-modal="true" aria-labelledby="rTitle">
+    <div class="rhead"><b id="rTitle">Render 3D Highway</b><button id="rClose" class="rx" aria-label="Close">&#x2715;</button></div>
+    <div class="rbody">
+      <div class="rprev"><canvas id="rPrev" width="2" height="2"></canvas></div>
+      <div class="rset">
+        <div class="row"><label for="rAspect">Aspect ratio</label>
+          <select id="rAspect"><option value="9:16">9:16 portrait</option><option value="16:9">16:9 landscape</option><option value="1:1">1:1 square</option></select></div>
+        <div class="row"><label for="rRes">Resolution</label>
+          <select id="rRes"><option value="720">720p</option><option value="1080">1080p</option><option value="1440">1440p</option></select></div>
+        <div class="row"><label for="rFps">Frame rate</label>
+          <select id="rFps"><option value="30">30 fps</option><option value="60">60 fps</option></select></div>
+        <div class="row"><label for="rLayout">Guitar camera</label><select id="rLayout"></select></div>
+        <div class="row"><label for="rFill">Camera space</label>
+          <select id="rFill"><option value="black">Black</option><option value="green">Green screen</option></select></div>
+        <div class="row"><label for="rRange">Range</label>
+          <select id="rRange"><option value="song">Whole song</option><option value="loop">Loop or section</option></select></div>
+        <h5>Show</h5>
+        <div class="rchk">
+          <label><input type="checkbox" data-k="bars">Difficulty bars</label>
+          <label><input type="checkbox" data-k="lyrics">Lyrics</label>
+          <label><input type="checkbox" data-k="chord">Chord names</label>
+          <label><input type="checkbox" data-k="diagram">Chord diagram</label>
+          <label><input type="checkbox" data-k="fingers">Finger positions</label>
+          <label><input type="checkbox" data-k="hit">Note-hit light</label>
+          <label><input type="checkbox" data-k="sec">Section and time</label>
+          <label><input type="checkbox" data-k="title">Song title</label>
+        </div>
+      </div>
+    </div>
+    <div class="rfoot" id="rGoRow"><span id="rInfo"></span><button id="rGo" class="rmain">Render</button></div>
+    <div class="rfoot" id="rProg" hidden><div class="rbar"><i id="rBarFill"></i></div><span id="rStat"></span><button id="rCancel">Cancel</button></div>
+    <div class="rfoot" id="rDone" hidden><span id="rDoneTxt"></span><button id="rShare" hidden>Share</button><button id="rSave" class="rmain">Save video</button></div>
+  </div>
 </div>
 
 <script>
@@ -1021,7 +1096,10 @@ const S = {
    Its camera is closer (makeCam), so its default speed is higher. */
 S.camRateP = 1.5; S.zoomP = 1.0;
 S.autoDelay = true;                                 // draw at the moment being heard (heardTime)
-const isPortrait = () => window.innerHeight > window.innerWidth;
+/* while a video is being rendered, "portrait" is the shape of the highway in
+   the video, not of the window (see renderEnter) */
+const RENDER = { on:false, portrait:false, cancel:false, busy:false, blob:null, name:"" };
+const isPortrait = () => RENDER.on ? RENDER.portrait : window.innerHeight > window.innerWidth;
 const camRateNow = () => isPortrait() ? S.camRateP : S.camRate;
 const zoomNow = () => isPortrait() && !IS_PREVIEW ? S.zoomP : S.zoom;   // the Song Editor's preview sets its own zoom
 
@@ -1736,6 +1814,7 @@ function project(cam, x, y, z){
 const cv = document.getElementById("hw");
 let ctx = cv.getContext("2d", {alpha:false});
 const REAL_CTX = ctx;
+let DRAW_CTX = REAL_CTX;            // what draw() paints into: the render (renderDraw) points it at its own canvas
 /* debug: a part of the scene that is hidden is drawn into this - it takes
    every call and draws nothing */
 const NULL_GRAD = { addColorStop(){} };
@@ -3552,7 +3631,7 @@ function drawChordDiagram(t, cam, curA){
 }
 
 function draw(dt){
-  ctx = REAL_CTX;                                  // a hidden pass never leaks into the next frame
+  ctx = DRAW_CTX;                                  // a hidden pass never leaks into the next frame
   const t = chartTime();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
@@ -3650,7 +3729,7 @@ function draw(dt){
   if (DBG.on) dbgReadout(cam);
   const zx0 = fretX(curA.fret - 1), zx1 = fretX(Math.min(24, curA.fret + curA.width - 1));
 
-  ctx = hid("highway") ? NULL_CTX : REAL_CTX;
+  ctx = hid("highway") ? NULL_CTX : DRAW_CTX;
   /* glow behind the far end of the highway */
   {
     const v = P((zx0 + zx1)/2, 0, -ZFAR);
@@ -3800,7 +3879,7 @@ function draw(dt){
   if (DBG.front) items.reverse();                              // debug camera in front: the highway's far end is nearest
 
   /* ── 5. the fretboard at the hit plane ───────────────────────────────── */
-  ctx = hid("fretboard") ? NULL_CTX : REAL_CTX;
+  ctx = hid("fretboard") ? NULL_CTX : DRAW_CTX;
   const zf0 = curA.fret - 1, zf1 = Math.min(24, curA.fret + curA.width - 1);
   const pNear = P(fretX(S.camC), yBot, 0);
   const ppf = pNear ? pNear.s*FW : cam.ppf;                    // pixels per fret at the neck
@@ -3851,7 +3930,7 @@ function draw(dt){
     }
   }
 
-  ctx = hid("strings") ? NULL_CTX : REAL_CTX;
+  ctx = hid("strings") ? NULL_CTX : DRAW_CTX;
   /* strings: dim until a note is on its way down that string.
 
      A string that has just been struck is drawn moving. From the spot the
@@ -3962,7 +4041,7 @@ function draw(dt){
   }
 
   /* ── 6. notes and chord frames, far to near ──────────────────────────── */
-  ctx = REAL_CTX;
+  ctx = DRAW_CTX;
   for (const it of items){
     if (it.ev){
       if (hid("chords")) continue;
@@ -4072,7 +4151,7 @@ function draw(dt){
   }
 
   /* ── 7. at the hit plane: the frame a note lands in, and its flash ───── */
-  ctx = hid("hitframes") ? NULL_CTX : REAL_CTX;
+  ctx = hid("hitframes") ? NULL_CTX : DRAW_CTX;
   for (const it of items){
     const n = it.n;
     if (!n || n.f <= 0) continue;
@@ -4104,7 +4183,7 @@ function draw(dt){
     ctx.restore(); ctx.globalAlpha = 1;
   }
 
-  ctx = hid("fingers") ? NULL_CTX : REAL_CTX;
+  ctx = hid("fingers") ? NULL_CTX : DRAW_CTX;
   /* ── 7b. what the fretting hand holds right now: a marker per finger on
            the neck, and the chord's name above the strings, left of the
            anchor. Both stay for as long as the same shape keeps being played. */
@@ -4128,7 +4207,7 @@ function draw(dt){
     }
   }
 
-  ctx = hid("fretboard") ? NULL_CTX : REAL_CTX;
+  ctx = hid("fretboard") ? NULL_CTX : DRAW_CTX;
   /* ── 8. fret numbers under the neck: every fret of the anchor, and the
           inlay frets everywhere else ──────────────────────────────────── */
   /* The glowing range moves to the next hand position the way the finger
@@ -4162,11 +4241,11 @@ function draw(dt){
     if (g > 0.001) label(String(f), p.x, p.y, fs*(0.92 + 0.08*g), "#ffb01f", g, "rgba(255,140,0,0.75)", ax);
   }
 
-  ctx = hid("overlays") ? NULL_CTX : REAL_CTX;
-  if (!IS_PREVIEW) drawPhraseBars(t, S.offMs/1000);   // a still has no difficulty bars over it
+  ctx = hid("overlays") ? NULL_CTX : DRAW_CTX;
+  if (!IS_PREVIEW && S.showBars !== false) drawPhraseBars(t, S.offMs/1000);   // a still has no difficulty bars over it
   if (S.showHit) drawHitLight(t);
   if (S.showDiagram && S.holds.length) drawChordDiagram(t, cam, curA);
-  ctx = REAL_CTX;
+  ctx = DRAW_CTX;
 }
 
 /* ── looping a stretch of bars ───────────────────────────────────────────────
@@ -4967,6 +5046,532 @@ function autoResolution(span){
 }
 
 /* ── frame loop ─────────────────────────────────────────────────────────── */
+/* ── render: the highway as a video file ─────────────────────────────────────
+   For people making videos: the highway is drawn frame by frame, at the
+   moment in the song each frame stands for, into a canvas of its own - the
+   size of the video, whatever the screen's shape - and the frames and the
+   song's audio are encoded by the browser (WebCodecs) into an MP4. Drawn
+   that way rather than recorded off the screen, 60 fps stays smooth on a
+   slow phone too: it only takes longer. Part of the picture can be left
+   empty for a guitar camera, to be filled in a video editor. */
+const RLAYOUTS = {                     // [x, y, w, h] as parts of the video
+  none: { hw:[0, 0, 1, 1] },
+  P1: { cam:[0, 0, 1, 0.4], hw:[0, 0.4, 1, 0.6] },
+  P2: { hw:[0, 0, 1, 0.6], cam:[0, 0.6, 1, 0.4] },
+  P3: { hw:[0, 0, 1, 1], cam:[0.52, 0.12, 0.42, 0.24], pip:true },
+  L1: { cam:[0, 0, 0.45, 1], hw:[0.45, 0, 0.55, 1] },
+  L2: { hw:[0, 0, 0.55, 1], cam:[0.55, 0, 0.45, 1] },
+  L3: { hw:[0, 0, 1, 1], cam:[0.03, 0.52, 0.30, 0.34], pip:true },
+};
+const RLAYOUT_NAMES = {
+  P: [["P1", "Camera on top"], ["P2", "Highway on top"], ["P3", "Picture in picture"], ["none", "None"]],
+  L: [["L1", "Camera left"], ["L2", "Camera right"], ["L3", "Picture in picture"], ["none", "None"]],
+};
+const RCHK = ["bars", "lyrics", "chord", "diagram", "fingers", "hit", "sec", "title"];
+const RO = { aspect:"9:16", res:"1080", fps:"30", layout:"P1", fill:"black", range:"song",
+             bars:true, lyrics:true, chord:true, diagram:true, fingers:true, hit:true, sec:true, title:true };
+const RFILL = { black:"#000000", green:"#00b140" };
+
+function renderLoadPrefs(){
+  RO.aspect = isPortrait() ? "9:16" : "16:9";
+  RO.layout = isPortrait() ? "P1" : "L1";
+  try { Object.assign(RO, JSON.parse(localStorage.getItem("playSong.render") || "{}")); } catch (e) {}
+}
+function renderSavePrefs(){ try { localStorage.setItem("playSong.render", JSON.stringify(RO)); } catch (e) {} }
+
+const renderGroup = (aspect) => aspect === "16:9" ? "L" : "P";
+function renderDims(aspect, res){                 // the video's size, even on both sides (H.264 wants that)
+  const s = +res, ev = (v) => Math.round(v/2)*2;
+  if (aspect === "9:16") return [s, ev(s*16/9)];
+  if (aspect === "16:9") return [ev(s*16/9), s];
+  return [s, s];
+}
+function renderRange(){
+  if (RO.range === "loop"){
+    if (S.loop && S.loopB > S.loopA) return [Math.max(0, S.loopA), Math.min(S.duration, S.loopB)];
+    const sec = sectionAt(chartTime());
+    if (sec) return [Math.max(0, sec.start), Math.min(S.duration, sec.end)];
+  }
+  return [0, S.duration];
+}
+const renderBitrate = (w, h, fps) => Math.round(w*h*fps*0.11);
+
+/* the canvases and sizes for one render (scale < 1: the dialog's preview).
+   The highway is drawn at a size in CSS pixels close to a screen's - about
+   420 wide when it stands upright, 760 tall when it lies - and scaled up to
+   the video's pixels, so the notes, writing and bars keep the proportions
+   they have on a phone or a monitor. */
+function renderSetup(scale){
+  const [fw, fh] = renderDims(RO.aspect, RO.res);
+  const ow = Math.max(2, Math.round(fw*scale)), oh = Math.max(2, Math.round(fh*scale));
+  let L = RLAYOUTS[RO.layout] ? RO.layout : "none";
+  if (L !== "none" && L[0] !== renderGroup(RO.aspect)) L = renderGroup(RO.aspect) + L[1];
+  const lay = RLAYOUTS[L];
+  const px = (r) => {
+    const x = Math.round(r[0]*ow), y = Math.round(r[1]*oh);
+    return [x, y, Math.round((r[0] + r[2])*ow) - x, Math.round((r[1] + r[3])*oh) - y];
+  };
+  const hw = px(lay.hw), cam = lay.cam ? px(lay.cam) : null;
+  const k = hw[2] < hw[3] ? (hw[2]/scale)/420 : (hw[3]/scale)/760;
+  const d = Math.max(0.5, k)*scale;
+  const out = document.createElement("canvas"); out.width = ow; out.height = oh;
+  const hc = document.createElement("canvas"); hc.width = hw[2]; hc.height = hw[3];
+  return { ow, oh, hw, cam, pip: !!lay.pip, d, out, octx: out.getContext("2d", {alpha:false}),
+           hc, hctx: hc.getContext("2d", {alpha:false}), lw: hw[2]/d, lh: hw[3]/d, preview: scale < 1 };
+}
+/* the highway is the render's while it draws: sizes, the canvas, the camera
+   and the parts shown are set for it, and put back by renderLeave */
+function renderEnter(st){
+  RENDER.save = { W, H, dpr, camC:S.camC, camS:S.camS, camCv:S.camCv, camSv:S.camSv, time:S.time,
+                  vis:S.vis, visTo:S.visTo, showChord:S.showChord, showDiagram:S.showDiagram,
+                  showFingers:S.showFingers, showHit:S.showHit, showBars:S.showBars };
+  RENDER.on = true; RENDER.portrait = st.lw < st.lh;
+  W = st.lw; H = st.lh; dpr = st.d; DRAW_CTX = st.hctx;
+  SPR.dpr = dpr; SPR.text.clear(); SPR.head.clear();
+  Object.assign(S, { showChord:RO.chord, showDiagram:RO.diagram, showFingers:RO.fingers, showHit:RO.hit,
+                     showBars:RO.bars, vis:1, visTo:1, camC:null, camCv:0, camSv:0 });
+}
+function renderLeave(){
+  const v = RENDER.save;
+  if (!v) return;
+  RENDER.save = null;
+  W = v.W; H = v.H; dpr = v.dpr; DRAW_CTX = REAL_CTX;
+  Object.assign(S, { camC:v.camC, camS:v.camS, camCv:v.camCv, camSv:v.camSv, time:v.time, vis:v.vis, visTo:v.visTo,
+                     showChord:v.showChord, showDiagram:v.showDiagram, showFingers:v.showFingers, showHit:v.showHit,
+                     showBars:v.showBars });
+  RENDER.on = false;
+  resize();                                         // the sprites are made again for the screen
+}
+
+/* one frame of the video at song time t */
+function renderDraw(st, t, dt){
+  S.time = t;
+  draw(dt);
+  const g = st.hctx, ct = t - S.offMs/1000;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.globalAlpha = 1;
+  if (RO.lyrics && S.lyrPairs.length) renderLyrics(g, ct);
+  renderCorner(g, ct);
+  const o = st.octx;
+  o.setTransform(1, 0, 0, 1, 0, 0);
+  o.fillStyle = "#000"; o.fillRect(0, 0, st.ow, st.oh);
+  const slot = () => {
+    const [x, y, w, h] = st.cam;
+    o.fillStyle = RFILL[RO.fill] || "#000"; o.fillRect(x, y, w, h);
+    if (st.preview){                                // the preview marks the space; the video leaves it plain
+      o.save();
+      o.strokeStyle = "#8b97a3"; o.setLineDash([4, 3]); o.lineWidth = 1;
+      o.strokeRect(x + 2.5, y + 2.5, w - 5, h - 5);
+      o.fillStyle = RO.fill === "green" ? "#003d16" : "#8b97a3";
+      o.font = "600 " + Math.max(9, Math.round(Math.min(w, h)*0.09)) + "px 'Segoe UI',system-ui,sans-serif";
+      o.textAlign = "center"; o.textBaseline = "middle";
+      o.fillText("Guitar camera", x + w/2, y + h/2);
+      o.restore();
+    }
+  };
+  if (st.cam && !st.pip) slot();
+  o.drawImage(st.hc, st.hw[0], st.hw[1]);
+  if (st.cam && st.pip) slot();
+}
+
+/* lyrics, as the page shows them (updateLyrics): two lines of a verse in
+   view, the one being sung on top; when it is over the column moves up a line */
+function renderLyricRows(line, g, fs, maxW){
+  if (line._rk === fs + "/" + maxW) return line._rows;
+  const rows = [[]], words = [];
+  let cur = [];
+  for (let i = 0; i < line.syl.length; i++){
+    cur.push(i);
+    if (/\s$/.test(line.syl[i][2]) || i === line.syl.length - 1){ words.push(cur); cur = []; }
+  }
+  let x = 0;
+  for (const w of words){
+    const ws = w.map((i) => g.measureText(line.syl[i][2]).width);
+    const wTrim = ws.reduce((a, b) => a + b, 0) - (g.measureText(line.syl[w[w.length-1]][2]).width
+                  - g.measureText(line.syl[w[w.length-1]][2].trimEnd()).width);
+    if (x > 0 && x + wTrim > maxW){ rows.push([]); x = 0; }
+    w.forEach((i, j) => { rows[rows.length - 1].push({ i, x }); x += ws[j]; });
+  }
+  line._rk = fs + "/" + maxW; line._rows = rows;
+  return rows;
+}
+function renderLyrics(g, t){
+  const Bs = S.lyrPairs;
+  let lo = 0, hi = Bs.length - 1, idx = -1;
+  while (lo <= hi){ const m = (lo + hi) >> 1; if (Bs[m].show <= t){ idx = m; lo = m + 1; } else hi = m - 1; }
+  if (idx < 0) return;
+  const b = Bs[idx];
+  if (t > b.gone) return;
+  let k = 0;
+  while (k < b.adv.length && t >= b.adv[k]) k++;
+  const por = W < H;
+  const fs = por ? clamp(W*0.043, 16, 44) : clamp(H*0.045, 17, 46), lh = fs*1.16;
+  const x0 = W*(por ? 0.06 : 0.08), y0 = H*(por ? 0.15 : 0.17), maxW = W*(por ? 0.88 : 0.62);
+  g.font = "600 " + fs + "px " + FONT;
+  g.textBaseline = "top"; g.textAlign = "left";
+  const rows = b.lines.map((ln) => renderLyricRows(ln, g, fs, maxW));
+  const top = (j) => { let n = 0; for (let i = 0; i < j; i++) n += Math.max(1, rows[i].length); return n*lh; };
+  let e = 1;
+  if (k > 0){ const u = clamp((t - b.adv[k-1])/0.45, 0, 1); e = 1 - Math.pow(1 - u, 3); }
+  const off = k > 0 ? top(k-1) + (top(k) - top(k-1))*e : 0;
+  const boxA = clamp(Math.min((t - b.show)/0.3, (b.gone - t)/0.6), 0, 1)*S.vis;
+  if (boxA <= 0) return;
+  g.save();
+  g.shadowColor = "#000"; g.shadowBlur = 6*dpr; g.shadowOffsetY = 2*dpr;
+  for (let j = Math.max(0, k - 1); j <= Math.min(b.lines.length - 1, k + 1); j++){
+    const line = b.lines[j];
+    const a = j === k - 1 ? 1 - e : j === k + 1 ? e : 1;
+    if (a <= 0.01) continue;
+    const state = t < line.t - 0.02 ? "next" : t > line.end + 0.12 ? "done" : "live";
+    let cur = -1;
+    if (state === "live") for (let i = 0; i < line.syl.length; i++) if (line.syl[i][0] <= t + 0.02) cur = i;
+    g.globalAlpha = boxA*a;
+    const y = y0 + top(j) - off;
+    rows[j].forEach((row, r) => {
+      for (const it of row){
+        g.fillStyle = state === "next" ? "#b9bec4" : state === "done" ? "#3d4046"
+                    : it.i < cur ? "#8b9097" : it.i === cur ? "#1ea3ff" : "#ffffff";
+        g.fillText(line.syl[it.i][2], x0 + it.x, y + r*lh);
+      }
+    });
+  }
+  g.restore();
+}
+/* bottom-left: the song's title, and the section with the time */
+function renderCorner(g, ct){
+  if (!RO.sec && !RO.title) return;
+  const por = W < H, u = por ? clamp(W*0.036, 12, 18) : clamp(H*0.026, 12, 20);
+  const x = Math.round(u*0.9);
+  let y = H - Math.round(u*0.7);
+  g.save();
+  g.shadowColor = "#000"; g.shadowBlur = 6*dpr; g.shadowOffsetY = 2*dpr;
+  g.textBaseline = "alphabetic"; g.textAlign = "left";
+  if (RO.sec){
+    g.font = "600 " + u + "px 'Cascadia Mono',Consolas,monospace"; g.fillStyle = "#c8d2dc";
+    g.fillText(fmt(Math.max(0, S.time)) + " / " + fmt(S.duration), x, y);
+    y -= u*1.45;
+    const sec = sectionAt(ct);
+    if (sec){
+      g.font = "600 " + u + "px " + FONT; g.fillStyle = "#dfe7ef";
+      g.fillText(secLabel(sec.name).toUpperCase(), x, y);
+      y -= u*1.7;
+    }
+  }
+  if (RO.title){
+    const arr = currentArr();
+    g.font = "600 " + Math.round(u*0.85) + "px " + FONT; g.fillStyle = "#9aa6b2";
+    const sub = [S.meta.artist, arr && arr.name].filter(Boolean).join(" · ");
+    if (sub){ g.fillText(sub, x, y); y -= u*1.3; }
+    g.font = "700 " + Math.round(u*1.2) + "px " + FONT; g.fillStyle = "#ffffff";
+    if (S.meta.title) g.fillText(S.meta.title, x, y);
+  }
+  g.restore();
+}
+
+/* ── MP4 writer: one video track (H.264) and one audio track (AAC or Opus),
+   moov ahead of the media so the file plays while it loads ─────────────── */
+const MX = {
+  u16: (v) => [(v >>> 8) & 255, v & 255],
+  u32: (v) => [Math.floor(v/16777216) & 255, (v >>> 16) & 255, (v >>> 8) & 255, v & 255],
+  str: (s) => [...s].map((c) => c.charCodeAt(0)),
+  cat(parts){
+    const arrs = parts.map((p) => p instanceof Uint8Array ? p : Uint8Array.from(p.flat(Infinity)));
+    let n = 0; for (const a of arrs) n += a.length;
+    const o = new Uint8Array(n); let at = 0;
+    for (const a of arrs){ o.set(a, at); at += a.length; }
+    return o;
+  },
+  box(type, ...parts){ const body = MX.cat(parts); return MX.cat([MX.u32(body.length + 8), MX.str(type), body]); },
+  full(type, ver, flags, ...parts){ return MX.box(type, [ver, (flags >>> 16) & 255, (flags >>> 8) & 255, flags & 255], ...parts); },
+  desc(tag, bytes){ const b = MX.cat([bytes]); return MX.cat([[tag, 0x80 | ((b.length >>> 21) & 127), 0x80 | ((b.length >>> 14) & 127), 0x80 | ((b.length >>> 7) & 127), b.length & 127], b]); },
+  MATRIX: [0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000],
+};
+function mp4Mux(V, Au){
+  const vts = V.fps*1000, vd = 1000;
+  const items = V.s.map((s, i) => ({ b:s.b, tr:0, t:i/V.fps }));
+  if (Au){ let acc = 0; for (const s of Au.s){ items.push({ b:s.b, tr:1, t:acc/Au.sr }); acc += s.dur; } }
+  items.sort((a, b) => a.t - b.t || a.tr - b.tr);
+  const vDurMs = Math.round(V.s.length/V.fps*1000);
+  const aDur = Au ? Au.s.reduce((n, s) => n + s.dur, 0) : 0;
+  const runs = (durs) => {                          // stts: (count, duration) pairs
+    const r = [];
+    for (const d of durs){ if (r.length && r[r.length-1][1] === d) r[r.length-1][0]++; else r.push([1, d]); }
+    return r;
+  };
+  const trak = (id, kind, ts, dur, durMs, sizes, offs, entry, durs, keys, w, h) => MX.box("trak",
+    MX.full("tkhd", 0, 3, MX.u32(0), MX.u32(0), MX.u32(id), MX.u32(0), MX.u32(durMs), MX.u32(0), MX.u32(0),
+            MX.u16(0), MX.u16(kind === "soun" ? 1 : 0), MX.u16(kind === "soun" ? 0x0100 : 0), MX.u16(0),
+            MX.MATRIX.map(MX.u32), MX.u32(w*65536), MX.u32(h*65536)),
+    MX.box("mdia",
+      MX.full("mdhd", 0, 0, MX.u32(0), MX.u32(0), MX.u32(ts), MX.u32(dur), MX.u16(0x55c4), MX.u16(0)),
+      MX.full("hdlr", 0, 0, MX.u32(0), MX.str(kind), MX.u32(0), MX.u32(0), MX.u32(0),
+              MX.str(kind === "vide" ? "VideoHandler" : "SoundHandler"), [0]),
+      MX.box("minf",
+        kind === "vide" ? MX.full("vmhd", 0, 1, MX.u16(0), MX.u16(0), MX.u16(0), MX.u16(0)) : MX.full("smhd", 0, 0, MX.u16(0), MX.u16(0)),
+        MX.box("dinf", MX.full("dref", 0, 0, MX.u32(1), MX.full("url ", 0, 1))),
+        MX.box("stbl",
+          MX.full("stsd", 0, 0, MX.u32(1), entry),
+          MX.full("stts", 0, 0, MX.u32(runs(durs).length), runs(durs).map(([c, d]) => [MX.u32(c), MX.u32(d)])),
+          keys ? MX.full("stss", 0, 0, MX.u32(keys.length), keys.map(MX.u32)) : [],
+          MX.full("stsc", 0, 0, MX.u32(1), MX.u32(1), MX.u32(1), MX.u32(1)),
+          MX.full("stsz", 0, 0, MX.u32(0), MX.u32(sizes.length), sizes.map(MX.u32)),
+          MX.full("stco", 0, 0, MX.u32(offs.length), offs.map(MX.u32))))));
+  const avc1 = MX.box("avc1", new Array(6).fill(0), MX.u16(1), MX.u16(0), MX.u16(0), new Array(12).fill(0),
+                      MX.u16(V.w), MX.u16(V.h), MX.u32(0x00480000), MX.u32(0x00480000), MX.u32(0), MX.u16(1),
+                      new Array(32).fill(0), MX.u16(0x18), MX.u16(0xffff), MX.box("avcC", V.desc));
+  let aEntry = null;
+  if (Au){
+    const head = [new Array(6).fill(0), MX.u16(1), MX.u32(0), MX.u32(0), MX.u16(Au.ch), MX.u16(16), MX.u16(0), MX.u16(0), MX.u32(Au.sr*65536)];
+    if (Au.codec === "opus"){
+      const d = Au.desc;
+      const pre = d && d.length >= 12 && String.fromCharCode(...d.slice(0, 8)) === "OpusHead" ? d[10] | (d[11] << 8) : 312;
+      aEntry = MX.box("Opus", ...head, MX.box("dOps", [0, Au.ch], MX.u16(pre), MX.u32(Au.sr), MX.u16(0), [0]));
+    } else {
+      const asc = Au.desc && Au.desc.length ? Au.desc : [0x11, 0x90];      // AAC-LC, 48 kHz, stereo
+      const dcd = MX.desc(4, MX.cat([[0x40, 0x15, 0, 0, 0], MX.u32(Au.br), MX.u32(Au.br), MX.desc(5, asc)]));
+      aEntry = MX.box("mp4a", ...head, MX.full("esds", 0, 0, MX.desc(3, MX.cat([MX.u16(0), [0], dcd, MX.desc(6, [2])]))));
+    }
+  }
+  const ftyp = MX.box("ftyp", MX.str("isom"), MX.u32(512), MX.str("isom"), MX.str("iso2"), MX.str("avc1"), MX.str("mp41"));
+  const vSizes = V.s.map((s) => s.b.length), aSizes = Au ? Au.s.map((s) => s.b.length) : [];
+  const vKeys = []; V.s.forEach((s, i) => { if (s.key) vKeys.push(i + 1); });
+  const moov = (base) => {
+    const vo = [], ao = []; let at = base;
+    for (const it of items){ (it.tr ? ao : vo).push(at); at += it.b.length; }
+    if (at > 0xffffffff) throw new Error("the video is too large for one file - choose a lower resolution or a shorter range");
+    return MX.box("moov",
+      MX.full("mvhd", 0, 0, MX.u32(0), MX.u32(0), MX.u32(1000), MX.u32(vDurMs), MX.u32(0x00010000), MX.u16(0x0100), MX.u16(0),
+              MX.u32(0), MX.u32(0), MX.MATRIX.map(MX.u32), new Array(24).fill(0), MX.u32(Au ? 3 : 2)),
+      trak(1, "vide", vts, V.s.length*vd, vDurMs, vSizes, vo, avc1, V.s.map(() => vd), vKeys, V.w, V.h),
+      Au ? trak(2, "soun", Au.sr, aDur, Math.round(aDur/Au.sr*1000), aSizes, ao, aEntry, Au.s.map((s) => s.dur), null, 0, 0) : []);
+  };
+  const size0 = moov(0).length;
+  const mv = moov(ftyp.length + size0 + 8);
+  let mdatLen = 8; for (const it of items) mdatLen += it.b.length;
+  return new Blob([ftyp, mv, MX.cat([MX.u32(mdatLen), MX.str("mdat")]), ...items.map((it) => it.b)], { type:"video/mp4" });
+}
+
+/* ── encoding ───────────────────────────────────────────────────────────── */
+const bytesOf = (d) => d ? new Uint8Array(ArrayBuffer.isView(d) ? d.buffer.slice(d.byteOffset, d.byteOffset + d.byteLength) : d.slice(0)) : null;
+async function renderVideoConfig(w, h, fps){
+  const br = renderBitrate(w, h, fps);
+  for (const codec of ["avc1.640034", "avc1.640033", "avc1.640032", "avc1.64002A", "avc1.640028",
+                       "avc1.4D0034", "avc1.4D0028", "avc1.42E034", "avc1.42E028"]){
+    const cfg = { codec, width:w, height:h, bitrate:br, framerate:fps, avc:{ format:"avc" } };
+    try { if ((await VideoEncoder.isConfigSupported(cfg)).supported) return cfg; } catch (e) {}
+  }
+  return null;
+}
+async function renderAudio(t0, t1, onErr){
+  if (!A.buf || A.silent || typeof AudioEncoder === "undefined") return null;
+  const sr = 48000, ch = 2, br = 192000;
+  let cfg = null, codec = "aac";
+  for (const c of [{ codec:"mp4a.40.2", sampleRate:sr, numberOfChannels:ch, bitrate:br },
+                   { codec:"opus", sampleRate:sr, numberOfChannels:ch, bitrate:br }]){
+    try { if ((await AudioEncoder.isConfigSupported(c)).supported){ cfg = c; codec = c.codec === "opus" ? "opus" : "aac"; break; } } catch (e) {}
+  }
+  if (!cfg) return null;
+  const len = Math.max(1, Math.ceil((t1 - t0)*sr));
+  const oc = new OfflineAudioContext(ch, len, sr);
+  const src = oc.createBufferSource();
+  src.buffer = A.buf; src.connect(oc.destination); src.start(0, t0, t1 - t0);
+  const pcm = await oc.startRendering();
+  const out = { sr, ch, codec, br, desc:null, s:[] };
+  let lastTs = null;
+  const enc = new AudioEncoder({
+    output: (c, md) => {
+      if (md && md.decoderConfig && md.decoderConfig.description) out.desc = bytesOf(md.decoderConfig.description);
+      const b = new Uint8Array(c.byteLength); c.copyTo(b);
+      const dur = c.duration ? Math.round(c.duration*sr/1e6) : (codec === "opus" ? 960 : 1024);
+      out.s.push({ b, dur, ts:c.timestamp }); lastTs = c.timestamp;
+    },
+    error: onErr,
+  });
+  enc.configure(cfg);
+  const L = pcm.getChannelData(0), R = pcm.getChannelData(1), F = 1024;
+  for (let i = 0; i < len; i += F){
+    const n = Math.min(F, len - i), data = new Float32Array(n*2);
+    data.set(L.subarray(i, i + n), 0); data.set(R.subarray(i, i + n), n);
+    const ad = new AudioData({ format:"f32-planar", sampleRate:sr, numberOfFrames:n, numberOfChannels:2,
+                               timestamp: Math.round(i/sr*1e6), data });
+    enc.encode(ad); ad.close();
+    if (enc.encodeQueueSize > 32) await new Promise((r) => setTimeout(r, 0));
+  }
+  await enc.flush(); enc.close();
+  /* the duration of each packet from the time to the next, where the encoder gives them */
+  for (let i = 0; i + 1 < out.s.length; i++){
+    const d = Math.round((out.s[i+1].ts - out.s[i].ts)*sr/1e6);
+    if (d > 0) out.s[i].dur = d;
+  }
+  return out;
+}
+
+async function renderRun(){
+  const $ = (id) => document.getElementById(id);
+  if (typeof VideoEncoder === "undefined" || typeof VideoFrame === "undefined"){
+    $("rInfo").textContent = "This browser can't make video files. Use a current Chrome or Edge.";
+    return;
+  }
+  if (RENDER.busy) return;
+  RENDER.busy = true; RENDER.cancel = false; RENDER.blob = null;
+  if (S.playing){ pause(); setPlayIcon(false); }
+  $("rGoRow").hidden = true; $("rDone").hidden = true; $("rProg").hidden = false;
+  document.querySelectorAll("#rdlg select, #rdlg input").forEach((el) => el.disabled = true);
+  const stat = (txt, frac) => { $("rStat").textContent = txt; if (frac !== undefined) $("rBarFill").style.width = (frac*100).toFixed(1) + "%"; };
+  let wake = null;
+  try { if (navigator.wakeLock) wake = await navigator.wakeLock.request("screen"); } catch (e) {}
+  let failed = null, venc = null;
+  const onErr = (e) => { failed = failed || e; };
+  try {
+    const [t0, t1] = renderRange();
+    if (!(t1 > t0)) throw new Error("nothing to render");
+    const fps = +RO.fps, [w, h] = renderDims(RO.aspect, RO.res);
+    const vcfg = await renderVideoConfig(w, h, fps);
+    if (!vcfg) throw new Error("this browser can't encode " + w + "×" + h + " video - try a lower resolution");
+    stat("Preparing the audio…", 0);
+    const audio = await renderAudio(t0, t1, onErr);
+    if (failed) throw failed;
+    const V = { w, h, fps, desc:null, s:[] };
+    venc = new VideoEncoder({
+      output: (c, md) => {
+        if (md && md.decoderConfig && md.decoderConfig.description) V.desc = bytesOf(md.decoderConfig.description);
+        const b = new Uint8Array(c.byteLength); c.copyTo(b);
+        V.s.push({ b, key: c.type === "key" });
+      },
+      error: onErr,
+    });
+    venc.configure(vcfg);
+    const st = renderSetup(1), N = Math.max(1, Math.round((t1 - t0)*fps));
+    const prev = $("rPrev"), pg = prev.getContext("2d");
+    const began = performance.now();
+    let lastUi = 0;
+    renderEnter(st);
+    try {
+      for (let i = 0; i < N; i++){
+        if (RENDER.cancel || failed) break;
+        renderDraw(st, t0 + i/fps, i ? 1/fps : 0);
+        const vf = new VideoFrame(st.out, { timestamp: Math.round(i*1e6/fps), duration: Math.round(1e6/fps) });
+        venc.encode(vf, { keyFrame: i % (fps*2) === 0 });
+        vf.close();
+        while (venc.encodeQueueSize > 4 && !failed)
+          await new Promise((r) => { venc.addEventListener("dequeue", r, { once:true }); setTimeout(r, 30); });
+        const now = performance.now();
+        if (now - lastUi > 150 || i === N - 1){
+          lastUi = now;
+          pg.drawImage(st.out, 0, 0, prev.width, prev.height);
+          const rate = (i + 1)/((now - began)/1000), left = (N - i - 1)/Math.max(0.1, rate);
+          stat((i + 1) + " / " + N + " · " + rate.toFixed(0) + " fps · " + fmt(left) + " left", (i + 1)/N);
+          await new Promise((r) => setTimeout(r, 0));    // the page gets a moment to show it
+        }
+      }
+    } finally { renderLeave(); }
+    if (failed) throw failed;
+    if (RENDER.cancel){ venc.close(); venc = null; throw new Error("cancelled"); }
+    stat("Finishing…", 1);
+    await venc.flush(); venc.close(); venc = null;
+    if (failed) throw failed;
+    if (!V.desc || !V.s.length) throw new Error("the video encoder gave nothing back");
+    RENDER.blob = mp4Mux(V, audio && audio.s.length ? audio : null);
+    const arr = currentArr();
+    const base = [S.meta.artist, S.meta.title].filter(Boolean).join(" - ") || "Play Song";
+    RENDER.name = (base + (arr && arr.name ? " (" + arr.name + ")" : "") + " " + RO.res + "p" + RO.fps)
+                  .replace(/[\\/:*?"<>|]+/g, "_") + ".mp4";
+    $("rDoneTxt").textContent = "Done in " + fmt((performance.now() - began)/1000) + " · "
+      + (RENDER.blob.size/1048576).toFixed(1) + " MB" + (audio ? "" : " · no audio (this browser can't encode it)");
+    const file = new File([RENDER.blob], RENDER.name, { type:"video/mp4" });
+    $("rShare").hidden = !(navigator.canShare && navigator.canShare({ files:[file] }));
+    $("rProg").hidden = true; $("rDone").hidden = false;
+  } catch (e) {
+    if (venc){ try { venc.close(); } catch (x) {} }
+    $("rProg").hidden = true; $("rGoRow").hidden = false;
+    $("rInfo").textContent = String(e && e.message || e) === "cancelled" ? "Render cancelled." : "Render failed: " + (e && e.message || e);
+    renderPreview();
+  } finally {
+    RENDER.busy = false;
+    document.querySelectorAll("#rdlg select, #rdlg input").forEach((el) => el.disabled = false);
+    if (wake){ try { await wake.release(); } catch (e) {} }
+  }
+}
+
+/* ── the dialog ─────────────────────────────────────────────────────────── */
+function renderFillLayouts(){
+  const sel = document.getElementById("rLayout"), grp = renderGroup(RO.aspect);
+  if (RO.layout !== "none" && RO.layout[0] !== grp) RO.layout = grp + RO.layout[1];
+  sel.innerHTML = RLAYOUT_NAMES[grp].map(([v, n]) => '<option value="' + v + '">' + n + "</option>").join("");
+  sel.value = RO.layout;
+}
+function renderInfo(){
+  const [w, h] = renderDims(RO.aspect, RO.res), [t0, t1] = renderRange();
+  const d = Math.max(0, t1 - t0), mb = (renderBitrate(w, h, +RO.fps) + 192000)*d/8/1048576;
+  document.getElementById("rInfo").textContent = w + " × " + h + " · " + fmt(d) + " · about " + Math.max(1, Math.round(mb)) + " MB";
+}
+function renderPreview(){
+  if (RENDER.busy || !S.all || !S.all.length) return;
+  const box = document.querySelector("#rdlg .rprev");
+  const [w, h] = renderDims(RO.aspect, RO.res);
+  const bw = box.clientWidth || 210, bh = box.clientHeight || 250;
+  const k = Math.min(bw/w, bh/h)*Math.min(2, window.devicePixelRatio || 1);
+  const st = renderSetup(k);
+  renderEnter(st);
+  try { renderDraw(st, S.time, 0); } finally { renderLeave(); }
+  const c = document.getElementById("rPrev");
+  c.width = st.ow; c.height = st.oh;
+  c.style.width = Math.round(st.ow/Math.min(2, window.devicePixelRatio || 1)) + "px";
+  c.getContext("2d").drawImage(st.out, 0, 0);
+}
+function renderSync(){
+  const $ = (id) => document.getElementById(id);
+  $("rAspect").value = RO.aspect; $("rRes").value = RO.res; $("rFps").value = RO.fps;
+  $("rFill").value = RO.fill; $("rRange").value = RO.range;
+  renderFillLayouts();
+  document.querySelectorAll("#rdlg .rchk input").forEach((el) => el.checked = !!RO[el.dataset.k]);
+  $("rFill").closest(".row").style.opacity = RO.layout === "none" ? 0.45 : 1;
+  renderInfo(); renderPreview();
+}
+function renderOpen(){
+  if (!S.all || !S.all.length){ notice("Open a song first, then render it."); setTimeout(idle, 2200); return; }
+  renderLoadPrefs();
+  document.getElementById("cfg").classList.remove("show");
+  document.getElementById("rdlg").hidden = false;
+  document.getElementById("rGoRow").hidden = false;
+  document.getElementById("rProg").hidden = true;
+  document.getElementById("rDone").hidden = true;
+  RENDER.blob = null;
+  requestAnimationFrame(renderSync);                // the preview box has its size once shown
+}
+function renderClose(){
+  if (RENDER.busy){ RENDER.cancel = true; return; }
+  document.getElementById("rdlg").hidden = true;
+  RENDER.blob = null;
+}
+function renderSaveFile(){
+  if (!RENDER.blob) return;
+  const url = URL.createObjectURL(RENDER.blob), a = document.createElement("a");
+  a.href = url; a.download = RENDER.name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+async function renderShareFile(){
+  if (!RENDER.blob) return;
+  try { await navigator.share({ files:[new File([RENDER.blob], RENDER.name, { type:"video/mp4" })], title:S.meta.title || "Play Song" }); }
+  catch (e) {}
+}
+{
+  const $ = (id) => document.getElementById(id);
+  $("bRender").onclick = renderOpen;
+  $("rClose").onclick = renderClose;
+  $("rCancel").onclick = () => { RENDER.cancel = true; };
+  $("rGo").onclick = renderRun;
+  $("rSave").onclick = renderSaveFile;
+  $("rShare").onclick = renderShareFile;
+  $("rdlg").addEventListener("pointerdown", (e) => { if (e.target.id === "rdlg" && !RENDER.busy) renderClose(); });
+  const onSel = (id, key) => $(id).onchange = (e) => { RO[key] = e.target.value; renderSavePrefs(); renderSync(); };
+  onSel("rAspect", "aspect"); onSel("rRes", "res"); onSel("rFps", "fps"); onSel("rLayout", "layout");
+  onSel("rFill", "fill"); onSel("rRange", "range");
+  document.querySelectorAll("#rdlg .rchk input").forEach((el) => el.onchange = () => {
+    RO[el.dataset.k] = el.checked; renderSavePrefs(); renderPreview();
+  });
+}
+
 let last = performance.now(), fpsAcc = 0, fpsN = 0, fpsT = 0;
 const LOOP_LEAD = 2.0;              // seconds of run-up before a looped section
 
@@ -4977,6 +5582,7 @@ const LOOP_LEAD = 2.0;              // seconds of run-up before a looped section
    ~5 s and a ~9 s load. */
 let loadSkip = 0;
 function frame(now){
+  if (RENDER.on){ requestAnimationFrame(frame); return; }   // a video is being rendered: it owns the highway
   if (opening && !S.playing && (++loadSkip & 1)){ requestAnimationFrame(frame); return; }
   const dt = Math.min(0.1, (now - last)/1000);
   last = now;
@@ -5242,6 +5848,10 @@ window.addEventListener("wheel", (e) => {
 }, {passive:false});
 
 window.addEventListener("keydown", (e) => {
+  if (!document.getElementById("rdlg").hidden){                 // the render dialog takes no shortcuts
+    if (e.key === "Escape" && !RENDER.busy) renderClose();
+    return;
+  }
   if (inputLocked()){ e.preventDefault(); return; }     // a song is still being opened
   if (e.target.tagName === "SELECT" || (e.target.tagName === "INPUT" && e.target.type !== "range")) return;
   const k = e.key;
