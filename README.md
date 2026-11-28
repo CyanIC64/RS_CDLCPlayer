@@ -162,6 +162,9 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Version
 
+**V1.4.5**, built on V1.4.4:
+- **Render dialog:** the selection boxes are all the same width, so they line up.
+
 **V1.4.4**, built on V1.4.3:
 - **Render, song title:** the title and artist fade in and out at the start of the video, where the
   lyrics stand (title on the first row, artist on the second), instead of staying in the corner.

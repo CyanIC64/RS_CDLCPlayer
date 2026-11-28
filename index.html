@@ -301,7 +301,8 @@ body.locked{cursor:progress}
 #rdlg .rset{flex:1;min-width:0}
 #rdlg .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 0}
 #rdlg .row label{color:#c3cdd7}
-#rdlg select{background:#171b20;border:1px solid #2b3138;color:var(--ink);border-radius:3px;padding:3px 6px;font:inherit;outline:none;max-width:170px}
+#rdlg select{background:#171b20;border:1px solid #2b3138;color:var(--ink);border-radius:3px;padding:3px 6px;font:inherit;outline:none;
+  width:170px;max-width:60%;flex:none}          /* one width for all: the boxes line up */
 #rdlg h5{margin:12px 0 6px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);font-weight:600}
 #rdlg .rchk{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}
 #rdlg .rchk label{display:flex;align-items:center;gap:7px;color:#c3cdd7;cursor:pointer}
