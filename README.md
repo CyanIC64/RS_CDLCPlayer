@@ -162,6 +162,14 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Version
 
+**V1.4.9**, built on V1.4.8:
+- **Render in the background:** while a video renders, **Minimize** (or closing the dialog) puts it
+  in a small badge in the top corner that shows the progress, and the player can be used meanwhile:
+  play, seek, loop, change settings. The badge turns into **Video ready** when it is done; tapping it
+  brings the dialog back, to save or share the video. Rendering still pauses the song when it starts.
+  Opening another song or switching paths waits until the render is done (or cancelled). With the
+  song playing the render takes a little longer, as the two share the device.
+
 **V1.4.8**, built on V1.4.7:
 - **Render, picture in picture:** the camera can be resized by dragging any of its corners in the
   preview, as well as moved. The preview marks it as movable and resizable: a four-way arrow in the

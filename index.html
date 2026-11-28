@@ -285,6 +285,15 @@ body.locked{cursor:progress}
 #cfg #bRender{width:100%;padding:6px 10px;font-weight:600}
 
 /* render dialog */
+#rPill{position:fixed;top:calc(10px + env(safe-area-inset-top));right:10px;z-index:65;display:flex;align-items:center;gap:8px;
+  background:#101317;border:1px solid #2b3138;border-radius:16px;padding:6px 12px;color:#dfe7ef;
+  font:600 12px "Segoe UI",system-ui,sans-serif;cursor:pointer;box-shadow:0 6px 18px #0009}
+#rPill[hidden]{display:none}
+#rPill .pb{width:56px;height:4px;background:#1e242b;border-radius:2px;overflow:hidden}
+#rPill .pb i{display:block;height:100%;width:0;background:#3f8ce0}
+#rPill.done{background:#1f6fd1;border-color:#1f6fd1;color:#fff}
+#rPill.done .pb,#rPill.fail .pb{display:none}
+#rPill.fail{border-color:#8a3a34;color:#ff9b8f}
 #rdlg{position:fixed;inset:0;z-index:70;background:#000a;display:flex;align-items:center;justify-content:center;padding:12px}
 #rdlg[hidden]{display:none}
 #rdlg .rbox{background:#101317;border:1px solid #2b3138;border-radius:8px;box-shadow:0 16px 40px #000c;width:min(620px,100%);
@@ -637,6 +646,7 @@ body.dbg-free #hw{cursor:grab}
   <div class="hint">Space play/pause · ←/→ 1 s · [ ] section · L loop · R restart · M mute · C metronome · N note synth · T tab view · O options · <b>,</b> <b>.</b> nudge ±1 ms</div>
 </div>
 
+<button id="rPill" hidden><span class="pb"><i></i></span><b></b></button>
 <!-- render dialog: the highway as a video file (see "render" in the script) -->
 <div id="rdlg" hidden>
   <div class="rbox" role="dialog" aria-modal="true" aria-labelledby="rTitle">
@@ -671,7 +681,7 @@ body.dbg-free #hw{cursor:grab}
       </div>
     </div>
     <div class="rfoot" id="rGoRow"><span id="rInfo"></span><button id="rGo" class="rmain">Render</button></div>
-    <div class="rfoot" id="rProg" hidden><div class="rbar"><i id="rBarFill"></i></div><span id="rStat"></span><button id="rCancel">Cancel</button></div>
+    <div class="rfoot" id="rProg" hidden><div class="rbar"><i id="rBarFill"></i></div><span id="rStat"></span><button id="rMin" title="Keep rendering in the corner, and use the player meanwhile">Minimize</button><button id="rCancel">Cancel</button></div>
     <div class="rfoot" id="rDone" hidden><span id="rDoneTxt"></span><button id="rShare" hidden>Share</button><button id="rSave" class="rmain">Save video</button></div>
   </div>
 </div>
@@ -2161,6 +2171,11 @@ function handAt(t){                               // index of the hand shape hol
 }
 
 function selectArrangement(i){
+  if (RENDER.busy && i !== S.arrIdx){             // the video being made is of this path
+    notice("Switch paths when the render is done."); setTimeout(idle, 2200);
+    const f = document.getElementById("fArr"); if (f) f.value = S.arrIdx;
+    return;
+  }
   S.arrIdx = clamp(i, 0, Math.max(0, S.arrs.length - 1));
   const a = currentArr();
   if (!a) return;
@@ -2797,7 +2812,7 @@ async function showSong(noPlay){
   firstSong = false;
   if (q.has("arr")){
     const i = clamp(parseInt(q.get("arr"), 10) || 0, 0, Math.max(0, S.arrs.length - 1));
-    selectArrangement(i); fArr.value = i;
+    selectArrangement(i); fArr.value = S.arrIdx;
   }
   if (q.has("t")) seek(clamp(parseFloat(q.get("t")) || 0, 0, Math.max(0, S.duration - 0.1)));
   if (q.has("cfg")) document.getElementById("cfg").classList.add("show");
@@ -2890,6 +2905,7 @@ async function cameraAtRest(){
 
 async function openDropped(input){
   if (opening) return;
+  if (RENDER.busy){ notice("Open another song when the render is done, or cancel it."); setTimeout(idle, 2600); return; }
   const list = Array.isArray(input) ? input : [input];
   /* arrangement XML among the files: a chart still in its project folder */
   const xmlSet = list.some((f) => /\.xml$/i.test(f.name));
@@ -5163,7 +5179,7 @@ function renderSetup(scale){
 /* cam: the preview's own camera, carried from one frame to the next while
    the song plays (renderPreview); without it the camera starts framed */
 function renderEnter(st, cam){
-  RENDER.save = { W, H, dpr, camC:S.camC, camS:S.camS, camCv:S.camCv, camSv:S.camSv, time:S.time,
+  RENDER.save = { W, H, dpr, camC:S.camC, camS:S.camS, camCv:S.camCv, camSv:S.camSv, camWantC:S.camWantC, camWantS:S.camWantS, time:S.time,
                   vis:S.vis, visTo:S.visTo, showChord:S.showChord, showDiagram:S.showDiagram,
                   showFingers:S.showFingers, showHit:S.showHit, showBars:S.showBars };
   RENDER.on = true; RENDER.portrait = st.lw < st.lh;
@@ -5182,7 +5198,7 @@ function renderLeave(){
   if (!v) return;
   RENDER.save = null;
   W = v.W; H = v.H; dpr = v.dpr; DRAW_CTX = REAL_CTX;
-  Object.assign(S, { camC:v.camC, camS:v.camS, camCv:v.camCv, camSv:v.camSv, time:v.time, vis:v.vis, visTo:v.visTo,
+  Object.assign(S, { camC:v.camC, camS:v.camS, camCv:v.camCv, camSv:v.camSv, camWantC:v.camWantC, camWantS:v.camWantS, time:v.time, vis:v.vis, visTo:v.visTo,
                      showChord:v.showChord, showDiagram:v.showDiagram, showFingers:v.showFingers, showHit:v.showHit,
                      showBars:v.showBars });
   const sp = RENDER.sprSave;
@@ -5495,6 +5511,11 @@ async function renderAudio(t0, t1, onErr){
   return out;
 }
 
+/* a moment for the page (its frames, the input) between slices of the
+   render: a message, not a timer - timers are slowed down in a busy loop */
+const renderYield = () => new Promise((r) => {
+  const ch = new MessageChannel(); ch.port1.onmessage = () => r(); ch.port2.postMessage(0);
+});
 async function renderRun(){
   const $ = (id) => document.getElementById(id);
   if (typeof VideoEncoder === "undefined" || typeof VideoFrame === "undefined"){
@@ -5506,7 +5527,11 @@ async function renderRun(){
   if (S.playing){ pause(); setPlayIcon(false); }
   $("rGoRow").hidden = true; $("rDone").hidden = true; $("rProg").hidden = false;
   document.querySelectorAll("#rdlg select, #rdlg input").forEach((el) => el.disabled = true);
-  const stat = (txt, frac) => { $("rStat").textContent = txt; if (frac !== undefined) $("rBarFill").style.width = (frac*100).toFixed(1) + "%"; };
+  const stat = (txt, frac) => {
+    $("rStat").textContent = txt;
+    if (frac !== undefined){ $("rBarFill").style.width = (frac*100).toFixed(1) + "%"; RENDER.frac = frac; }
+    RENDER.stat = txt; renderPill();
+  };
   let wake = null;
   try { if (navigator.wakeLock) wake = await navigator.wakeLock.request("screen"); } catch (e) {}
   let failed = null, venc = null;
@@ -5534,12 +5559,19 @@ async function renderRun(){
     st.t0 = t0;                                     // the title shows at the start of the video
     const prev = $("rPrev"), pg = prev.getContext("2d");
     const began = performance.now();
-    let lastUi = 0;
-    renderEnter(st);
-    try {
+    let lastUi = 0, slice = performance.now(), cam = null;
+    /* The highway is the render's for one frame at a time - its own camera
+       carried from frame to frame - and the page's in between: the song can
+       be played while a video is made (the dialog minimized). The work is
+       cut into slices of about 12 ms, so the page keeps drawing too. */
+    {
       for (let i = 0; i < N; i++){
         if (RENDER.cancel || failed) break;
-        renderDraw(st, t0 + i/fps, i ? 1/fps : 0);
+        renderEnter(st, cam);
+        try {
+          renderDraw(st, t0 + i/fps, i ? 1/fps : 0);
+          cam = { camC:S.camC, camS:S.camS, camCv:S.camCv, camSv:S.camSv };
+        } finally { renderLeave(); }
         const vf = new VideoFrame(st.out, { timestamp: Math.round(i*1e6/fps), duration: Math.round(1e6/fps) });
         venc.encode(vf, { keyFrame: i % (fps*2) === 0 });
         vf.close();
@@ -5551,10 +5583,10 @@ async function renderRun(){
           pg.drawImage(st.out, 0, 0, prev.width, prev.height);
           const rate = (i + 1)/((now - began)/1000), left = (N - i - 1)/Math.max(0.1, rate);
           stat((i + 1) + " / " + N + " · " + rate.toFixed(0) + " fps · " + fmt(left) + " left", (i + 1)/N);
-          await new Promise((r) => setTimeout(r, 0));    // the page gets a moment to show it
         }
+        if (performance.now() - slice > 12){ await renderYield(); slice = performance.now(); }
       }
-    } finally { renderLeave(); }
+    }
     if (failed) throw failed;
     if (RENDER.cancel){ venc.close(); venc = null; throw new Error("cancelled"); }
     stat("Finishing…", 1);
@@ -5571,13 +5603,17 @@ async function renderRun(){
     const file = new File([RENDER.blob], RENDER.name, { type:"video/mp4" });
     $("rShare").hidden = !(navigator.canShare && navigator.canShare({ files:[file] }));
     $("rProg").hidden = true; $("rDone").hidden = false;
+    RENDER.failed = false;
   } catch (e) {
+    RENDER.failed = String(e && e.message || e) !== "cancelled";
     if (venc){ try { venc.close(); } catch (x) {} }
     $("rProg").hidden = true; $("rGoRow").hidden = false;
     $("rInfo").textContent = String(e && e.message || e) === "cancelled" ? "Render cancelled." : "Render failed: " + (e && e.message || e);
     renderPreview();
   } finally {
     RENDER.busy = false;
+    if (RENDER.min && !RENDER.blob && !RENDER.failed){ RENDER.min = false; }   // cancelled: nothing to come back to
+    renderPill();
     document.querySelectorAll("#rdlg select, #rdlg input").forEach((el) => el.disabled = false);
     if (wake){ try { await wake.release(); } catch (e) {} }
   }
@@ -5630,7 +5666,32 @@ function renderSync(){
   $("rFill").closest(".row").style.opacity = RO.layout === "none" ? 0.45 : 1;
   renderInfo(); renderPreview();
 }
+/* minimized: the dialog gives way to a small badge in the corner that shows
+   the progress; tapping it brings the dialog back (with the video, once done) */
+function renderMinimize(){
+  RENDER.min = true;
+  document.getElementById("rdlg").hidden = true;
+  renderPill();
+}
+function renderPill(){
+  const p = document.getElementById("rPill");
+  if (!p) return;
+  if (!RENDER.min){ p.hidden = true; return; }
+  p.hidden = false;
+  const state = RENDER.busy ? "busy" : RENDER.blob ? "done" : "fail";
+  p.className = state;
+  p.querySelector("b").textContent = state === "busy" ? "Rendering " + Math.round((RENDER.frac || 0)*100) + "%"
+                                   : state === "done" ? "Video ready" : "Render failed";
+  p.querySelector("i").style.width = ((RENDER.frac || 0)*100).toFixed(1) + "%";
+  p.title = state === "busy" ? (RENDER.stat || "") + " · tap to open" : "Tap to open";
+}
 function renderOpen(){
+  if (RENDER.min){                                  // back from the corner, as it was left
+    RENDER.min = false; renderPill();
+    document.getElementById("cfg").classList.remove("show");
+    document.getElementById("rdlg").hidden = false;
+    return;
+  }
   if (!S.all || !S.all.length){ notice("Open a song first, then render it."); setTimeout(idle, 2200); return; }
   renderLoadPrefs();
   document.getElementById("cfg").classList.remove("show");
@@ -5642,7 +5703,7 @@ function renderOpen(){
   requestAnimationFrame(renderSync);                // the preview box has its size once shown
 }
 function renderClose(){
-  if (RENDER.busy){ RENDER.cancel = true; return; }
+  if (RENDER.busy){ renderMinimize(); return; }     // closing while it renders keeps it going, in the corner
   document.getElementById("rdlg").hidden = true;
   RENDER.blob = null;
 }
@@ -5665,7 +5726,9 @@ async function renderShareFile(){
   $("rGo").onclick = renderRun;
   $("rSave").onclick = renderSaveFile;
   $("rShare").onclick = renderShareFile;
-  $("rdlg").addEventListener("pointerdown", (e) => { if (e.target.id === "rdlg" && !RENDER.busy) renderClose(); });
+  $("rdlg").addEventListener("pointerdown", (e) => { if (e.target.id === "rdlg") renderClose(); });
+  $("rMin").onclick = renderMinimize;
+  $("rPill").onclick = renderOpen;
   const onSel = (id, key) => $(id).onchange = (e) => { RO[key] = e.target.value; renderSavePrefs(); renderSync(); };
   onSel("rAspect", "aspect"); onSel("rRes", "res"); onSel("rFps", "fps"); onSel("rLayout", "layout");
   onSel("rFill", "fill"); onSel("rRange", "range");
@@ -6010,7 +6073,7 @@ window.addEventListener("wheel", (e) => {
 
 window.addEventListener("keydown", (e) => {
   if (!document.getElementById("rdlg").hidden){                 // the render dialog takes no shortcuts
-    if (e.key === "Escape" && !RENDER.busy) renderClose();
+    if (e.key === "Escape") renderClose();
     return;
   }
   if (inputLocked()){ e.preventDefault(); return; }     // a song is still being opened
@@ -6034,7 +6097,7 @@ window.addEventListener("keydown", (e) => {
   else if (k === "."){ applyOffset(S.offMs + 1); }
   else if (k >= "1" && k <= "6"){
     const i = +k - 1;
-    if (i < S.arrs.length){ selectArrangement(i); document.getElementById("fArr").value = i; }
+    if (i < S.arrs.length){ selectArrangement(i); document.getElementById("fArr").value = S.arrIdx; }
   }
 });
 
