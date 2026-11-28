@@ -644,7 +644,7 @@ body.dbg-free #hw{cursor:grab}
     <div class="rbody">
       <div class="rpcol">
         <div class="rprev"><canvas id="rPrev" width="2" height="2"></canvas></div>
-        <div id="rPipHint" hidden>Drag the camera to move it <button id="rPipReset">Reset</button></div>
+        <div id="rPipHint" hidden>Drag to move, corners to resize <button id="rPipReset">Reset</button></div>
       </div>
       <div class="rset">
         <div class="row"><label for="rAspect">Aspect ratio</label>
@@ -5096,6 +5096,7 @@ const RCHK = ["bars", "lyrics", "chord", "fingers", "hit", "sec", "title"];   //
 const RO = { aspect:"9:16", res:"1080", fps:"30", layout:"P1", fill:"black", range:"song",
              bars:true, lyrics:true, chord:true, fingers:true, hit:true, sec:true, title:true };
 const RFILL = { black:"#000000", green:"#00b140" };
+const PIP_MIN = 0.12;                  // the smallest picture-in-picture camera, as a part of the video's width / height
 
 function renderLoadPrefs(){
   RO.aspect = isPortrait() ? "9:16" : "16:9";
@@ -5144,9 +5145,10 @@ function renderSetup(scale){
     const kk = fw < fh ? fw/420 : fh/760, lw = fw/kk, lh = fh/kk;
     let [x, y] = camF;
     if (L[0] === "P"){ const g = lyrGeom(lw, lh); x = g.x0/lw; y = (g.y0 + 3*g.lh + g.fs*0.5)/lh; }
-    const at = RO.pip && RO.pip[L];
-    if (at){ x = at[0]; y = at[1]; }
-    camF = [clamp(x, 0, 1 - camF[2]), clamp(y, 0, 1 - camF[3]), camF[2], camF[3]];
+    let [w, h] = [camF[2], camF[3]];
+    const at = RO.pip && RO.pip[L];               // [x, y] or [x, y, w, h]: where it was dragged, and how big
+    if (at){ x = at[0]; y = at[1]; if (at.length >= 4){ w = clamp(at[2], PIP_MIN, 1); h = clamp(at[3], PIP_MIN, 1); } }
+    camF = [clamp(x, 0, 1 - w), clamp(y, 0, 1 - h), w, h];
   }
   const hw = px(lay.hw), cam = camF ? px(camF) : null;
   const k = hw[2] < hw[3] ? (hw[2]/scale)/420 : (hw[3]/scale)/760;
@@ -5205,13 +5207,34 @@ function renderDraw(st, t, dt){
     const [x, y, w, h] = st.cam;
     o.fillStyle = RFILL[RO.fill] || "#000"; o.fillRect(x, y, w, h);
     if (st.preview){                                // the preview marks the space; the video leaves it plain
+      const ink = RO.fill === "green" ? "#003d16" : "#8b97a3";
       o.save();
-      o.strokeStyle = "#8b97a3"; o.setLineDash([4, 3]); o.lineWidth = 1;
-      o.strokeRect(x + 2.5, y + 2.5, w - 5, h - 5);
-      o.fillStyle = RO.fill === "green" ? "#003d16" : "#8b97a3";
-      o.font = "600 " + Math.max(9, Math.round(Math.min(w, h)*0.09)) + "px 'Segoe UI',system-ui,sans-serif";
+      o.strokeStyle = st.pip ? "#dfe7ef" : "#8b97a3"; o.setLineDash([4, 3]); o.lineWidth = 1;
+      o.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+      o.setLineDash([]);
+      o.fillStyle = ink; o.strokeStyle = ink;
+      const fs = Math.max(9, Math.round(Math.min(w, h)*0.09));
+      o.font = "600 " + fs + "px 'Segoe UI',system-ui,sans-serif";
       o.textAlign = "center"; o.textBaseline = "middle";
-      o.fillText("Guitar camera", x + w/2, y + h/2);
+      if (st.pip){
+        /* it can be moved (the four-way arrow) and resized (the corner handles) */
+        const cx = x + w/2, cy = y + h/2 - fs*0.7, a = Math.max(6, Math.min(w, h)*0.14), hd = a*0.38;
+        o.lineWidth = Math.max(1.5, a*0.13); o.lineCap = "round"; o.lineJoin = "round";
+        o.beginPath();
+        o.moveTo(cx - a, cy); o.lineTo(cx + a, cy); o.moveTo(cx, cy - a); o.lineTo(cx, cy + a);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]){
+          const tx = cx + dx*a, ty = cy + dy*a;
+          o.moveTo(tx - dx*hd - dy*hd, ty - dy*hd - dx*hd); o.lineTo(tx, ty); o.lineTo(tx - dx*hd + dy*hd, ty - dy*hd + dx*hd);
+        }
+        o.stroke();
+        o.fillText("Guitar camera", cx, cy + a + fs*0.9);
+        const hs = clamp(Math.round(Math.max(st.ow, st.oh)*0.028), 6, 14);
+        o.fillStyle = "#dfe7ef"; o.strokeStyle = "#0b0e12"; o.lineWidth = 1;
+        for (const [hx, hy] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]){
+          o.fillRect(Math.round(hx - hs/2), Math.round(hy - hs/2), hs, hs);
+          o.strokeRect(Math.round(hx - hs/2) + 0.5, Math.round(hy - hs/2) + 0.5, hs - 1, hs - 1);
+        }
+      } else o.fillText("Guitar camera", x + w/2, y + h/2);
       o.restore();
     }
   };
@@ -5652,18 +5675,45 @@ async function renderShareFile(){
   const frac = (e) => { const r = pc.getBoundingClientRect(); return [(e.clientX - r.left)/r.width, (e.clientY - r.top)/r.height]; };
   const onCam = (st, fx, fy) => st && st.pip && st.camF && fx >= st.camF[0] && fx <= st.camF[0] + st.camF[2]
                                 && fy >= st.camF[1] && fy <= st.camF[1] + st.camF[3];
+  /* which corner handle is under the pointer ("nw", "ne", "sw", "se"), if one
+     is: a finger's reach around each, about 16 px */
+  const onCorner = (st, e) => {
+    if (!st || !st.pip || !st.camF) return null;
+    const r = pc.getBoundingClientRect(), [x, y, w, h] = st.camF, R = e.pointerType === "touch" ? 18 : 10;
+    for (const [c, cx, cy] of [["nw", x, y], ["ne", x + w, y], ["sw", x, y + h], ["se", x + w, y + h]])
+      if (Math.abs(e.clientX - (r.left + cx*r.width)) <= R && Math.abs(e.clientY - (r.top + cy*r.height)) <= R) return c;
+    return null;
+  };
+  const CURSOR = { nw:"nwse-resize", se:"nwse-resize", ne:"nesw-resize", sw:"nesw-resize" };
   pc.addEventListener("pointerdown", (e) => {
-    const st = RENDER.prevSt, [fx, fy] = frac(e);
-    if (RENDER.busy || !onCam(st, fx, fy)) return;
-    drag = { dx: fx - st.camF[0], dy: fy - st.camF[1], w: st.camF[2], h: st.camF[3], key: st.layout };
+    const st = RENDER.prevSt, [fx, fy] = frac(e), c = onCorner(st, e);
+    if (RENDER.busy || (!c && !onCam(st, fx, fy))) return;
+    const [x, y, w, h] = st.camF;
+    drag = { c, key: st.layout, x0:x, y0:y, x1:x + w, y1:y + h, dx: fx - x, dy: fy - y,
+             /* the grab's distance from the corner, kept as the corner follows */
+             ox: fx - (c && c[1] === "w" ? x : x + w), oy: fy - (c && c[0] === "n" ? y : y + h) };
     pc.setPointerCapture(e.pointerId); e.preventDefault();
   });
   pc.addEventListener("pointermove", (e) => {
     const [fx, fy] = frac(e);
-    if (!drag){ pc.style.cursor = onCam(RENDER.prevSt, fx, fy) ? "grab" : ""; return; }
-    pc.style.cursor = "grabbing";
+    if (!drag){
+      const c = onCorner(RENDER.prevSt, e);
+      pc.style.cursor = c ? CURSOR[c] : onCam(RENDER.prevSt, fx, fy) ? "grab" : "";
+      return;
+    }
     RO.pip = RO.pip || {};
-    RO.pip[drag.key] = [clamp(fx - drag.dx, 0, 1 - drag.w), clamp(fy - drag.dy, 0, 1 - drag.h)];
+    const d = drag, w = d.x1 - d.x0, h = d.y1 - d.y0;
+    if (!d.c){
+      pc.style.cursor = "grabbing";
+      RO.pip[d.key] = [clamp(fx - d.dx, 0, 1 - w), clamp(fy - d.dy, 0, 1 - h), w, h];
+    } else {
+      /* a corner: it follows the pointer, the opposite corner stays */
+      let { x0, y0, x1, y1 } = d;
+      const px = fx - d.ox, py = fy - d.oy;
+      if (d.c[1] === "w") x0 = clamp(px, 0, x1 - PIP_MIN); else x1 = clamp(px, x0 + PIP_MIN, 1);
+      if (d.c[0] === "n") y0 = clamp(py, 0, y1 - PIP_MIN); else y1 = clamp(py, y0 + PIP_MIN, 1);
+      RO.pip[d.key] = [x0, y0, x1 - x0, y1 - y0];
+    }
     if (!dragQ) dragQ = requestAnimationFrame(() => { dragQ = 0; renderPreview(); });
   });
   const endDrag = () => { if (drag){ drag = null; pc.style.cursor = ""; renderSavePrefs(); } };

@@ -162,6 +162,12 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Version
 
+**V1.4.8**, built on V1.4.7:
+- **Render, picture in picture:** the camera can be resized by dragging any of its corners in the
+  preview, as well as moved. The preview marks it as movable and resizable: a four-way arrow in the
+  middle and a handle on each corner (only in the preview; the video's space stays plain). The size
+  is remembered with the place, and **Reset** puts both back.
+
 **V1.4.7**, built on V1.4.6:
 - **Render:** with the difficulty bars left out, the note-hit light stays where it is with them,
   instead of drifting to wherever the screen's bars last were.
