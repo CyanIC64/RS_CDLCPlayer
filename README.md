@@ -162,6 +162,12 @@ changed. The only data the page stores is your settings, in your browser's `loca
 
 ## Version
 
+**V1.4.2**, built on V1.4.1:
+- **Render, picture in picture:** in portrait the camera space starts at the left, right under the
+  lyrics, with room left for a third line when a long line wraps. The camera can be dragged
+  anywhere in the dialog's preview (the video uses that place, and it is remembered); **Reset**
+  puts it back.
+
 **V1.4.1**, built on V1.4:
 - **Render, portrait picture in picture:** the camera space sits under the lyrics instead of over them.
 - **Render:** the chord diagram is left out of videos (the option is gone).

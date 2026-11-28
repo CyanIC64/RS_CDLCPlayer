@@ -291,7 +291,12 @@ body.locked{cursor:progress}
   max-height:100%;overflow-y:auto;color:var(--ink);font:13px "Segoe UI",system-ui,sans-serif}
 #rdlg .rhead{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #1e242b;font-size:14px}
 #rdlg .rbody{display:flex;gap:14px;padding:14px;align-items:flex-start}
-#rdlg .rprev{flex:none;width:210px;height:250px;display:flex;align-items:center;justify-content:center;background:#07090b;border-radius:4px}
+#rdlg .rpcol{flex:none;width:210px}
+#rdlg #rPipHint{margin-top:6px;color:#8b97a3;font-size:12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+#rdlg #rPipHint[hidden]{display:none}
+#rdlg #rPipHint button{padding:2px 10px;font-size:12px}
+#rdlg .rprev canvas{touch-action:none}
+#rdlg .rprev{width:100%;height:250px;display:flex;align-items:center;justify-content:center;background:#07090b;border-radius:4px}
 #rdlg .rprev canvas{display:block;max-width:100%;max-height:100%}
 #rdlg .rset{flex:1;min-width:0}
 #rdlg .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 0}
@@ -313,7 +318,8 @@ body.locked{cursor:progress}
 #rdlg #rProg span{flex:none;font:600 11px "Cascadia Mono",Consolas,monospace}
 @media (max-width:560px){
   #rdlg .rbody{flex-direction:column;align-items:stretch}
-  #rdlg .rprev{width:auto;height:210px}
+  #rdlg .rpcol{width:auto}
+  #rdlg .rprev{height:210px}
   #rdlg #rProg{flex-wrap:wrap}
   #rdlg #rProg .rbar{flex-basis:100%}
 }
@@ -627,7 +633,10 @@ body.dbg-free #hw{cursor:grab}
   <div class="rbox" role="dialog" aria-modal="true" aria-labelledby="rTitle">
     <div class="rhead"><b id="rTitle">Render 3D Highway</b><button id="rClose" class="rx" aria-label="Close">&#x2715;</button></div>
     <div class="rbody">
-      <div class="rprev"><canvas id="rPrev" width="2" height="2"></canvas></div>
+      <div class="rpcol">
+        <div class="rprev"><canvas id="rPrev" width="2" height="2"></canvas></div>
+        <div id="rPipHint" hidden>Drag the camera to move it <button id="rPipReset">Reset</button></div>
+      </div>
       <div class="rset">
         <div class="row"><label for="rAspect">Aspect ratio</label>
           <select id="rAspect"><option value="9:16">9:16 portrait</option><option value="16:9">16:9 landscape</option><option value="1:1">1:1 square</option></select></div>
@@ -5060,7 +5069,7 @@ const RLAYOUTS = {                     // [x, y, w, h] as parts of the video
   none: { hw:[0, 0, 1, 1] },
   P1: { cam:[0, 0, 1, 0.4], hw:[0, 0.4, 1, 0.6] },
   P2: { hw:[0, 0, 1, 0.6], cam:[0, 0.6, 1, 0.4] },
-  P3: { hw:[0, 0, 1, 1], cam:[0.52, 0.29, 0.42, 0.22], pip:true },   // under the lyrics (two lines from 15%)
+  P3: { hw:[0, 0, 1, 1], cam:[0.06, 0.25, 0.42, 0.22], pip:true },   // its place: under the lyrics (renderSetup)
   L1: { cam:[0, 0, 0.45, 1], hw:[0.45, 0, 0.55, 1] },
   L2: { hw:[0, 0, 0.55, 1], cam:[0.55, 0, 0.45, 1] },
   L3: { hw:[0, 0, 1, 1], cam:[0.03, 0.52, 0.30, 0.34], pip:true },
@@ -5113,12 +5122,24 @@ function renderSetup(scale){
     const x = Math.round(r[0]*ow), y = Math.round(r[1]*oh);
     return [x, y, Math.round((r[0] + r[2])*ow) - x, Math.round((r[1] + r[3])*oh) - y];
   };
-  const hw = px(lay.hw), cam = lay.cam ? px(lay.cam) : null;
+  /* picture in picture: where the player dragged the camera to, or else
+     portrait's own place - at the left, right under the lyrics, with room
+     for a third line when a long one wraps */
+  let camF = lay.cam;
+  if (lay.pip){
+    const kk = fw < fh ? fw/420 : fh/760, lw = fw/kk, lh = fh/kk;
+    let [x, y] = camF;
+    if (L[0] === "P"){ const g = lyrGeom(lw, lh); x = g.x0/lw; y = (g.y0 + 3*g.lh + g.fs*0.5)/lh; }
+    const at = RO.pip && RO.pip[L];
+    if (at){ x = at[0]; y = at[1]; }
+    camF = [clamp(x, 0, 1 - camF[2]), clamp(y, 0, 1 - camF[3]), camF[2], camF[3]];
+  }
+  const hw = px(lay.hw), cam = camF ? px(camF) : null;
   const k = hw[2] < hw[3] ? (hw[2]/scale)/420 : (hw[3]/scale)/760;
   const d = Math.max(0.5, k)*scale;
   const out = document.createElement("canvas"); out.width = ow; out.height = oh;
   const hc = document.createElement("canvas"); hc.width = hw[2]; hc.height = hw[3];
-  return { ow, oh, hw, cam, pip: !!lay.pip, d, out, octx: out.getContext("2d", {alpha:false}),
+  return { ow, oh, hw, cam, camF, layout:L, pip: !!lay.pip, d, out, octx: out.getContext("2d", {alpha:false}),
            hc, hctx: hc.getContext("2d", {alpha:false}), lw: hw[2]/d, lh: hw[3]/d, preview: scale < 1 };
 }
 /* the highway is the render's while it draws: sizes, the canvas, the camera
@@ -5176,6 +5197,12 @@ function renderDraw(st, t, dt){
   if (st.cam && st.pip) slot();
 }
 
+/* where the lyrics stand in a highway of w x h CSS pixels: as #lyr's styles put them */
+function lyrGeom(w, h){
+  const por = w < h;
+  const fs = por ? clamp(w*0.043, 16, 44) : clamp(h*0.045, 17, 46);
+  return { fs, lh: fs*1.16, x0: w*(por ? 0.06 : 0.08), y0: h*(por ? 0.15 : 0.17), maxW: w*(por ? 0.88 : 0.62) };
+}
 /* lyrics, as the page shows them (updateLyrics): two lines of a verse in
    view, the one being sung on top; when it is over the column moves up a line */
 function renderLyricRows(line, g, fs, maxW){
@@ -5206,9 +5233,7 @@ function renderLyrics(g, t){
   if (t > b.gone) return;
   let k = 0;
   while (k < b.adv.length && t >= b.adv[k]) k++;
-  const por = W < H;
-  const fs = por ? clamp(W*0.043, 16, 44) : clamp(H*0.045, 17, 46), lh = fs*1.16;
-  const x0 = W*(por ? 0.06 : 0.08), y0 = H*(por ? 0.15 : 0.17), maxW = W*(por ? 0.88 : 0.62);
+  const { fs, lh, x0, y0, maxW } = lyrGeom(W, H);
   g.font = "600 " + fs + "px " + FONT;
   g.textBaseline = "top"; g.textAlign = "left";
   const rows = b.lines.map((ln) => renderLyricRows(ln, g, fs, maxW));
@@ -5514,8 +5539,10 @@ function renderPreview(){
   const bw = box.clientWidth || 210, bh = box.clientHeight || 250;
   const k = Math.min(bw/w, bh/h)*Math.min(2, window.devicePixelRatio || 1);
   const st = renderSetup(k);
+  RENDER.prevSt = st;
   renderEnter(st);
   try { renderDraw(st, S.time, 0); } finally { renderLeave(); }
+  document.getElementById("rPipHint").hidden = !st.pip;
   const c = document.getElementById("rPrev");
   c.width = st.ow; c.height = st.oh;
   c.style.width = Math.round(st.ow/Math.min(2, window.devicePixelRatio || 1)) + "px";
@@ -5569,6 +5596,33 @@ async function renderShareFile(){
   const onSel = (id, key) => $(id).onchange = (e) => { RO[key] = e.target.value; renderSavePrefs(); renderSync(); };
   onSel("rAspect", "aspect"); onSel("rRes", "res"); onSel("rFps", "fps"); onSel("rLayout", "layout");
   onSel("rFill", "fill"); onSel("rRange", "range");
+  /* picture in picture: the camera is dragged about in the preview */
+  const pc = $("rPrev");
+  let drag = null, dragQ = 0;
+  const frac = (e) => { const r = pc.getBoundingClientRect(); return [(e.clientX - r.left)/r.width, (e.clientY - r.top)/r.height]; };
+  const onCam = (st, fx, fy) => st && st.pip && st.camF && fx >= st.camF[0] && fx <= st.camF[0] + st.camF[2]
+                                && fy >= st.camF[1] && fy <= st.camF[1] + st.camF[3];
+  pc.addEventListener("pointerdown", (e) => {
+    const st = RENDER.prevSt, [fx, fy] = frac(e);
+    if (RENDER.busy || !onCam(st, fx, fy)) return;
+    drag = { dx: fx - st.camF[0], dy: fy - st.camF[1], w: st.camF[2], h: st.camF[3], key: st.layout };
+    pc.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  pc.addEventListener("pointermove", (e) => {
+    const [fx, fy] = frac(e);
+    if (!drag){ pc.style.cursor = onCam(RENDER.prevSt, fx, fy) ? "grab" : ""; return; }
+    pc.style.cursor = "grabbing";
+    RO.pip = RO.pip || {};
+    RO.pip[drag.key] = [clamp(fx - drag.dx, 0, 1 - drag.w), clamp(fy - drag.dy, 0, 1 - drag.h)];
+    if (!dragQ) dragQ = requestAnimationFrame(() => { dragQ = 0; renderPreview(); });
+  });
+  const endDrag = () => { if (drag){ drag = null; pc.style.cursor = ""; renderSavePrefs(); } };
+  pc.addEventListener("pointerup", endDrag); pc.addEventListener("pointercancel", endDrag);
+  $("rPipReset").onclick = () => {
+    const st = RENDER.prevSt;
+    if (RO.pip && st) delete RO.pip[st.layout];
+    renderSavePrefs(); renderPreview();
+  };
   document.querySelectorAll("#rdlg .rchk input").forEach((el) => el.onchange = () => {
     RO[el.dataset.k] = el.checked; renderSavePrefs(); renderPreview();
   });
